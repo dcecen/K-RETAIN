@@ -53,3 +53,10 @@ def test_guide_a_jour_avec_le_schema():
 
     assert reference() in GUIDE.read_text(encoding="utf-8"), \
         "référence du guide périmée : lancez python -m sout.script.documentation"
+
+
+def test_toutes_les_routes_api_restent_accessibles():
+    """Le montage de l'interface sur « / » doit rester déclaré en dernier (sinon il masque les routes)."""
+    c = TestClient(app)
+    assert c.get("/api/assemblages/types").status_code == 200
+    assert len(c.get("/api/assemblages/types").json()) == 14

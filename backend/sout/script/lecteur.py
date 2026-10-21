@@ -193,6 +193,14 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
         b = s.hydraulique.bouchon
         if b is not None and b.base >= b.toit:
             e.append((("hydraulique", "bouchon", "base"), "la base du bouchon doit être sous son toit"))
+    for nom, a in s.assemblages.items():
+        from ..assemblages.service import REGISTRE
+        if a.type not in REGISTRE:
+            e.append((("assemblages", nom, "type"), f"type d'assemblage inconnu « {a.type} » (attendu : {', '.join(REGISTRE)})"))
+        if a.appui is not None and a.appui not in s.appuis:
+            e.append((("assemblages", nom, "appui"), f"appui « {a.appui} » non défini"))
+        if a.appui is None and not a.efforts:
+            e.append((("assemblages", nom), f"assemblage {nom} : donnez appui ou efforts"))
     if s.plan is not None:
         if len(s.plan.contour) < 3 or any(len(p) != 2 for p in s.plan.contour):
             e.append((("plan", "contour"), "le contour doit compter au moins 3 points [x, y]"))

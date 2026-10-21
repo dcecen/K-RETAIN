@@ -191,6 +191,41 @@ def maquette(t: Texte):
     return HTMLResponse(generer_html(ex, p3d))
 
 
+class DemandeAssemblage(BaseModel):
+    type: str
+    parametres: dict = {}
+    efforts: dict = {}
+    fck: float | None = None
+
+
+@app.get("/api/assemblages/types")
+def assemblages_types() -> list[dict]:
+    from sout.assemblages.service import liste_types
+
+    return liste_types()
+
+
+@app.post("/api/assemblages/schema")
+def assemblage_schema(d: DemandeAssemblage) -> dict:
+    from sout.assemblages.service import schema as schema_assemblage
+
+    try:
+        return schema_assemblage(d.type, d.parametres, d.efforts, _catalogue(), normes.charger(), d.fck)
+    except KeyError as e:
+        raise HTTPException(400, str(e)) from None
+
+
+@app.post("/api/assemblages/verifier")
+def assemblage_verifier(d: DemandeAssemblage) -> list[dict]:
+    from sout.assemblages.service import verifier as verifier_assemblage
+
+    try:
+        return [v.vers_dict() for v in verifier_assemblage(d.type, d.parametres, d.efforts, _catalogue(), normes.charger(), d.fck)]
+    except KeyError as e:
+        raise HTTPException(400, str(e)) from None
+
+
+# Interface compilée — à garder en DERNIER : un montage sur « / » masque les routes déclarées après lui.
 # Interface compilée (npm run build) servie par le même serveur en déploiement.
 _DIST = RACINE / "frontend" / "dist"
 if _DIST.exists():

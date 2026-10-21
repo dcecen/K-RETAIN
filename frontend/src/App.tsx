@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { api, type ErreurScript, type Resultats } from './lib/api'
 import type { EtatCalcul, Onglet, Section, Selection } from './lib/etat'
 import { exporterImage, imprimerNote, telechargerTexte } from './lib/exporter'
-import { IconeBase, IconeCoupe, IconeCube, IconePlaque, IconeProjet, IconeScript, IconeTableau, IconeVerif } from './lib/icones'
+import { IconeAppui, IconeBase, IconeCoupe, IconeCube, IconePlaque, IconeProjet, IconeScript, IconeTableau, IconeVerif } from './lib/icones'
 import * as sd from './lib/scriptDoc'
 import { appliquerTheme, themeInitial, type Theme } from './lib/theme'
 import { BarreTitre } from './composants/BarreTitre'
@@ -17,6 +17,7 @@ import { Materiaux } from './vues/Materiaux'
 import { Pseudo3D } from './vues/Pseudo3D'
 import { Saisie } from './vues/Saisie'
 import { Verifications } from './vues/Verifications'
+import { Assemblages } from './vues/Assemblages'
 
 const CLE_BROUILLON = 'retainwall.brouillon'
 const lireBrouillon = () => { try { return localStorage.getItem(CLE_BROUILLON) } catch { return null } }
@@ -175,6 +176,7 @@ export default function App() {
     { cle: 'verifications', lib: 'Vérifications', icone: <IconeVerif />, visible: true,
       badge: res?.verifications?.length ? String(nNonOk || res.verifications.length) : undefined, rouge: nNonOk > 0 },
     { cle: 'pseudo3d', lib: 'Pseudo-3D', icone: <IconePlaque />, visible: !!res?.pseudo3d },
+    { cle: 'assemblages', lib: 'Assemblages', icone: <IconeAppui />, visible: true },
     { cle: 'saisie', lib: 'Saisie', icone: <IconeProjet />, visible: true },
     { cle: 'script', lib: 'Script', icone: <IconeScript />, visible: true, badge: erreurs.length ? String(erreurs.length) : undefined, rouge: erreurs.length > 0 },
     { cle: 'materiaux', lib: 'Base matériaux', icone: <IconeBase />, visible: true },
@@ -215,6 +217,10 @@ export default function App() {
           {onglet === 'efforts' && (res ? <Efforts res={res} phase={phase} onPhase={setPhase} onAppui={(n) => { setSelection({ type: 'appui', nom: n }); setTiroirInsp(true) }} /> : sansResultats)}
           {onglet === 'verifications' && (res ? <Verifications res={res} /> : sansResultats)}
           {onglet === 'pseudo3d' && res?.pseudo3d && <Pseudo3D res={res} phase={phase} />}
+          {onglet === 'assemblages' && (
+            <Assemblages res={res} modele={erreurYaml ? null : modele} references={references} theme={theme}
+              onEnregistrer={(nom, bloc) => { actions.ajouterCle(['assemblages'], nom, bloc); setOnglet('script') }} />
+          )}
           {onglet === 'saisie' && (
             <Saisie modele={erreurYaml ? null : modele} erreurs={erreurs} schema={schema} references={references} actions={actions}
               section={section ?? 'projet'} selection={selection} onSelection={setSelection} />

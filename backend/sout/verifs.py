@@ -29,6 +29,7 @@ class Verif:
     detail: str
     source: str
     manquants: list[str] = field(default_factory=list)
+    reperes: list[int] = field(default_factory=list)   # composants concernés (assemblages : surlignage du schéma)
 
     def vers_dict(self) -> dict:
         return asdict(self)
@@ -68,14 +69,14 @@ def etat_de(taux: float) -> str:
 
 def resultat(nom: str, element: str, phase: str | None, taux: float | None, detail: str, source: str,
              lecteur: Lecteur | None = None, categorie: str = "geotechnique",
-             detail_non_verifiable: str | None = None) -> Verif:
+             detail_non_verifiable: str | None = None, reperes: list[int] | None = None) -> Verif:
     """Construit le résultat ; « non vérifiable » si une valeur de norme manque."""
     manquants = list(lecteur.manquants) if lecteur else []
     sources = (" ; ".join(lecteur.sources) + " ; " if lecteur and lecteur.sources else "") + source
     if manquants or taux is None:
         return Verif(nom, categorie, element, phase, "non_verifiable", None,
-                     detail_non_verifiable or detail, sources, manquants)
-    return Verif(nom, categorie, element, phase, etat_de(taux), float(taux), detail, sources, [])
+                     detail_non_verifiable or detail, sources, manquants, list(reperes or []))
+    return Verif(nom, categorie, element, phase, etat_de(taux), float(taux), detail, sources, [], list(reperes or []))
 
 
 def pire(verifs: list[Verif]) -> list[Verif]:

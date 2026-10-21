@@ -78,5 +78,61 @@ def executer(s: Script, catalogue, normes) -> Execution:
             v_struct, suggestions = structure(s, ex, catalogue, normes)
             verifs += v_struct
             ex.suggestions = suggestions
+    if s.assemblages:
+        verifs += verifier_assemblages(s, ex, catalogue, normes)
     ex.verifications = pire(verifs)
     return ex
+
+
+def efforts_assemblage(s: Script, ex: Execution, a) -> dict:
+    """Efforts (kN, kN·m) transmis à un assemblage depuis l'appui calculé, ou imposés."""
+    if a.efforts:
+        return dict(a.efforts)
+    e = {"N": 0.0, "V": 0.0, "M": 0.0, "T": 0.0}
+    if a.appui is None:
+        return e
+    app = s.appuis[a.appui]
+    H = 0.0
+    for _, (m, r) in ex.jeux.items():
+        for ph in r.phases:
+            if ph.ok:
+                for x in ph.appuis:
+                    if x["nom"] == a.appui:
+                        H = max(H, x["effort"])
+    import math
+    N = H * app.espacement / math.cos(math.radians(app.angle))
+    e["N"] = e["T"] = N
+    e["V"] = N * abs(math.sin(math.radians(app.angle)))
+    # lierne : poutre continue sur deux travées (comme sout.verifs_struct) : M = q·e²/8, V = 0,625·q·e
+    e["M"] = 0.125 * H * app.espacement ** 2
+    e["V_lierne"] = 0.625 * H * app.espacement
+    return e
+
+
+def parametres_assemblage(s: Script, a) -> dict:
+    p = dict(a.parametres)
+    app = s.appuis.get(a.appui) if a.appui else None
+    p["acier"] = a.acier or (app.acier if app and app.acier else "S355")
+    p["lierne"] = a.lierne or (app.lierne if app else None) or ""
+    p["buton"] = a.buton or (app.element if app else None) or ""
+    if app is not None:
+        p.setdefault("angle", app.angle)
+    return p
+
+
+def verifier_assemblages(s: Script, ex: Execution, catalogue, normes) -> list[Verif]:
+    from .assemblages.service import verifier as verifier_assemblage
+    out = []
+    fck = None
+    beton = ex.modele.ecran.infos.get("beton")
+    if beton:
+        fck = beton.get("fck_MPa")
+    for nom, a in s.assemblages.items():
+        e = efforts_assemblage(s, ex, a)
+        if a.type == "eclisse_lierne":
+            e = {**e, "V": e.get("V_lierne", e["V"])}
+        try:
+            out += verifier_assemblage(a.type, parametres_assemblage(s, a), e, catalogue, normes, fck, element=nom)
+        except KeyError as err:
+            out.append(Verif(f"Assemblage {nom}", "structure", nom, None, "non_verifiable", None, str(err), "", [str(err)]))
+    return out

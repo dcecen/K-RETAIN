@@ -202,14 +202,42 @@ plaque sur ressorts (longueur développée, conditions aux extrémités, angle d
 milieu). Donnez `rigidite_horizontale` pour une paroi peu rigide horizontalement
 (palplanches, pieux disjoints, paroi moulée à joints) ; sinon la plaque est isotrope.
 
-## 11. Import RIDO
+## 11. Assemblages
+
+L'onglet **Assemblages** propose 14 types de la pratique française des parois butonnées et
+tirantées : platine d'about, platine boulonnée, chaise d'appui, appui biais de buton d'angle
+(dé de calage), raboutage, boîte de vérinage, buton d'angle en coin de fouille, raidisseurs
+de lierne, console de lierne chevillée sur la paroi, éclissage de lierne, tête de tirant sur
+lierne et sur paroi moulée, chaise à goussets et axe de bracon, appui de bracon en pied.
+Chaque type a son plan d'exécution (élévation, coupe hachurée, vue de dessus), sa nomenclature
+repérée, ses symboles de soudure ISO 2553 et ses efforts ; les cotes suivent les paramètres,
+survoler un champ surligne sa cote, cliquer une vérification surligne la pièce. La vue de
+détail 3D est construite à partir des mêmes solides.
+
+Les efforts viennent de l'appui calculé (N axial, V d'inclinaison, M et V de lierne sur deux
+travées) ou sont saisis. Un assemblage s'enregistre dans le script :
+
+```yaml
+assemblages:
+  A1: { type: platine_about, appui: B1, lierne: HEB 400, acier: S355, parametres: { t_platine: 30 } }
+  A2: { type: eclisse_lierne, efforts: { M: 180, V: 120, N: 0 }, lierne: HEB 400, acier: S355 }
+```
+
+Les coefficients (γM, fub, k2, αv, βw, As, coefficients des axes et des âmes…) viennent de
+`docs/normes/ec3_assemblages.yaml`, livré vide : tant qu'ils manquent, les vérifications sont
+« prévues » et affichent les sollicitations. Les résistances des chevilles (ETE) se saisissent
+dans les paramètres. Les vérifications marquées « À confirmer » reposent sur des méthodes
+simplifiées (âme sous charge transversale sans χF, interaction linéaire N-M, 50 % de l'effort
+dans les nervures…) à valider par l'ingénieur.
+
+## 12. Import RIDO
 
 Le bouton « Importer RIDO » convertit un fichier RIDO selon la table
 `docs/rido/correspondance.yaml`, puis affiche le rapport des données non reprises. Cette
 table est vide tant que le manuel RIDO n'a pas été fourni et lu : aucun mot-clé n'est
 deviné.
 
-## 12. Référence des mots-clés
+## 13. Référence des mots-clés
 
 Section générée à partir du schéma (`python -m sout.script.documentation`).
 
@@ -233,6 +261,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `plan` | bloc |  |  |  |
 | `pseudo3d` | bloc |  |  |  |
 | `hydraulique` | bloc |  |  |  |
+| `assemblages` | blocs nommés de bloc |  |  | assemblages à vérifier et à dessiner |
 
 ### calcul
 

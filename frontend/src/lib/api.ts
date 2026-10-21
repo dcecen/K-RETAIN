@@ -99,6 +99,7 @@ export interface Verif {
   detail: string
   source: string
   manquants: string[]
+  reperes: number[]
 }
 
 export interface Dimensionnant {

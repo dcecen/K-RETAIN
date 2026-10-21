@@ -8,7 +8,7 @@ export type Selection =
   | { type: 'phase'; index: number }
   | null
 
-export type Onglet = 'coupe' | '3d' | 'efforts' | 'verifications' | 'pseudo3d' | 'saisie' | 'script' | 'materiaux'
+export type Onglet = 'coupe' | '3d' | 'efforts' | 'verifications' | 'pseudo3d' | 'assemblages' | 'saisie' | 'script' | 'materiaux'
 
 export interface EtatCalcul {
   genre: 'aucun' | 'calcul' | 'ok' | 'modifie' | 'erreur' | 'rupture'

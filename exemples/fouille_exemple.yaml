@@ -50,3 +50,8 @@ phases:
     eau: { aval: -7.0 }
 
 verifications: [butee, equilibre_vertical, fond_de_fouille, stabilite_generale, structure]
+
+assemblages:                       # dessinés et vérifiés avec les efforts du calcul (onglet Assemblages)
+  A1: { type: platine_about, appui: B1, lierne: HEB 400, acier: S355, parametres: { t_platine: 30, b_platine: 700, h_platine: 400 } }
+  A2: { type: chaise_buton, appui: B1, lierne: HEB 400, acier: S355 }
+  A3: { type: raidisseurs_lierne, appui: B1, lierne: HEB 400, acier: S355 }

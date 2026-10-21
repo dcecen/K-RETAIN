@@ -113,6 +113,16 @@ class Hydraulique(_Base):
     sol_lane: str | None = Field(None, description="type de sol pour Lane (sinon celui de la couche du fond)")
 
 
+class AssemblageScript(_Base):
+    type: str = Field(description="type d'assemblage (clé du registre : platine_about, chaise_buton, tete_tirant_lierne…)")
+    appui: str | None = Field(None, description="appui dont les efforts sont repris (bloc appuis) ; sinon donner efforts")
+    efforts: dict[str, float] | None = Field(None, description="efforts imposés (kN, kN·m) : N, V, M, T ; remplacent ceux du calcul")
+    acier: str | None = Field(None, description="nuance des pièces d'assemblage (base matériaux)")
+    lierne: str | None = Field(None, description="profilé de lierne (défaut : celui de l'appui)")
+    buton: str | None = Field(None, description="élément de buton (défaut : celui de l'appui)")
+    parametres: dict[str, float | str] = Field(default_factory=dict, description="paramètres géométriques du type (mm, kN, °)")
+
+
 class Terrain(_Base):
     amont: float | None = Field(None, description="cote initiale du terrain amont (m) ; défaut : toit de la 1re couche")
     aval: float | None = Field(None, description="cote initiale du terrain aval (m) ; défaut : terrain amont")
@@ -226,3 +236,4 @@ class Script(_Base):
     plan: Plan | None = None
     pseudo3d: Pseudo3D | None = None
     hydraulique: Hydraulique | None = None
+    assemblages: dict[str, AssemblageScript] = Field(default_factory=dict, description="assemblages à vérifier et à dessiner")

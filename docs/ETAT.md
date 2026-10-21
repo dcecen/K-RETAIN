@@ -256,3 +256,23 @@ Tests : 95 réussis, 6 ignorés (cas de validation et exemples RIDO absents).
   coupe, paroi colorée par pression d'eau, flèches de gradient (vert → rouge).
 - Limites : écoulement 2D extrudé (pas d'effet d'angle), nappe amont maintenue, fouille
   symétrique, cellules uniformes (pas raffiné près du pied).
+
+
+## Module assemblages : fait (porte ouverte : coefficients EN 1993-1-8 non fournis)
+
+- `sout/assemblages` : géométrie paramétrique commune 2D/3D (solides repérés, soudures, cotes,
+  efforts, vues), 14 types (8 butons, 2 liernes, 2 tirants, 2 bracons) avec nomenclature et
+  vérifications EN 1993-1-8 (boulons traction/cisaillement/pression diamétrale/poinçonnement/
+  interaction, soudures d'angle méthode simplifiée, axes), EN 1993-1-5 (âme sous charge
+  transversale, simplifié), EN 1992-1-1 § 6.7 (compression localisée), chevilles (ETE).
+- Interface : onglet Assemblages (vignettes des 14 types, formulaire, plan d'exécution SVG avec
+  coupes hachurées, symboles ISO 2553, repères, cotes liées aux paramètres, surlignage par
+  survol et par vérification, détail 3D), enregistrement dans le script, revérification avec
+  les efforts de l'appui à chaque calcul. API `/api/assemblages/*`.
+- Tests (verts) : 14 schémas générés, réaction aux paramètres, vérifications de chaque type,
+  formules contrôlées à la main (Ft,Rd, Fv,Rd, Fb,Rd, Fw,Rd, axe, compression localisée).
+- Choix et hypothèses (à confirmer) : lierne à âme horizontale (ailes parallèles à la paroi),
+  longueur efficace d'âme simplifiée, interaction N-M linéaire, part des nervures 50 %,
+  section nette des éclisses sans 0,9·Anet·fu, pression diamétrale des boulons de rive
+  seulement, buton d'angle représenté par un tube d'axe x (dessin simplifié).
+- Coefficients : `docs/normes/ec3_assemblages.yaml` (tout à null, classes de boulons notées 8_8).
