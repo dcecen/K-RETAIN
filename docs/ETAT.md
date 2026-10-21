@@ -111,3 +111,13 @@
 - **Hypothèses à confronter à la norme** : interaction N-M linéaire, liernes M = 0,1·q·e²,
   profilés de classe 1-2 supposés, une âme par largeur de palplanche, tranchant des pieux
   non automatisé, profilés candidats en S355 pour la suggestion.
+
+## J7 — Import RIDO : architecture faite, porte non franchie
+
+- `sout/script/rido.py` : convertisseur piloté par la table `docs/rido/correspondance.yaml`
+  (mot-clé -> bloc du script, colonnes, facteurs d'unité, lignes suivantes), rapport des
+  lignes non reprises ; API `/api/rido` et bouton « Importer RIDO ».
+- **La table est livrée vide** : aucun mot-clé RIDO n'est deviné. À remplir après
+  lecture du manuel RIDO (à fournir dans docs/rido), puis tester sur les exemples
+  (test `test_exemples_rido_fournis`, ignoré pour l'instant).
+- Question ouverte : licence RIDO pour la lecture de son format.

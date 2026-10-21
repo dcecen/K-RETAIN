@@ -95,3 +95,6 @@ select { padding: 5px; font-size: 13px; border: 1px solid var(--bord); border-ra
 @media (max-width: 900px) {
   main { grid-template-columns: 1fr; grid-template-rows: 60vh auto; }
 }
+
+.rapport-rido { max-height: 25%; overflow: auto; font-size: 12px; padding: 6px 10px; background: #fff4d6; color: #6b4e00; border-top: 1px solid #f0d78c; }
+.rapport-rido ul { margin: 4px 0 0; padding-left: 16px; }

@@ -122,3 +122,17 @@ async def importer_catalogue(fichier: UploadFile) -> dict:
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
     return {"ok": True, "lignes": compte}
+
+
+class FichierRido(BaseModel):
+    texte: str
+    nom: str = "import RIDO"
+
+
+@app.post("/api/rido")
+def import_rido(f: FichierRido) -> dict:
+    """Convertit un fichier RIDO en script, avec le rapport des données non reprises."""
+    from sout.script.rido import convertir
+
+    conv = convertir(f.texte, f.nom)
+    return {"texte": conv.texte, "rapport": conv.rapport}

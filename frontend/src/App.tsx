@@ -40,6 +40,7 @@ export default function App() {
   const [serveur, setServeur] = useState<string>('connexion…')
   const [ligneCible, setLigneCible] = useState<number | null>(null)
   const [vueMateriaux, setVueMateriaux] = useState(false)
+  const [rapportRido, setRapportRido] = useState<string[] | null>(null)
   const minuterie = useRef<number | undefined>(undefined)
 
   useEffect(() => {
@@ -107,6 +108,18 @@ export default function App() {
     if (fichier) void fichier.text().then(setTexte)
   }
 
+  const importerRido = async (fichier: File | undefined) => {
+    if (!fichier) return
+    const r = await fetch('/api/rido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texte: await fichier.text(), nom: fichier.name }),
+    })
+    const d = (await r.json()) as { texte: string; rapport: string[] }
+    setTexte(d.texte)
+    setRapportRido(d.rapport)
+  }
+
   const ph = res?.phases[Math.min(phase, (res?.phases.length ?? 1) - 1)]
 
   return (
@@ -144,6 +157,10 @@ export default function App() {
               <input type="file" accept=".yaml,.yml,.txt" hidden onChange={(e) => ouvrir(e.target.files?.[0])} />
             </label>
             <button className="secondaire" onClick={enregistrer}>Enregistrer</button>
+            <label className="bouton secondaire" title="Conversion selon docs/rido/correspondance.yaml">
+              Importer RIDO
+              <input type="file" hidden onChange={(e) => void importerRido(e.target.files?.[0])} />
+            </label>
             <span className="espace" />
             <button onClick={() => void calculer()} disabled={enCours} title="Ctrl+Entrée">
               {enCours ? 'Calcul…' : 'Calculer'}
@@ -152,6 +169,13 @@ export default function App() {
           <div className="editeur">
             <Editeur texte={texte} onChange={setTexte} erreurs={erreurs} schema={schema} references={references} ligneCible={ligneCible} />
           </div>
+          {rapportRido && (
+            <div className="rapport-rido">
+              <b>Rapport de conversion RIDO</b>{' '}
+              <button className="secondaire" onClick={() => setRapportRido(null)}>Fermer</button>
+              <ul>{rapportRido.map((l, i) => <li key={i}>{l}</li>)}</ul>
+            </div>
+          )}
           <div className={`erreurs ${erreurs.length ? '' : 'vide'}`}>
             {erreurs.length === 0 ? (
               <span>Script valide.</span>

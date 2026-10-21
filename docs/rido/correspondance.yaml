@@ -1,0 +1,15 @@
+# Table de correspondance RIDO -> RetainWall.
+# VIDE TANT QUE LE MANUEL RIDO N'A PAS ÉTÉ FOURNI ET LU : aucun mot-clé n'est deviné.
+# Format décrit dans backend/sout/script/rido.py. Exemple de forme (fictif, NE PAS utiliser tel quel) :
+#
+# mots_cles:
+#   MOTCLE_FICTIF:
+#     cible: sol[]
+#     colonnes: [toit, gamma, gamma_dejauge, phi, c]
+#     facteurs: {}
+#     fixes: {}
+#     lignes_suivantes: 0
+
+commentaires: []
+separateurs: " ,;\t"
+mots_cles: {}
