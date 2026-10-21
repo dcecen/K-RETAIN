@@ -23,6 +23,29 @@ EXEMPLES = RACINE / "exemples"
 app = FastAPI(title="RetainWall", version=__version__)
 
 
+@app.middleware("http")
+async def controle_acces(request, call_next):
+    """Authentification HTTP Basic en déploiement (RETAINWALL_AUTH=1) ; /api/sante reste libre."""
+    import base64
+
+    from fastapi.responses import PlainTextResponse
+
+    from sout import utilisateurs
+
+    if not utilisateurs.authentification_active() or request.url.path == "/api/sante":
+        return await call_next(request)
+    entete = request.headers.get("authorization", "")
+    if entete.lower().startswith("basic "):
+        try:
+            nom, _, mdp = base64.b64decode(entete[6:]).decode("utf-8").partition(":")
+        except (ValueError, UnicodeDecodeError):
+            nom, mdp = "", ""
+        if nom and utilisateurs.verifier(nom, mdp):
+            return await call_next(request)
+    return PlainTextResponse("Identification requise", status_code=401,
+                             headers={"WWW-Authenticate": 'Basic realm="RetainWall", charset="UTF-8"'})
+
+
 class Texte(BaseModel):
     texte: str
 
@@ -166,3 +189,11 @@ def maquette(t: Texte):
         except ImportError:
             p3d = None
     return HTMLResponse(generer_html(ex, p3d))
+
+
+# Interface compilée (npm run build) servie par le même serveur en déploiement.
+_DIST = RACINE / "frontend" / "dist"
+if _DIST.exists():
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=_DIST, html=True), name="interface")

@@ -1,0 +1,377 @@
+# Guide du langage de script RetainWall
+
+Ce guide s'adresse aux ingénieurs du bureau d'études qui saisissent un calcul d'écran.
+Il décrit le langage, les conventions et la lecture des résultats.
+
+> **Avertissement.** RetainWall est en cours de validation. Aucun résultat ne doit servir
+> à un projet réel avant d'avoir été comparé à K-Réa ou RIDO sur plusieurs cas et visé par
+> un ingénieur. L'état de la validation est tenu dans `docs/ETAT.md`.
+
+## 1. Principe
+
+Un calcul est décrit par un **script YAML** : une suite de blocs `mot-clé: valeur`, avec
+une indentation de deux espaces pour les sous-blocs et un tiret `- ` pour chaque élément
+d'une liste. Le script s'écrit dans l'éditeur de l'application (coloration, complétion
+avec Ctrl+Espace, aide au survol d'un mot-clé) ou dans n'importe quel éditeur de texte.
+
+Le script est validé avant le calcul. Chaque erreur est signalée en français avec son
+numéro de ligne ; un clic sur l'erreur place le curseur sur la ligne.
+
+### Unités (fixes, jamais implicites)
+
+| Grandeur | Unité |
+| --- | --- |
+| Cotes, longueurs | m (cotes dans le repère du projet, axe vertical vers le haut) |
+| Poids volumiques | kN/m³ |
+| Pressions, cohésion, modules du sol (EM), pl, qc | kPa |
+| Angles | degrés |
+| Efforts | kN (appui) ; kN/m (par mètre d'écran) |
+| Modules d'élasticité des matériaux (E) | MPa |
+| Sections d'acier (A, armatures) | cm² (cm²/m pour une paroi moulée) |
+| Rigidités EI | kN·m²/m |
+
+### Conventions de signe
+
+- Déplacement **y positif vers la fouille**.
+- Moment **positif quand la face côté fouille est tendue**.
+- Effort tranchant V = dM/dz (z vers le haut).
+- Effort d'appui positif quand l'appui retient l'écran (buton comprimé, tirant tendu).
+
+Ces conventions sont rappelées dans les légendes de tous les graphiques.
+
+## 2. Structure d'un script
+
+```yaml
+projet: Fouille rue des Lilas          # nom libre
+calcul:                                # options (toutes facultatives)
+  coefficients: coulomb                # ou kerisel_absi (tables à fournir)
+  pas: 0.1                             # maillage (m)
+paroi:                                 # type, cotes, matériaux
+  type: palplanche
+  profil: AZ 26-700                    # référence de la base matériaux
+  acier: S355GP
+  tete: 0.0
+  pied: -14.0
+sol:                                   # couches, de haut en bas ou dans le désordre
+  - { nom: Remblai, toit: 0.0, gamma: 18, gamma_dejauge: 9, phi: 28, EM: 4000, alpha: 0.5 }
+  - { nom: Sable, toit: -3.0, gamma: 20, gamma_dejauge: 11, phi: 35, EM: 15000, alpha: 0.33 }
+eau:                                   # un ou plusieurs jeux de niveaux
+  service: { amont: -2.0, aval: -2.0 }
+surcharges:
+  - { nom: grue, type: bande, q: 20, distance: 1.0, largeur: 5.0 }
+appuis:
+  B1: { type: buton, element: modulaire_A, cote: -1.5, espacement: 6.0, longueur: 18.0, precharge: 50 }
+phases:
+  - nom: "Terrassement à -2,0"         # guillemets si le nom contient une virgule
+    excaver: -2.0
+  - nom: Pose du buton B1
+    poser: B1
+  - nom: Terrassement final et pompage
+    excaver: -6.5
+    eau: { aval: -7.0 }
+verifications: [butee, equilibre_vertical, fond_de_fouille, stabilite_generale, deplacements, structure]
+criteres: { deplacement_max_mm: 30 }
+```
+
+**Piège fréquent.** Dans un bloc en ligne `{ ... }`, la virgule sépare les champs :
+`nom: Terrassement à -2,0` y est coupé en deux. Mettez le texte entre guillemets.
+
+## 3. Paroi
+
+| Type | Données nécessaires | Rigidité calculée |
+| --- | --- | --- |
+| `palplanche` | `profil`, `acier` (profils en U : `beta_D`) | E·I du catalogue (× β_D pour les U) |
+| `paroi_moulee` | `epaisseur`, `beton` (option `rapport_EI_fissure`) | Ecm·e³/12 |
+| `pieux_secants` | `diametre`, `entraxe`, `beton`, `primaires_armes` | EI des pieux armés / entraxe des armés |
+| `pieux_disjoints` | `diametre`, `entraxe`, `beton`, largeur de fiche | EI d'un pieu / entraxe |
+| `berlinoise` | `profil`, `acier`, `entraxe`, largeur de fiche, `blindage` | E·Iy du profilé / entraxe |
+
+`EI` peut toujours être imposé directement. Pour les fiches discontinues (pieux disjoints,
+berlinoise), la largeur de réaction sous le fond de fouille est donnée par
+`largeur_reaction_fiche` (m par élément) ou par `docs/normes/nf_p94_282.yaml` ; sans
+l'une ni l'autre, le calcul est refusé (aucune règle n'est inventée).
+
+## 4. Sol
+
+Chaque couche est définie par la cote de son **toit** ; elle s'étend jusqu'au toit de la
+couche suivante (la dernière se prolonge sous le pied). Le coefficient de réaction est
+calculé par la formule de Schmitt à partir de `EM` et `alpha`, ou imposé par `kh`. Pour
+des données CPT, donnez `qc` et la corrélation retenue `EM_sur_qc` (il n'existe pas de
+corrélation universelle : elle doit être choisie et justifiée couche par couche).
+
+Les obliquités sont données en rapport à φ' : `delta_a_sur_phi` (poussée) et
+`delta_p_sur_phi` (butée), 0 par défaut (Rankine). Au-delà de |δp| = φ/3, la butée de
+Coulomb n'est pas conservative : l'application l'indique et recommande les tables de
+Kérisel-Absi.
+
+## 5. Eau
+
+Le bloc `eau` contient un ou plusieurs **jeux de niveaux** (par exemple `service` et
+`exceptionnel`). Chaque jeu est calculé ; les vérifications retiennent le cas le plus
+défavorable. Un jeu dont le nom contient « except » ou « accid » est vérifié en
+combinaison accidentelle. Dans une phase, `eau: { aval: -7.0 }` ne change que les clés
+écrites (pour tous les jeux). Seul le régime hydrostatique est calculé ; le fond de fouille
+est vérifié par la méthode de la longueur de cheminement (simplifiée).
+
+## 6. Appuis
+
+| Type | Données de raideur | Remarques |
+| --- | --- | --- |
+| `buton` | `element` (ou `E` et `A`), `longueur`, `espacement`, `angle` | longueur élastique L/2 si `symetrique: true` (défaut) |
+| `tirant` | `element` ou `E`/`A`, `longueur_libre`, `angle`, `espacement` | `longueur_scellee`, `diametre_forage`, `qs` pour Kranz et le scellement ; `nombre` de torons |
+| `bracon` | `element` ou `E`/`A`, `longueur`, `angle` | `pied_bracon` : cote de l'appui en pied |
+| `dalle` | `epaisseur`, `beton` (ou `E`), `longueur` (portée) | bilatérale par défaut |
+
+`raideur` (kN/m par mètre d'écran) court-circuite le calcul de raideur. `precharge` est
+l'effort axial par appui (précharge d'un buton, précontrainte d'un tirant), appliqué à la
+pose. `lierne` désigne le profilé de lierne à vérifier.
+
+## 7. Phases
+
+Chaque phase part de l'état de la précédente. Actions possibles, cumulables dans une
+même phase : `excaver` (cote du fond), `remblayer` (`amont` / `aval`), `poser` et
+`deposer` (un nom ou une liste), `eau`, `ajouter_surcharges`, `retirer_surcharges`.
+Le bétonnage d'une dalle définitive se modélise par la pose d'un appui de type `dalle`.
+Une phase d'**état initial** (sol au repos) est toujours calculée en premier.
+
+## 8. Vérifications
+
+Listez celles à mener dans `verifications` : `butee`, `equilibre_vertical`, `kranz`,
+`fond_de_fouille`, `stabilite_generale`, `deplacements`, `structure`.
+
+Chaque vérification affiche un **taux de travail** (sollicitation / résistance de calcul),
+sa source et son état : vert (≤ 90 %), orange (90 à 100 %), rouge (> 100 %), ou gris
+**« non vérifiable »** quand une valeur de norme manque. Les coefficients partiels et
+valeurs normatives sont lus uniquement dans `docs/normes/*.yaml` (livrés vides) : tant
+qu'ils ne sont pas renseignés, l'application donne les valeurs caractéristiques à titre
+indicatif et liste précisément les valeurs manquantes.
+
+Les critères de déplacement aux ELS sont fixés par l'ingénieur dans `criteres`.
+
+## 9. Base matériaux
+
+Les références (`profil`, `element`, `acier`, `beton`, `lierne`) renvoient à la base
+SQLite, alimentée par import de catalogues CSV ou Excel (bouton « Base matériaux » ;
+modèles d'en-têtes dans `docs/catalogues/modele_*.csv`). Le jeu **DEMO** livré ne sert
+qu'à essayer l'application : ses valeurs sont signalées « DEMO » dans les résultats.
+
+## 10. Plan, maquette 3D et pseudo-3D
+
+Le bloc `plan` décrit la fouille en plan (`contour`, polygone en m) et, facultativement,
+la position de chaque appui (`appuis`: `appui`, `de`, `a`). Sans positions, les appuis sont
+répartis à leur espacement. L'onglet « Maquette 3D » produit un fichier HTML autonome
+qui s'ouvre sans installation.
+
+Le mode `calcul: { mode: pseudo3d }` avec le bloc `pseudo3d` calcule la paroi comme une
+plaque sur ressorts (longueur développée, conditions aux extrémités, angle de fouille au
+milieu). Donnez `rigidite_horizontale` pour une paroi peu rigide horizontalement
+(palplanches, pieux disjoints, paroi moulée à joints) ; sinon la plaque est isotrope.
+
+## 11. Import RIDO
+
+Le bouton « Importer RIDO » convertit un fichier RIDO selon la table
+`docs/rido/correspondance.yaml`, puis affiche le rapport des données non reprises. Cette
+table est vide tant que le manuel RIDO n'a pas été fourni et lu : aucun mot-clé n'est
+deviné.
+
+## 12. Référence des mots-clés
+
+Section générée à partir du schéma (`python -m sout.script.documentation`).
+
+<!-- REFERENCE:DEBUT -->
+
+### Racine du script
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `projet` | texte | oui |  | nom du projet |
+| `calcul` | bloc |  |  |  |
+| `paroi` | bloc | oui |  |  |
+| `sol` | liste de bloc | oui |  |  |
+| `terrain` | bloc |  |  |  |
+| `eau` | blocs nommés de bloc |  |  | jeux de niveaux d'eau (service, exceptionnel…) |
+| `surcharges` | liste de bloc |  |  |  |
+| `appuis` | blocs nommés de bloc |  |  |  |
+| `phases` | liste de bloc | oui |  |  |
+| `verifications` | liste de butee / equilibre_vertical / kranz / fond_de_fouille / stabilite_generale / deplacements / structure |  |  |  |
+| `criteres` | bloc |  |  |  |
+| `plan` | bloc |  |  |  |
+| `pseudo3d` | bloc |  |  |  |
+
+### calcul
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `methode` | coefficients_reaction |  | coefficients_reaction | méthode de calcul |
+| `kh` | schmitt / impose |  | schmitt | coefficient de réaction : schmitt (EM, α) ou impose (kh par couche) |
+| `norme` | texte |  | NF P 94-282 | norme de référence des vérifications |
+| `coefficients` | coulomb / kerisel_absi |  | coulomb | coefficients de poussée/butée : coulomb (formule) ou kerisel_absi (tables à fournir) |
+| `gamma_w` | nombre |  | 10.0 | poids volumique de l'eau (kN/m3) (> 0, ≤ 12) |
+| `pas` | nombre |  | 0.1 | longueur maximale d'élément du maillage (m) (> 0.005, ≤ 1.0) |
+| `jeu_eau` | texte |  |  | jeu de niveaux d'eau utilisé (défaut : le premier du bloc eau) |
+| `mode` | 2d / pseudo3d |  | 2d | 2d (par section) ou pseudo3d (plaque sur ressorts) |
+| `largeur_fouille` | nombre |  |  | largeur de la fouille pour la stabilité générale (m) ; défaut : 2 × hauteur de paroi (> 0) |
+
+### paroi
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `type` | palplanche / paroi_moulee / pieux_secants / pieux_disjoints / berlinoise | oui |  | type de paroi |
+| `tete` | nombre | oui |  | cote de la tête de paroi (m) |
+| `pied` | nombre | oui |  | cote du pied de paroi (m) |
+| `EI` | nombre |  |  | rigidité imposée par mètre linéaire (kN·m²/m) ; sinon calculée (> 0) |
+| `profil` | texte |  |  | référence de la base matériaux (palplanche ou profilé) |
+| `acier` | texte |  |  | nuance d'acier (base matériaux) |
+| `beton` | texte |  |  | classe de béton (base matériaux) |
+| `epaisseur` | nombre |  |  | épaisseur de paroi moulée (m) (> 0) |
+| `diametre` | nombre |  |  | diamètre des pieux (m) (> 0) |
+| `entraxe` | nombre |  |  | entraxe des pieux ou profilés (m) (> 0) |
+| `profil_armature` | texte |  |  | profilé d'armature des pieux (base matériaux) |
+| `primaires_armes` | true / false |  | False | pieux sécants : pieux primaires armés |
+| `rapport_EI_fissure` | nombre |  |  | béton : rapport EI fissuré / EI non fissuré choisi par l'ingénieur (> 0, ≤ 1) |
+| `beta_D` | nombre |  |  | palplanches en U : réduction d'inertie β_D (EN 1993-5, à fournir) (> 0, ≤ 1) |
+| `perte_epaisseur` | nombre |  |  | palplanches : perte d'épaisseur par corrosion, totale (mm) (≥ 0) |
+| `largeur_reaction_fiche` | nombre |  |  | fiche discontinue : largeur de réaction imposée sous le fond (m par élément) (> 0) |
+| `blindage` | bloc |  |  | berlinoise : blindage entre profilés |
+| `enrobage` | nombre |  |  | distance du parement à l'axe des armatures (m) (> 0) |
+| `armatures_fouille` | nombre |  |  | paroi moulée : armatures côté fouille (cm²/m) (> 0) |
+| `armatures_terre` | nombre |  |  | paroi moulée : armatures côté terre (cm²/m) (> 0) |
+| `armatures_pieu` | nombre |  |  | pieux : armatures longitudinales par pieu (cm²) (> 0) |
+
+### paroi.blindage
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `epaisseur` | nombre | oui |  | épaisseur du blindage (m) (> 0) |
+| `materiau` | bois / beton / acier | oui |  | matériau du blindage |
+| `resistance` | nombre |  |  | résistance de calcul en flexion (MPa) (> 0) |
+
+### sol (chaque couche)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `nom` | texte | oui |  | nom de la couche |
+| `toit` | nombre | oui |  | cote du toit de la couche (m) |
+| `gamma` | nombre | oui |  | poids volumique hors nappe (kN/m3) (> 0, ≤ 30) |
+| `gamma_dejauge` | nombre | oui |  | poids volumique déjaugé sous nappe (kN/m3) (> 0, ≤ 20) |
+| `phi` | nombre | oui |  | angle de frottement effectif φ' (degrés) (≥ 0, < 60) |
+| `c` | nombre |  | 0.0 | cohésion effective c' (kPa) (≥ 0) |
+| `EM` | nombre |  |  | module pressiométrique (kPa) (> 0) |
+| `alpha` | nombre |  |  | coefficient rhéologique de Ménard α (> 0, ≤ 1) |
+| `pl` | nombre |  |  | pression limite pressiométrique (kPa) (> 0) |
+| `qc` | nombre |  |  | résistance de pointe CPT (kPa) (> 0) |
+| `EM_sur_qc` | nombre |  |  | corrélation choisie EM = (EM/qc)·qc (> 0) |
+| `kh` | nombre |  |  | coefficient de réaction imposé (kN/m3) (> 0) |
+| `K0` | nombre |  |  | coefficient des terres au repos (défaut : Jaky 1 − sin φ') (> 0, ≤ 3) |
+| `delta_a_sur_phi` | nombre |  | 0.0 | obliquité côté poussée δa/φ' (≥ 0, ≤ 1) |
+| `delta_p_sur_phi` | nombre |  | 0.0 | obliquité côté butée |δp|/φ' (≥ 0, ≤ 1) |
+| `coef_decharge` | nombre |  |  | coefficient de décharge Kd (défaut : K0) (> 0, ≤ 3) |
+
+### terrain
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `amont` | nombre |  |  | cote initiale du terrain amont (m) ; défaut : toit de la 1re couche |
+| `aval` | nombre |  |  | cote initiale du terrain aval (m) ; défaut : terrain amont |
+
+### eau (chaque jeu de niveaux)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `amont` | nombre |  |  | cote de la nappe côté amont (m) ; vide = pas de nappe |
+| `aval` | nombre |  |  | cote de la nappe côté aval (m) ; vide = pas de nappe |
+
+### surcharges (chaque surcharge)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `nom` | texte |  |  | nom (pour la retirer dans une phase) |
+| `type` | repartie / bande / lineique | oui |  | répartie, en bande ou linéique |
+| `q` | nombre | oui |  | intensité : kPa (répartie, bande) ou kN/m (linéique) |
+| `distance` | nombre |  | 0.0 | distance au parement (m) (≥ 0) |
+| `largeur` | nombre |  |  | largeur de la bande (m) (> 0) |
+| `cote` | nombre |  |  | cote d'application (m) ; défaut : terrain |
+| `cote_ecran` | amont / aval |  | amont | côté de l'écran |
+
+### appuis (chaque appui)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `type` | buton / tirant / bracon / dalle | oui |  | type d'appui |
+| `cote` | nombre | oui |  | cote de l'appui sur la paroi (m) |
+| `element` | texte |  |  | référence de la base matériaux (buton modulaire, profilé, armature) |
+| `E` | nombre |  |  | module d'Young (MPa) si pas d'élément de la base (> 0) |
+| `A` | nombre |  |  | section (cm²) si pas d'élément de la base (> 0) |
+| `raideur` | nombre |  |  | raideur imposée (kN/m par mètre d'écran) (≥ 0) |
+| `espacement` | nombre |  | 1.0 | espacement horizontal des appuis (m) (> 0) |
+| `longueur` | nombre |  |  | longueur du buton ou bracon, portée de la dalle (m) (> 0) |
+| `angle` | nombre |  | 0.0 | inclinaison sur l'horizontale (degrés) (≥ -80, ≤ 80) |
+| `precharge` | nombre |  | 0.0 | précharge ou précontrainte par appui (kN, axiale) (≥ 0) |
+| `symetrique` | true / false |  | True | buton/dalle entre deux parois symétriques (longueur élastique L/2) |
+| `longueur_libre` | nombre |  |  | tirant : longueur libre (m) (> 0) |
+| `longueur_scellee` | nombre |  |  | tirant : longueur de scellement (m) (> 0) |
+| `longueur_elastique` | nombre |  |  | tirant : longueur élastique imposée (m) (> 0) |
+| `diametre_forage` | nombre |  |  | tirant : diamètre du forage (m) (> 0) |
+| `qs` | nombre |  |  | tirant : frottement latéral limite du scellement (kPa) (> 0) |
+| `epaisseur` | nombre |  |  | dalle : épaisseur (m) (> 0) |
+| `unilateral` | true / false |  |  | ne reprend pas d'effort négatif (défaut : oui sauf dalle) |
+| `lierne` | texte |  |  | profilé de lierne (base matériaux) |
+| `nombre` | entier |  |  | tirant : nombre de torons ou de barres de l'élément (≥ 1) |
+| `acier` | texte |  |  | nuance d'acier de l'élément (base matériaux) |
+| `beton` | texte |  |  | dalle : classe de béton (base matériaux) |
+| `pied_bracon` | nombre |  |  | bracon : cote de l'appui en pied (m) |
+
+### phases (chaque phase)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `nom` | texte | oui |  | nom de la phase |
+| `excaver` | nombre |  |  | cote du fond de fouille atteinte (m) |
+| `remblayer` | bloc |  |  | remblai jusqu'à une cote, côté amont ou aval |
+| `poser` | texte ou liste de texte |  |  | appui(s) posé(s) dans cette phase |
+| `deposer` | texte ou liste de texte |  |  | appui(s) déposé(s) dans cette phase |
+| `eau` | bloc |  |  | nouveaux niveaux d'eau (seules les clés écrites changent) |
+| `ajouter_surcharges` | liste de bloc |  |  | surcharges ajoutées |
+| `retirer_surcharges` | liste de texte |  |  | noms des surcharges retirées |
+
+### phases.remblayer
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `amont` | nombre |  |  | nouvelle cote du terrain amont (m) |
+| `aval` | nombre |  |  | nouvelle cote du terrain aval (m) |
+
+### criteres
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `deplacement_max_mm` | nombre |  |  | déplacement admissible aux ELS (mm) (> 0) |
+| `deplacement_tete_mm` | nombre |  |  | déplacement admissible en tête aux ELS (mm) (> 0) |
+
+### plan
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `contour` | liste de liste de nombre | oui |  | polygone de la fouille [[x, y], ...] (m) |
+| `appuis` | liste de bloc |  |  | positions des appuis en plan |
+| `cote_terrain` | nombre |  |  | cote du terrain autour de la fouille (m) |
+
+### plan.appuis (chaque position)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `appui` | texte | oui |  | nom de l'appui (bloc appuis) |
+| `de` | liste de nombre | oui |  | point de départ [x, y] (m) |
+| `a` | liste de nombre | oui |  | point d'arrivée [x, y] (m) |
+
+### pseudo3d
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `longueur` | nombre | oui |  | longueur développée de la paroi modélisée (m) (> 0) |
+| `pas_horizontal` | nombre |  | 0.5 | taille des éléments selon la longueur (m) (> 0.05) |
+| `bords` | libres / encastres / appuyes |  | libres | conditions aux extrémités |
+| `angle` | nombre |  |  | angle de la fouille au milieu de la paroi (degrés) (> 0, < 360) |
+| `rigidite_horizontale` | nombre |  |  | EI horizontal par mètre de hauteur (kN·m²/m) (> 0) |
+
+<!-- REFERENCE:FIN -->
