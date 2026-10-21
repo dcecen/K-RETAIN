@@ -64,7 +64,7 @@ export function Navigation({ modele, erreurs, section, selection, onChoisir }: {
             </li>
           )))}
           {groupe('paroi', <IconeParoi />, 'Paroi', NOMS_PAROI[m.paroi?.type] ?? null)}
-          {groupe('eau', <IconeEau />, 'Eau', m.eau ? String(Object.keys(m.eau).length) : '0')}
+          {groupe('eau', <IconeEau />, 'Eau', m.hydraulique?.regime && m.hydraulique.regime !== 'hydrostatique' ? (m.hydraulique.regime === 'differences_finies' ? 'écoulement 2D' : 'simplifié') : (m.eau ? String(Object.keys(m.eau).length) : '0'))}
           {groupe('surcharges', <IconeSurcharge />, 'Surcharges', String(Array.isArray(m.surcharges) ? m.surcharges.length : 0))}
           {groupe('appuis', <IconeAppui />, 'Appuis', String(appuis.length), appuis.map(([nom, a]) => (
             <li key={nom}>

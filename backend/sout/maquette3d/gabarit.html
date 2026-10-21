@@ -36,10 +36,12 @@
   <div class="ligne"><button id="prec">◀</button><span id="nomPhase" style="flex:1"></span><button id="suiv">▶</button></div>
   <input id="curseur" type="range" min="0" value="0">
   <div class="ligne">Couleur de la paroi :
-    <select id="mode"><option value="y">déplacement</option><option value="M">moment</option><option value="">aucune</option></select>
+    <select id="mode"><option value="y">déplacement</option><option value="M">moment</option><option value="u">pression d'eau</option><option value="">aucune</option></select>
   </div>
   <div class="ligne"><label><input id="voirSol" type="checkbox" checked> couches de sol</label>
     <label><input id="voirEau" type="checkbox" checked> nappes</label></div>
+  <div class="ligne" id="ligneHydro" style="display:none"><label><input id="voirPiezo" type="checkbox" checked> surface piézométrique</label>
+    <label><input id="voirGrad" type="checkbox" checked> gradients</label></div>
   <div class="ligne">Vue :
     <button data-vue="iso">Iso</button><button data-vue="face">Face</button>
     <button data-vue="dessus">Dessus</button><button data-vue="coupe">Coupe</button></div>
@@ -165,7 +167,7 @@ function boite(centre, t, nrm, lt, ln, z0, z1, mat, segZ = 1) {
 // ----------------------------------------------------------------------------- couleurs de paroi
 let echelle = { min: 0, max: 1, titre: "" };
 function valeurParoi(ph, mode, s, z) {
-  if (D.p3d && D.p3d.phases && D.p3d.phases[ph.index] && D.p3d.phases[ph.index].ok) {
+  if (mode !== "u" && D.p3d && D.p3d.phases && D.p3d.phases[ph.index] && D.p3d.phases[ph.index].ok) {
     const q = D.p3d.phases[ph.index], g = mode === "M" ? q.M : q.y_mm, S = D.p3d.s, Z = D.p3d.z;
     if (g) {
       const i = Math.max(0, Math.min(S.length - 1, Math.round(interp(S, S.map((_, k) => k), s))));
@@ -173,6 +175,7 @@ function valeurParoi(ph, mode, s, z) {
     }
   }
   if (!ph.profil) return 0;
+  if (mode === "u") return interp(ph.profil.zu, ph.profil.u_amont, z);
   return mode === "M" ? interp(ph.profil.zM, ph.profil.M, z) : interp(ph.profil.z, ph.profil.y_mm, z);
 }
 function colorer(geom, ph, mode, sDe) {
@@ -302,6 +305,143 @@ function eau(ph, groupe) {
   }
 }
 
+// ----------------------------------------------------------------------------- géométrie en plan
+function dedans(x, y) {
+  let c = false;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const [xi, yi] = C[i], [xj, yj] = C[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+function distanceContour(x, y) {
+  let best = Infinity;
+  for (let k = 0; k < n; k++) {
+    const [x0, y0] = C[k], [x1, y1] = C[(k + 1) % n];
+    const L = Math.hypot(x1 - x0, y1 - y0) || 1, tx = (x1 - x0) / L, ty = (y1 - y0) / L;
+    const s = Math.min(Math.max((x - x0) * tx + (y - y0) * ty, 0), L);
+    best = Math.min(best, Math.hypot(x0 + tx * s - x, y0 + ty * s - y));
+  }
+  return best;
+}
+/** Points d'intersection d'une droite du plan (x = x0 ou y = y0) avec le contour, avec la normale intérieure de l'arête. */
+function intersectionsContour(axe, v) {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const A = C[k], B = C[(k + 1) % n];
+    const a = axe === "x" ? A[0] : A[1], b = axe === "x" ? B[0] : B[1];
+    if ((a - v) * (b - v) > 0 || a === b) continue;
+    const t = (v - a) / (b - a);
+    const P = [A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1])];
+    const L = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1, tt = [(B[0] - A[0]) / L, (B[1] - A[1]) / L];
+    out.push({ P, ni: [-tt[1] * sens, tt[0] * sens] });
+  }
+  return out;
+}
+function couleurGradient(i, ic) {
+  const t = Math.min(1, i / (ic || 1));
+  return new T.Color().setHSL((1 - t) * 0.33, 0.8, 0.45);  // vert -> rouge
+}
+
+// ----------------------------------------------------------------------------- hydraulique
+function hydraulique(ph, groupe) {
+  const hy = ph.hydro;
+  if (!hy) return;
+  const ic = hy.i_critique || 1;
+  // bouchon
+  if (hy.bouchon) {
+    const b = hy.bouchon, haut = Math.min(b.toit, ph.fond);
+    const m = bloc(C, null, b.base, haut, matiere(0x7a9a7a, { transparent: true, opacity: 0.55 }));
+    if (m) { groupe.add(m); etiquettes.push({ pos: P((xmin + xmax) / 2, (ymin + ymax) / 2, haut), texte: `bouchon ${b.type} (${(haut - b.base).toFixed(1)} m)` }); }
+  }
+  // surface piézométrique à la cote du fond (charge sous la fouille et dans le massif)
+  if (document.getElementById("voirPiezo").checked && hy.charge_fond && hy.charge_fond.h.some((v) => v !== null)) {
+    const cf = hy.charge_fond, xs = cf.x, hs = cf.h;
+    const hAt = (xl) => {
+      let k = 0; while (k < xs.length - 1 && xs[k + 1] < xl) k++;
+      const k1 = Math.min(k + 1, xs.length - 1);
+      const h0 = hs[k], h1 = hs[k1];
+      if (h0 === null && h1 === null) return null;
+      if (h0 === null) return h1; if (h1 === null) return h0;
+      const t = k1 === k || xs[k1] === xs[k] ? 0 : (xl - xs[k]) / (xs[k1] - xs[k]);
+      return h0 + Math.max(0, Math.min(1, t)) * (h1 - h0);
+    };
+    const pas = Math.max(0.5, taille / 40), x0 = xmin - marge, y0 = ymin - marge;
+    const nxg = Math.ceil((xmax + marge - x0) / pas), nyg = Math.ceil((ymax + marge - y0) / pas);
+    const pos = [], col = [], idx = [];
+    let hmin = Infinity, hmax = -Infinity;
+    const vals = [];
+    for (let j = 0; j <= nyg; j++) for (let i = 0; i <= nxg; i++) {
+      const x = x0 + i * pas, y = y0 + j * pas;
+      const d = distanceContour(x, y), xl = dedans(x, y) ? d : -d;
+      const h = hAt(xl);
+      vals.push(h);
+      if (h !== null) { hmin = Math.min(hmin, h); hmax = Math.max(hmax, h); }
+    }
+    vals.forEach((h, k) => {
+      const i = k % (nxg + 1), j = Math.floor(k / (nxg + 1));
+      const v = P(x0 + i * pas, y0 + j * pas, h === null ? hmin : h);
+      pos.push(v.x, v.y, v.z);
+      const t = hmax > hmin ? (h === null ? 0 : (h - hmin) / (hmax - hmin)) : 0.5;
+      const c = new T.Color().setHSL(0.6, 0.7, 0.35 + 0.4 * t);
+      col.push(c.r, c.g, c.b);
+    });
+    for (let j = 0; j < nyg; j++) for (let i = 0; i < nxg; i++) {
+      const a = j * (nxg + 1) + i, b = a + 1, c2 = a + nxg + 1, d2 = c2 + 1;
+      idx.push(a, b, d2, a, d2, c2);
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute("color", new T.Float32BufferAttribute(col, 3));
+    g.setIndex(idx); g.computeVertexNormals();
+    groupe.add(new T.Mesh(g, new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide, transparent: true, opacity: 0.55, depthWrite: false })));
+    etiquettes.push({ pos: P(xmin - marge * 0.6, ymin - marge * 0.6, hAt(-marge * 0.6) ?? hmin), texte: `charge piézométrique à la cote du fond : ${hmin.toFixed(2)} à ${hmax.toFixed(2)} m` });
+  }
+  // flèches de gradient de sortie au fond de fouille, le long de chaque paroi
+  if (document.getElementById("voirGrad").checked && hy.gradient_sortie && hy.gradient_sortie_max > 0) {
+    const xs = hy.gradient_sortie_x, gs = hy.gradient_sortie;
+    const pasA = Math.max(1, Math.round(xs.length / 8));
+    for (let k = 0; k < n; k++) {
+      const A = C[k], B = C[(k + 1) % n], L = Math.hypot(B[0] - A[0], B[1] - A[1]); if (L < 1e-6) continue;
+      const t = [(B[0] - A[0]) / L, (B[1] - A[1]) / L], ni = [-t[1] * sens, t[0] * sens];
+      const nb = Math.max(1, Math.round(L / Math.max(2, taille / 10)));
+      for (let m = 0; m < nb; m++) {
+        const sp = (m + 0.5) * L / nb;
+        for (let q = 0; q < xs.length; q += pasA) {
+          if (xs[q] <= 0 || xs[q] > Math.min(L, taille) / 2) continue;
+          const i = gs[q]; if (i <= 0.02 * ic) continue;
+          const o = P(A[0] + t[0] * sp + ni[0] * xs[q], A[1] + t[1] * sp + ni[1] * xs[q], ph.fond);
+          const lg = 0.12 * H * Math.min(1.5, i / ic);
+          groupe.add(new T.ArrowHelper(new T.Vector3(0, 1, 0), o, lg, couleurGradient(i, ic), 0.35 * lg, 0.2 * lg));
+        }
+      }
+    }
+    etiquettes.push({ pos: P(C[0][0], C[0][1], ph.fond + 0.15 * H), texte: `gradient de sortie max ${hy.gradient_sortie_max.toFixed(2)} (i_c ≈ ${ic.toFixed(2)})` });
+  }
+}
+/** Équipotentielles sur le plan de coupe actif. */
+function equipotentiellesCoupe(ph, groupe) {
+  const hy = ph.hydro;
+  if (!hy || !hy.equipotentielles || !hy.equipotentielles.length || !voirCoupe.checked) return;
+  const t = Number(posCoupe.value) / 1000;
+  const axe = axeCoupe.value;
+  const v = axe === "x" ? (xmin - marge) + t * (xmax - xmin + 2 * marge) : (ymin - marge) + t * (ymax - ymin + 2 * marge);
+  const pts = [];
+  for (const { P: Q, ni } of intersectionsContour(axe, v)) {
+    for (const eq of hy.equipotentielles) for (const [x0, z0, x1, z1] of eq.segments) {
+      if (Math.abs(x0) > marge && Math.abs(x1) > marge) continue;
+      const a = P(Q[0] + ni[0] * x0, Q[1] + ni[1] * x0, z0), b = P(Q[0] + ni[0] * x1, Q[1] + ni[1] * x1, z1);
+      pts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    }
+  }
+  if (!pts.length) return;
+  const g = new T.BufferGeometry();
+  g.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
+  const l = new T.LineSegments(g, new T.LineBasicMaterial({ color: 0x1f5fae }));
+  l.userData.equipotentielles = true;
+  groupe.add(l);
+}
+
 // ----------------------------------------------------------------------------- appuis
 const etiquettes = [];
 function appuis(ph, groupe) {
@@ -372,7 +512,7 @@ function bornes(mode) {
       const q = D.p3d.phases[p.index], g = mode === "M" ? q.M : q.y_mm;
       if (g) for (const r of g) for (const v of r) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
     } else if (p.profil) {
-      for (const v of mode === "M" ? p.profil.M : p.profil.y_mm) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+      for (const v of mode === "M" ? p.profil.M : mode === "u" ? p.profil.u_amont : p.profil.y_mm) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
     }
   }
   if (!isFinite(lo)) { lo = 0; hi = 1; }
@@ -395,8 +535,13 @@ function majCoupe() {
     planCoupe.constant = (ymin - marge) + t * (ymax - ymin + 2 * marge);          // garde y ≤ y0
   }
   if (groupe) groupe.traverse((o) => {
-    if (o.material) { o.material.clippingPlanes = voirCoupe.checked ? [planCoupe] : null; o.material.needsUpdate = true; }
+    if (o.material && !o.userData.equipotentielles) { o.material.clippingPlanes = voirCoupe.checked ? [planCoupe] : null; o.material.needsUpdate = true; }
   });
+  if (groupe) {
+    const anciennes = groupe.children.filter((o) => o.userData.equipotentielles);
+    for (const o of anciennes) { groupe.remove(o); o.geometry.dispose(); }
+    equipotentiellesCoupe(D.phases[Number(curseur.value)], groupe);
+  }
 }
 for (const el of [voirCoupe, axeCoupe]) el.addEventListener("change", majCoupe);
 posCoupe.addEventListener("input", majCoupe);
@@ -465,7 +610,7 @@ function afficher(i) {
   etiquettes.length = 0;
   const mode = selMode.value;
   if (mode) {
-    echelle = { ...bornes(mode), titre: mode === "M" ? "Moment (kN·m/m), toutes phases" : "Déplacement y (mm), toutes phases" };
+    echelle = { ...bornes(mode), titre: mode === "M" ? "Moment (kN·m/m), toutes phases" : mode === "u" ? "Pression d'eau amont (kPa), toutes phases" : "Déplacement y (mm), toutes phases" };
     document.getElementById("titreEchelle").textContent = echelle.titre;
     document.getElementById("vmin").textContent = echelle.min.toFixed(1);
     document.getElementById("vmax").textContent = echelle.max.toFixed(1);
@@ -476,10 +621,14 @@ function afficher(i) {
   else { const f = bloc(C, null, ph.fond - 0.05, ph.fond, matiere(0x8b5a2b)); if (f) groupe.add(f); }
   if (voirEau.checked) eau(ph, groupe);
   appuis(ph, groupe);
+  document.getElementById("ligneHydro").style.display = ph.hydro ? "" : "none";
+  hydraulique(ph, groupe);
+  equipotentiellesCoupe(ph, groupe);
   scene.add(groupe);
   majCoupe();
   selectionner(selectionne, false);
 }
+for (const id of ["voirPiezo", "voirGrad"]) document.getElementById(id).addEventListener("change", () => afficher(Number(curseur.value)));
 curseur.addEventListener("input", () => { afficher(Number(curseur.value)); notifierPhase(Number(curseur.value)); });
 document.getElementById("prec").onclick = () => { curseur.value = String(Math.max(0, Number(curseur.value) - 1)); afficher(Number(curseur.value)); notifierPhase(Number(curseur.value)); };
 document.getElementById("suiv").onclick = () => { curseur.value = String(Math.min(D.phases.length - 1, Number(curseur.value) + 1)); afficher(Number(curseur.value)); notifierPhase(Number(curseur.value)); };

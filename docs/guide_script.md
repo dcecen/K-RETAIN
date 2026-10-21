@@ -116,6 +116,36 @@ le rappelle dès que les nappes amont et aval diffèrent : la butée peut être 
 le fond de fouille est vérifié par la méthode de la longueur de cheminement (simplifiée).
 Le poids volumique de l'eau vaut 10 kN/m³ par défaut (`calcul.gamma_w`).
 
+### Écoulement autour de l'écran (bloc `hydraulique`)
+
+Trois régimes : `hydrostatique` (défaut), `simplifie` (perte de charge uniforme le long du
+cheminement amont → pied → fouille, pondération de Lane pour un parcours horizontal sous un
+bouchon étanche) et `differences_finies` (écoulement 2D permanent sur la coupe, couches
+anisotropes `k_h` / `k_v`, écran imperméable, substratum, bouchon, fouille symétrique).
+L'écoulement fournit les pressions d'eau sur l'écran et corrige les contraintes effectives :
+un écoulement ascendant côté fouille réduit la butée disponible.
+
+```yaml
+hydraulique:
+  regime: differences_finies
+  substratum: -30          # toit du substratum imperméable (défaut : pied − 2H)
+  largeur_amont: 50        # domaine amont (défaut : 4H)
+  largeur_fouille: 24      # fouille symétrique (défaut : 2H)
+  pas: 0.5                 # maillage d'écoulement (m)
+  sol_lane: sable_moyen    # clé de la table de Lane (docs/normes/hydraulique.yaml)
+  bouchon: { type: injecte, toit: -9, base: -12, k: 1.0e-8, gamma: 21, phase: 4, lest: 0 }
+```
+
+Types de bouchon : `injecte`, `jet_grouting`, `radier_leste` (avec `lest` en kPa) et
+`substratum` (couche naturelle : la perméabilité et le poids sont ceux de la couche).
+`phase` : numéro (à partir de 1) ou nom de la phase à partir de laquelle le bouchon est actif.
+Les vérifications `fond_de_fouille` utilisent alors le réseau d'écoulement : boulance
+(équilibre des pressions et gradient de sortie), renard (Terzaghi, Lane, gradient critique,
+affichés ensemble), soulèvement du bouchon avec son épaisseur minimale, gradient à travers le
+bouchon, débit de pompage, et la stabilité du fond en argile molle si `cu` est donné.
+Limite : l'écoulement est résolu en 2D sur la coupe puis extrudé en 3D (pas d'effet d'angle
+sur le débit).
+
 ## 6. Appuis
 
 | Type | Données de raideur | Remarques |
@@ -202,6 +232,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `criteres` | bloc |  |  |  |
 | `plan` | bloc |  |  |  |
 | `pseudo3d` | bloc |  |  |  |
+| `hydraulique` | bloc |  |  |  |
 
 ### calcul
 
@@ -272,6 +303,10 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `delta_a_sur_phi` | nombre |  | 0.0 | obliquité côté poussée δa/φ' (≥ 0, ≤ 1) |
 | `delta_p_sur_phi` | nombre |  | 0.0 | obliquité côté butée |δp|/φ' (≥ 0, ≤ 1) |
 | `coef_decharge` | nombre |  |  | coefficient de décharge Kd (défaut : K0) (> 0, ≤ 3) |
+| `k_h` | nombre |  |  | perméabilité horizontale (m/s), nécessaire au calcul d'écoulement (> 0) |
+| `k_v` | nombre |  |  | perméabilité verticale (m/s) ; défaut : k_h (> 0) |
+| `cu` | nombre |  |  | cohésion non drainée (kPa), stabilité du fond en argile molle (> 0) |
+| `sol_lane` | texte |  |  | type de sol de la table de Lane (clé de docs/normes/hydraulique.yaml → lane.C) |
 
 ### terrain
 

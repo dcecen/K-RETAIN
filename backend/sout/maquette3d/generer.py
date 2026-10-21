@@ -119,7 +119,19 @@ def donnees(ex, p3d: dict | None = None) -> dict:
         if ph.ok:
             zm = 0.5 * (ph.z_diag[0::2] + ph.z_diag[1::2])
             Mm = 0.5 * (ph.M[0::2] + ph.M[1::2])
-            d["profil"] = {"z": _l(ph.z), "y_mm": _l(ph.y * 1e3), "zM": _l(zm), "M": _l(Mm)}
+            d["profil"] = {"z": _l(ph.z), "y_mm": _l(ph.y * 1e3), "zM": _l(zm), "M": _l(Mm),
+                           "zu": _l(ph.eau["z"]), "u_amont": _l(ph.eau["u_amont"]), "u_aval": _l(ph.eau["u_aval"])}
+            if ph.hydro:
+                h = ph.hydro
+                couches_t = sorted(m.couches, key=lambda c: -c.toit)
+                from ..sol.couches import indice_couche
+                c_fond = couches_t[indice_couche(couches_t, ph.terrain_aval - 1e-6)]
+                d["hydro"] = {
+                    "regime": h["regime"], "charge_fond": h.get("charge_fond"), "equipotentielles": h.get("equipotentielles", []),
+                    "bouchon": h.get("bouchon"), "gradient_sortie_x": h["gradient_sortie_x"], "gradient_sortie": h["gradient_sortie"],
+                    "gradient_sortie_max": h["gradient_sortie_max"], "i_critique": c_fond.gamma_dejauge / m.gamma_w,
+                    "h_amont": h["h_amont"], "h_aval": h["h_aval"],
+                }
         phases.append(d)
     couches = sorted(({"nom": c.nom, "toit": c.toit} for c in m.couches), key=lambda c: -c["toit"])
     return {

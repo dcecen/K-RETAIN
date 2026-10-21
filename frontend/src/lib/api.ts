@@ -37,6 +37,29 @@ export interface DefAppui {
   unilateral: boolean
 }
 
+export interface Hydro {
+  regime: string
+  h_amont: number | null
+  h_aval: number | null
+  gradient_sortie_max: number
+  gradient_sortie_moyen: number
+  debit_m3_s_m: number
+  debit_m3_h_m: number
+  charge_base_prisme: number
+  gradient_sortie_x: number[]
+  gradient_sortie: number[]
+  bouchon: { type: string; toit: number; base: number; k: number | null; epaisseur: number } | null
+  charge_base_bouchon: number | null
+  gradient_bouchon: number | null
+  avertissements: string[]
+  x?: number[]
+  z?: number[]
+  h?: (number | null)[][]
+  equipotentielles?: { niveau: number; segments: number[][] }[]
+  charge_fond?: { x: number[]; h: (number | null)[] }
+  charge_mi_fiche?: { x: number[]; h: (number | null)[] }
+}
+
 export interface PhaseRes {
   nom: string
   ok: boolean
@@ -54,6 +77,7 @@ export interface PhaseRes {
   eau?: { z: number[]; u_amont: number[]; u_aval: number[] }
   appuis?: AppuiPhase[]
   actions: { type: string; texte: string }[]
+  hydro?: Hydro | null
   synthese?: {
     y_max_mm: number
     z_y_max: number
@@ -92,6 +116,7 @@ export interface Resultats {
   conventions: Record<string, string>
   paroi: { tete: number; pied: number; type?: string; [k: string]: unknown }
   couches: { nom: string; toit: number }[]
+  hydraulique?: Record<string, unknown> | null
   appuis: DefAppui[]
   phases: PhaseRes[]
   enveloppes: {

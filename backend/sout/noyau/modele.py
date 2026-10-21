@@ -72,3 +72,4 @@ class Modele:
     coefficients: str = "coulomb"        # "coulomb" ou "kerisel_absi"
     pas: float = 0.1                     # m, longueur maximale d'élément
     y_rupture: float = 5.0               # m
+    hydraulique: dict | None = None      # bloc hydraulique du script (régime, substratum, bouchon...)

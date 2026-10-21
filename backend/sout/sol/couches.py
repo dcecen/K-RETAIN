@@ -34,6 +34,10 @@ class Couche:
     delta_a_sur_phi: float = 0.0  # -, obliquité côté poussée δa/φ'
     delta_p_sur_phi: float = 0.0  # -, obliquité côté butée |δp|/φ'
     coef_decharge: float | None = None  # -, coefficient appliqué aux variations de σ'v (défaut K0)
+    k_h: float | None = None    # m/s, perméabilité horizontale (écoulement)
+    k_v: float | None = None    # m/s, perméabilité verticale (défaut k_h)
+    cu: float | None = None     # kPa, cohésion non drainée (stabilité du fond en argile)
+    sol_lane: str | None = None # type de sol pour le coefficient de Lane (clé de docs/normes/hydraulique.yaml)
 
 
 def trier(couches: list[Couche]) -> list[Couche]:
@@ -102,3 +106,9 @@ def contraintes_verticales(
     if surcharge is not None:
         sv = sv + np.where(z < z_terrain, surcharge, 0.0)
     return sv, u
+
+
+def contraintes_totales(z, z_terrain, z_nappe, couches, gamma_w, surcharge=None):
+    """Contrainte verticale totale σv(z) = σ'v hydrostatique + u hydrostatique (kPa)."""
+    sv, u = contraintes_verticales(z, z_terrain, z_nappe, couches, gamma_w, surcharge)
+    return sv + u

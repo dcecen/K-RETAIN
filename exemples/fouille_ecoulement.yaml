@@ -1,0 +1,52 @@
+# Projet fictif, valeurs d'illustration. Paroi moulée sous nappe avec écoulement 2D
+# (différences finies). La paroi est ancrée dans une argile raide peu perméable qui sert de
+# bouchon naturel (type substratum) : son soulèvement et le gradient qui la traverse sont vérifiés.
+projet: Fouille sous nappe avec écoulement (exemple)
+calcul:
+  pas: 0.2
+  largeur_fouille: 24
+
+hydraulique:
+  regime: differences_finies   # hydrostatique | simplifie | differences_finies
+  substratum: -30              # toit du substratum imperméable (m)
+  largeur_amont: 50            # étendue du domaine amont (m)
+  largeur_fouille: 24          # fouille symétrique : flux nul à mi-largeur
+  pas: 0.5                     # cellules du maillage d'écoulement (m)
+  sol_lane: sable_moyen        # clé de la table de Lane (docs/normes/hydraulique.yaml)
+  bouchon:
+    type: substratum           # bouchon naturel : la couche d'argile (perméabilité et poids de la couche)
+    toit: -14.0
+    base: -20.0
+
+paroi:
+  type: paroi_moulee
+  epaisseur: 0.8
+  beton: C30/37
+  enrobage: 0.08
+  tete: 0.0
+  pied: -18.0
+
+sol:
+  - { nom: Remblai, toit: 0.0, gamma: 18, gamma_dejauge: 9, phi: 28, EM: 5000, alpha: 0.5, k_h: 1.0e-5, k_v: 5.0e-6 }
+  - { nom: Sable fin, toit: -3.0, gamma: 20, gamma_dejauge: 10, phi: 32, EM: 15000, alpha: 0.33, k_h: 2.0e-5, k_v: 1.0e-5, pl: 1500 }
+  - { nom: Argile raide, toit: -14.0, gamma: 20, gamma_dejauge: 10, phi: 24, c: 20, EM: 25000, alpha: 0.67, k_h: 1.0e-9, k_v: 5.0e-10, pl: 2000, cu: 150 }
+
+eau:
+  service: { amont: -1.0, aval: -1.0 }
+
+appuis:
+  B1: { type: buton, element: modulaire_A, cote: -1.0, espacement: 6.0, longueur: 24.0, precharge: 100, lierne: HEB 400, acier: S355 }
+  B2: { type: buton, element: modulaire_A, cote: -5.0, espacement: 6.0, longueur: 24.0, precharge: 150, lierne: HEB 400, acier: S355 }
+
+plan:
+  contour: [[0, 0], [30, 0], [30, 24], [0, 24]]
+
+phases:
+  - { nom: "Terrassement à -1,5", excaver: -1.5 }
+  - { nom: Pose du buton B1, poser: B1 }
+  - { nom: "Terrassement à -5,5 et rabattement", excaver: -5.5, eau: { aval: -6.0 } }
+  - { nom: Pose du buton B2, poser: B2 }
+  - { nom: "Terrassement final à -9,0 et pompage", excaver: -9.0, eau: { aval: -9.5 } }
+
+verifications: [butee, equilibre_vertical, fond_de_fouille, stabilite_generale, deplacements, structure]
+criteres: { deplacement_max_mm: 30 }

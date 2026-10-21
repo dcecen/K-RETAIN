@@ -71,6 +71,15 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
               <div className="sous">{maxButon ? maxButon.nom : 'aucun buton posé'}</div></div>
             <div className="chiffre"><div className="lib">Butée mobilisée</div>
               <div className="val">{pourcent(s?.butee_mobilisee)}</div><div className="sous">Bm/Bt caractéristique</div></div>
+            {ph.hydro && ph.hydro.regime !== 'hydrostatique' && (
+              <>
+                <div className="chiffre"><div className="lib">Gradient de sortie</div>
+                  <div className="val" style={{ color: ph.hydro.gradient_sortie_max >= 0.9 ? 'var(--rouge)' : undefined }}>{nb(ph.hydro.gradient_sortie_max, 3)}</div>
+                  <div className="sous">{ph.hydro.bouchon ? `bouchon ${ph.hydro.bouchon.type} : i = ${nb(ph.hydro.gradient_bouchon, 2)}` : 'au fond de fouille, contre l’écran'}</div></div>
+                <div className="chiffre"><div className="lib">Débit de pompage</div>
+                  <div className="val">{nb(ph.hydro.debit_m3_h_m, 3)}<small>m³/h/m</small></div><div className="sous">{ph.hydro.regime === 'differences_finies' ? 'réseau d’écoulement 2D' : 'régime simplifié'}</div></div>
+              </>
+            )}
           </div>
         </div>
       )}

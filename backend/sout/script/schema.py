@@ -86,6 +86,31 @@ class Couche(_Base):
     delta_a_sur_phi: float = Field(0.0, ge=0, le=1, description="obliquité côté poussée δa/φ'")
     delta_p_sur_phi: float = Field(0.0, ge=0, le=1, description="obliquité côté butée |δp|/φ'")
     coef_decharge: float | None = Field(None, gt=0, le=3, description="coefficient de décharge Kd (défaut : K0)")
+    k_h: float | None = Field(None, gt=0, description="perméabilité horizontale (m/s), nécessaire au calcul d'écoulement")
+    k_v: float | None = Field(None, gt=0, description="perméabilité verticale (m/s) ; défaut : k_h")
+    cu: float | None = Field(None, gt=0, description="cohésion non drainée (kPa), stabilité du fond en argile molle")
+    sol_lane: str | None = Field(None, description="type de sol de la table de Lane (clé de docs/normes/hydraulique.yaml → lane.C)")
+
+
+class BouchonScript(_Base):
+    type: Literal["injecte", "jet_grouting", "radier_leste", "substratum"] = Field(description="type de bouchon")
+    toit: float = Field(description="cote du toit du bouchon (m)")
+    base: float = Field(description="cote de la base du bouchon (m)")
+    k: float | None = Field(None, gt=0, description="perméabilité du bouchon (m/s) ; vide = imperméable")
+    gamma: float = Field(20.0, gt=0, description="poids volumique du bouchon (kN/m3)")
+    phase: int | str | None = Field(None, description="actif à partir de cette phase (numéro à partir de 1, ou nom) ; vide = dès le début")
+    lest: float = Field(0.0, ge=0, description="charge permanente sus-jacente, radier lesté (kPa)")
+
+
+class Hydraulique(_Base):
+    regime: Literal["hydrostatique", "simplifie", "differences_finies"] = Field(
+        "hydrostatique", description="régime de l'eau : hydrostatique, simplifié (cheminement) ou écoulement 2D en différences finies")
+    substratum: float | None = Field(None, description="cote du toit du substratum imperméable (m) ; défaut : pied − 2 × hauteur")
+    largeur_amont: float | None = Field(None, gt=0, description="étendue du domaine amont (m) ; défaut : 4 × hauteur de paroi")
+    largeur_fouille: float | None = Field(None, gt=0, description="largeur de la fouille (m), fouille symétrique ; défaut : 2 × hauteur")
+    pas: float = Field(0.5, gt=0.05, le=2.0, description="taille des cellules du maillage d'écoulement (m)")
+    bouchon: BouchonScript | None = Field(None, description="bouchon de fond de fouille")
+    sol_lane: str | None = Field(None, description="type de sol pour Lane (sinon celui de la couche du fond)")
 
 
 class Terrain(_Base):
@@ -200,3 +225,4 @@ class Script(_Base):
     criteres: Criteres = Field(default_factory=Criteres)
     plan: Plan | None = None
     pseudo3d: Pseudo3D | None = None
+    hydraulique: Hydraulique | None = None

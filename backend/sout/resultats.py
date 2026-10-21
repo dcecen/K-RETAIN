@@ -72,6 +72,7 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "") -> dict:
                 "pressions": {c: {k: _l(v) for k, v in ph.pressions[c].items() if k in ("z", "p", "pa", "pp", "p0")}
                               for c in ("amont", "aval")},
                 "eau": {k: _l(v) for k, v in ph.eau.items()},
+                "hydro": ph.hydro,
                 "appuis": [],
                 "synthese": {
                     "y_max_mm": float(y_mm[i]), "z_y_max": float(ph.z[i]),
@@ -131,6 +132,7 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "") -> dict:
         "conventions": CONVENTIONS,
         "paroi": {"tete": modele.ecran.tete, "pied": modele.ecran.pied, **modele.ecran.infos},
         "couches": [{"nom": c.nom, "toit": c.toit} for c in sorted(modele.couches, key=lambda c: -c.toit)],
+        "hydraulique": modele.hydraulique,
         "appuis": [{"nom": a.nom, "cote": a.cote, "type": a.type, "angle": a.infos.get("angle", 0.0),
                     "element": a.infos.get("element"), "espacement": a.infos.get("espacement", 1.0),
                     "precharge": a.infos.get("precharge", 0.0), "lierne": a.infos.get("lierne"),

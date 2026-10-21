@@ -186,6 +186,13 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
                 e.append((("phases", i, "retirer_surcharges"), f"surcharge « {nom} » inconnue"))
         if ph.excaver is not None and not s.paroi.pied < ph.excaver <= s.paroi.tete:
             e.append((("phases", i, "excaver"), "cote d'excavation hors de la paroi"))
+    if s.hydraulique is not None and s.hydraulique.regime != "hydrostatique":
+        for i, c in enumerate(s.sol):
+            if c.k_h is None:
+                e.append((("sol", i, "nom"), f"couche « {c.nom} » : k_h (m/s) obligatoire avec hydraulique.regime = {s.hydraulique.regime}"))
+        b = s.hydraulique.bouchon
+        if b is not None and b.base >= b.toit:
+            e.append((("hydraulique", "bouchon", "base"), "la base du bouchon doit être sous son toit"))
     if s.plan is not None:
         if len(s.plan.contour) < 3 or any(len(p) != 2 for p in s.plan.contour):
             e.append((("plan", "contour"), "le contour doit compter au moins 3 points [x, y]"))

@@ -38,7 +38,11 @@ def _geotechniques(s: Script, m: Modele, r: ResultatCalcul, normes, jeu: str | N
     if "kranz" in demandes:
         v += kranz.verifier(m, r, normes)
     if "fond_de_fouille" in demandes:
-        v += fond_de_fouille.verifier(m, r, normes)
+        if any(p.ecoulement is not None for p in r.phases):
+            from .hydraulique import verifications as verifs_hydro
+            v += verifs_hydro.verifier(m, r, normes)
+        else:
+            v += fond_de_fouille.verifier(m, r, normes)
     if "stabilite_generale" in demandes:
         v += bishop.verifier(m, r, normes, s.calcul.largeur_fouille)
     if "structure" in demandes:

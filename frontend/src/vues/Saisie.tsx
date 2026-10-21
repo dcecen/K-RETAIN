@@ -123,7 +123,7 @@ function Projet({ ctx }: { ctx: Ctx }) {
 const COLS_SOL: [string, string, string][] = [
   ['nom', 'Nom', ''], ['toit', 'Toit', 'm'], ['gamma', 'γ', 'kN/m³'], ['gamma_dejauge', "γ'", 'kN/m³'], ['phi', "φ'", '°'],
   ['c', "c'", 'kPa'], ['EM', 'EM', 'kPa'], ['alpha', 'α', ''], ['pl', 'pl', 'kPa'], ['kh', 'kh imposé', 'kN/m³'],
-  ['delta_a_sur_phi', "δa/φ'", ''], ['delta_p_sur_phi', "δp/φ'", ''],
+  ['delta_a_sur_phi', "δa/φ'", ''], ['delta_p_sur_phi', "δp/φ'", ''], ['k_h', 'k_h', 'm/s'], ['k_v', 'k_v', 'm/s'], ['cu', 'cu', 'kPa'],
 ]
 
 function Sol({ ctx, selection }: { ctx: Ctx; selection: Selection }) {
@@ -230,6 +230,7 @@ function Paroi({ ctx }: { ctx: Ctx }) {
 function Eau({ ctx }: { ctx: Ctx }) {
   const eau: Record<string, Modele> = ctx.modele.eau ?? {}
   const terrain = ctx.modele.terrain ?? {}
+  const hy: Modele = ctx.modele.hydraulique ?? {}
   const [nouveau, setNouveau] = useState('')
   return (
     <div className="saisie">
@@ -254,6 +255,29 @@ function Eau({ ctx }: { ctx: Ctx }) {
             </tr>
           </tbody>
         </table>
+      </div>
+      <div className="bloc"><div className="bloc-titre">Écoulement autour de l'écran</div>
+        <div className="grille-form">
+          <label title={doc(ctx.schema, 'Hydraulique', 'regime')}>Régime de l'eau
+            <Choix ctx={ctx} chemin={['hydraulique', 'regime']} valeur={hy.regime ?? 'hydrostatique'} options={enumDe(ctx.schema, 'Hydraulique', 'regime')} /></label>
+          <label>Toit du substratum imperméable (m)<Champ ctx={ctx} chemin={['hydraulique', 'substratum']} valeur={hy.substratum} placeholder="pied − 2H" large /></label>
+          <label>Étendue du domaine amont (m)<Champ ctx={ctx} chemin={['hydraulique', 'largeur_amont']} valeur={hy.largeur_amont} placeholder="4 × H" large /></label>
+          <label>Largeur de la fouille (m)<Champ ctx={ctx} chemin={['hydraulique', 'largeur_fouille']} valeur={hy.largeur_fouille} placeholder="2 × H" large /></label>
+          <label>Maillage d'écoulement (m)<Champ ctx={ctx} chemin={['hydraulique', 'pas']} valeur={hy.pas} placeholder="0.5" large /></label>
+          <label>Sol pour Lane (clé de la table)<Champ ctx={ctx} chemin={['hydraulique', 'sol_lane']} valeur={hy.sol_lane} type="text" placeholder="sable_moyen" large /></label>
+        </div>
+        <p className="note" style={{ padding: '0 12px 10px' }}>Régimes : hydrostatique (nappes indépendantes), simplifié (perte de charge uniforme le long du cheminement), différences finies (écoulement 2D sur la coupe, k_h et k_v par couche). L'écoulement corrige les pressions d'eau sur l'écran et les contraintes effectives.</p>
+      </div>
+      <div className="bloc"><div className="bloc-titre">Bouchon de fond de fouille</div>
+        <div className="grille-form">
+          <label title={doc(ctx.schema, 'BouchonScript', 'type')}>Type<Choix ctx={ctx} chemin={['hydraulique', 'bouchon', 'type']} valeur={hy.bouchon?.type} options={enumDe(ctx.schema, 'BouchonScript', 'type')} vide="aucun" /></label>
+          <label>Toit (m)<Champ ctx={ctx} chemin={['hydraulique', 'bouchon', 'toit']} valeur={hy.bouchon?.toit} large /></label>
+          <label>Base (m)<Champ ctx={ctx} chemin={['hydraulique', 'bouchon', 'base']} valeur={hy.bouchon?.base} large /></label>
+          <label>Perméabilité (m/s, vide = imperméable)<Champ ctx={ctx} chemin={['hydraulique', 'bouchon', 'k']} valeur={hy.bouchon?.k} large /></label>
+          <label>Poids volumique (kN/m³)<Champ ctx={ctx} chemin={['hydraulique', 'bouchon', 'gamma']} valeur={hy.bouchon?.gamma} placeholder="20" large /></label>
+          <label>Actif à partir de la phase (n° ou nom)<Champ ctx={ctx} chemin={['hydraulique', 'bouchon', 'phase']} valeur={hy.bouchon?.phase} type="text" placeholder="dès le début" large /></label>
+          <label>Lest sus-jacent (kPa)<Champ ctx={ctx} chemin={['hydraulique', 'bouchon', 'lest']} valeur={hy.bouchon?.lest} placeholder="0" large /></label>
+        </div>
       </div>
       <div className="bloc"><div className="bloc-titre">Terrain initial</div>
         <div className="grille-form">

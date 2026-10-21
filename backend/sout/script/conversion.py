@@ -59,4 +59,5 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
         eau_amont=eau0.amont if eau0 else None, eau_aval=eau0.aval if eau0 else None,
         surcharges=surcharges, gamma_w=s.calcul.gamma_w, coefficients=s.calcul.coefficients,
         pas=s.calcul.pas,
+        hydraulique=s.hydraulique.model_dump() if s.hydraulique is not None else None,
     )

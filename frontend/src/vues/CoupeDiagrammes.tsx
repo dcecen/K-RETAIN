@@ -71,6 +71,31 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
     }
     annotations.push({ text: ch.nom, xref: 'x', yref: 'y', x: -L * 0.97, y: (Math.min(ch.toit, ph.terrain_amont) + bas) / 2, xanchor: 'left', showarrow: false, font: { size: 10, color: c.texte } })
   })
+  // réseau d'écoulement (régime simplifié ou différences finies)
+  const hy = ph.hydro
+  if (hy?.h && hy.x && hy.z) {
+    traces.push({
+      type: 'contour', x: hy.x, y: hy.z, z: hy.h[0].map((_, j) => hy.h!.map((col) => col[j])), xaxis: 'x', yaxis: 'y',
+      contours: { coloring: 'lines', showlabels: true, labelfont: { size: 9, color: c.accent }, start: Math.min(hy.h_amont ?? 0, hy.h_aval ?? 0), end: Math.max(hy.h_amont ?? 0, hy.h_aval ?? 0), size: Math.max(0.1, Math.abs((hy.h_amont ?? 0) - (hy.h_aval ?? 0)) / 10) },
+      line: { color: c.accent, width: 1 }, showscale: false, hoverinfo: 'skip', connectgaps: false, opacity: 0.8,
+    })
+  }
+  if (hy?.bouchon) {
+    const b = hy.bouchon
+    formes.push({ type: 'rect', xref: 'x', yref: 'y', x0: 0, x1: L, y0: b.base, y1: Math.min(b.toit, ph.terrain_aval), line: { color: c.doux, width: 1 }, fillcolor: c.faible, opacity: 0.35, layer: 'below' })
+    annotations.push({ text: `bouchon ${b.type}`, xref: 'x', yref: 'y', x: L * 0.5, y: (b.base + Math.min(b.toit, ph.terrain_aval)) / 2, showarrow: false, font: { size: 10, color: c.texte } })
+  }
+  if (hy && hy.gradient_sortie.length && hy.gradient_sortie_max > 0) {
+    const ic = (res.couches.length ? 1 : 1) // i_c affiché via la couleur : rouge au-delà de 0,9·i_c (i_c ≈ γ'/γw ≈ 1)
+    hy.gradient_sortie_x.forEach((x, k) => {
+      if (x > L || k % Math.max(1, Math.round(hy.gradient_sortie_x.length / 12))) return
+      const i = hy.gradient_sortie[k]
+      const lg = 0.12 * H * Math.min(1.5, i / ic)
+      const coul = i >= 0.9 * ic ? c.rouge : i >= 0.5 * ic ? c.orange : c.accent
+      annotations.push({ x, y: ph.terrain_aval + lg, ax: x, ay: ph.terrain_aval, xref: 'x', yref: 'y', axref: 'x', ayref: 'y', showarrow: true, arrowhead: 2, arrowwidth: 1.5, arrowcolor: coul, text: '' })
+    })
+    annotations.push({ text: `i sortie max ${nb(hy.gradient_sortie_max, 2)}`, xref: 'x', yref: 'y', x: L * 0.97, y: ph.terrain_aval + 0.2 * H, xanchor: 'right', showarrow: false, font: { size: 10, color: hy.gradient_sortie_max >= 0.9 * ic ? c.rouge : c.doux } })
+  }
   if (ph.eau_aval !== null && ph.eau_aval > ph.terrain_aval) {
     formes.push({ type: 'rect', xref: 'x', yref: 'y', x0: 0, x1: L, y0: ph.terrain_aval, y1: ph.eau_aval, line: { width: 0 }, fillcolor: c.accent, opacity: 0.15, layer: 'below' })
   }

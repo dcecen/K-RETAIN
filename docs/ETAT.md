@@ -234,3 +234,25 @@ Tests : 95 réussis, 6 ignorés (cas de validation et exemples RIDO absents).
 - Vérifié (Chrome piloté) : saisie φ → ligne du script seule modifiée ; script → formulaire ;
   pied de paroi raccourci → calcul interrompu signalé en rouge et dans les alertes.
   Le statut « Non vérifié » de la butée exige les coefficients de docs/normes.
+
+
+## Module hydraulique : fait (porte ouverte : coefficients non fournis)
+
+- `sout/hydraulique` : solveur d'écoulement 2D en différences finies (volumes finis,
+  perméabilités anisotropes, écran imperméable, substratum, bouchon), régime simplifié
+  (Bligh/Lane), hydrostatique conservé pour la non-régression ; pressions d'eau et
+  contraintes effectives de l'écran corrigées par l'écoulement (poids du bouchon et lest
+  comptés dans la contrainte totale).
+- Bouchons injecté, jet-grouting, radier lesté, substratum naturel, actifs à partir d'une phase.
+- Vérifications : boulance (pressions et gradient), renard (Terzaghi, Lane, gradient critique),
+  soulèvement du bouchon avec épaisseur minimale, gradient à travers le bouchon, débit,
+  stabilité du fond en argile (Bjerrum-Eide) ; coefficients dans docs/normes/hydraulique.yaml
+  (tout à null) et nf_p94_282.yaml.
+- Tests analytiques (verts) : écoulement 1D, couches en série, Lane, Terzaghi, UPL, réseau de
+  référence (symétrie exacte, gradient de sortie de Harr H/(π·d) à 1 %), non-régression
+  hydrostatique, réduction de la butée par l'écoulement, effet d'un bouchon.
+- Affichage : réseau d'écoulement et flèches de gradient sur la coupe, tuiles gradient/débit
+  dans l'inspecteur, 3D : surface piézométrique, bouchon, équipotentielles sur le plan de
+  coupe, paroi colorée par pression d'eau, flèches de gradient (vert → rouge).
+- Limites : écoulement 2D extrudé (pas d'effet d'angle), nappe amont maintenue, fouille
+  symétrique, cellules uniformes (pas raffiné près du pied).

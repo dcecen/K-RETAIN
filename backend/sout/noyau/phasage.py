@@ -28,7 +28,7 @@ import numpy as np
 
 from ..sol import coefficients as coef
 from ..sol import kerisel_absi
-from ..sol.couches import Couche, contraintes_verticales, indice_couche, trier
+from ..sol.couches import Couche, contraintes_totales, contraintes_verticales, indice_couche, trier
 from ..sol.kh import em_depuis_cpt, kh_schmitt
 from ..sol.surcharges import Surcharge, delta_sigma_v
 from .modele import Modele, Phase
@@ -59,6 +59,8 @@ class ResultatPhase:
     eau: dict = field(default_factory=dict)         # {"z", "u_amont", "u_aval"}
     appuis: list = field(default_factory=list)      # [{"nom", "cote", "effort", "actif"}]
     iterations: int = 0
+    hydro: dict | None = None                       # résultat hydraulique sérialisé (écoulement, bouchon)
+    ecoulement: object = field(default=None, repr=False)  # objet ResultatEcoulement (vérifications)
 
 
 @dataclass
@@ -180,20 +182,42 @@ class MoteurPhases:
                 f"Terrain ou remblai au-dessus du toit de la première couche ({self.couches[0].toit} m) : "
                 f"il prend les propriétés de « {self.couches[0].nom} ». Définissez une couche de remblai si besoin.")
         nappes = [(modele.eau_amont, modele.eau_aval)] + [(ph.eau.get("amont"), ph.eau.get("aval")) for ph in modele.phases]
-        if any(a is not None and b is not None and abs(a - b) > 1e-6 for a, b in nappes) or \
-                (modele.eau_amont is not None and any("aval" in ph.eau for ph in modele.phases)):
+        regime = (modele.hydraulique or {}).get("regime", "hydrostatique")
+        if regime == "hydrostatique" and (any(a is not None and b is not None and abs(a - b) > 1e-6 for a, b in nappes) or
+                                          (modele.eau_amont is not None and any("aval" in ph.eau for ph in modele.phases))):
             self.avertissements.append(
                 "Nappes amont et aval différentes : seul le régime hydrostatique est calculé. L'écoulement "
                 "autour de l'écran (qui réduit la butée côté fouille) n'est pas modélisé : butée possiblement surestimée.")
 
     # ------------------------------------------------------------------
-    def _sigma_v(self, cote: int, terrain: float, eau: float | None, surcharges: list[Surcharge]) -> tuple[np.ndarray, np.ndarray]:
+    def _sigma_v(self, cote: int, terrain: float, eau: float | None, surcharges: list[Surcharge],
+                 ecoulement=None) -> tuple[np.ndarray, np.ndarray]:
+        """σ'v et u au milieu des demi-mailles. Avec un modèle d'écoulement, σ'v = σv(total) − u(écoulement) :
+        un écoulement ascendant (fouille) réduit σ'v et donc la butée, un écoulement descendant l'augmente."""
         nom = "amont" if cote == AMONT else "aval"
         dsv = np.zeros(self.nd)
         for s in surcharges:
             if s.cote_ecran == nom:
                 dsv += delta_sigma_v(s, self.d_zm, terrain)
-        return contraintes_verticales(self.d_zm, terrain, eau, self.couches, self.m.gamma_w, dsv)
+        if ecoulement is None or ecoulement.regime == "hydrostatique":
+            return contraintes_verticales(self.d_zm, terrain, eau, self.couches, self.m.gamma_w, dsv)
+        sv_tot = contraintes_totales(self.d_zm, terrain, eau, self.couches, self.m.gamma_w, dsv)
+        if cote == AVAL and ecoulement.bouchon is not None:
+            from ..hydraulique.bouchons import correction_contrainte_totale
+            sv_tot = sv_tot + correction_contrainte_totale(self.d_zm, ecoulement.bouchon, self.couches, terrain, eau, self.m.gamma_w)
+        u = np.where(self.d_zm < terrain, ecoulement.pression(nom, self.d_zm), 0.0)
+        return np.maximum(sv_tot - u, 0.0), u
+
+    def modele_eau(self, etat: dict, indice_phase: int, nom_phase: str):
+        """Modèle d'eau de la phase (None en régime hydrostatique sans bloc hydraulique)."""
+        cfg = self.m.hydraulique
+        if not cfg or cfg.get("regime", "hydrostatique") == "hydrostatique":
+            return None
+        from ..hydraulique.ecoulement import ErreurHydraulique, construire
+        try:
+            return construire(self.m, etat, indice_phase, nom_phase)
+        except ErreurHydraulique as e:
+            raise ErreurModele(f"hydraulique : {e}") from None
 
     # ------------------------------------------------------------------
     # Briques réutilisées par le calcul 2D et par le pseudo-3D
@@ -244,12 +268,12 @@ class MoteurPhases:
                 etat["poses"].append(nom)
         return list(ph.poser), list(ph.deposer)
 
-    def etat_sol(self, etat: dict) -> dict:
+    def etat_sol(self, etat: dict, ecoulement=None) -> dict:
         """Grandeurs par demi-maille (amont puis aval, longueur 2·nd) pour l'état de chantier."""
         terrain, eau = etat["terrain"], etat["eau"]
         liste_s = list(etat["surcharges"].values())
-        sv_am, _ = self._sigma_v(AMONT, terrain[AMONT], eau[AMONT], liste_s)
-        sv_av, _ = self._sigma_v(AVAL, terrain[AVAL], eau[AVAL], liste_s)
+        sv_am, _ = self._sigma_v(AMONT, terrain[AMONT], eau[AMONT], liste_s, ecoulement)
+        sv_av, _ = self._sigma_v(AVAL, terrain[AVAL], eau[AVAL], liste_s, ecoulement)
         sv = np.concatenate([sv_am, sv_av])
         present = np.concatenate([self.d_zh <= terrain[AMONT] + 1e-9, self.d_zh <= terrain[AVAL] + 1e-9])
         pa = np.maximum(np.tile(self.d_kah, 2) * sv - np.tile(self.d_ca, 2), 0.0)
@@ -265,9 +289,13 @@ class MoteurPhases:
         return {"sv": sv, "present": present, "pa": pa, "pp": pp, "p0": p0, "fl": fl, "kh": kh,
                 "kd": np.tile(self.d_kd, 2), "L": np.tile(self.d_L, 2)}
 
-    def pressions_eau(self, etat: dict) -> tuple[np.ndarray, np.ndarray]:
+    def pressions_eau(self, etat: dict, ecoulement=None) -> tuple[np.ndarray, np.ndarray]:
         """(u amont, u aval) au milieu des demi-mailles (kPa)."""
         gw, eau = self.m.gamma_w, etat["eau"]
+        if ecoulement is not None and ecoulement.regime != "hydrostatique":
+            u_am = np.where(self.d_zm < etat["terrain"][AMONT], ecoulement.pression("amont", self.d_zm), 0.0)
+            u_av = np.where(self.d_zm < etat["terrain"][AVAL], ecoulement.pression("aval", self.d_zm), 0.0)
+            return u_am, u_av
         u_am = np.where(self.d_zm < eau[AMONT], gw * (eau[AMONT] - self.d_zm), 0.0) if eau[AMONT] is not None else np.zeros(self.nd)
         u_av = np.where(self.d_zm < eau[AVAL], gw * (eau[AVAL] - self.d_zm), 0.0) if eau[AVAL] is not None else np.zeros(self.nd)
         return u_am, u_av
@@ -309,9 +337,10 @@ class MoteurPhases:
         resultats: list[ResultatPhase] = []
 
         phases = [Phase(nom="État initial")] + list(m.phases)
-        for ph in phases:
+        for k_ph, ph in enumerate(phases):
             try:
                 poser, deposer = self.appliquer_actions(etat, ph)
+                ecoul = self.modele_eau(etat, k_ph, ph.nom)
             except ErreurModele as e:
                 resultats.append(ResultatPhase(ph.nom, False, f"Erreur de données : {e}",
                                                terrain[AMONT], terrain[AVAL], eau[AMONT], eau[AVAL]))
@@ -324,9 +353,9 @@ class MoteurPhases:
                 i = int(np.argmin(np.abs(self.z - a.cote)))
                 poses[nom] = (float(y_noeuds[i]), a.precharge)
 
-            sol = self.etat_sol(etat)
+            sol = self.etat_sol(etat, ecoul)
             self.mettre_a_jour_ressorts(r, sol, u[0::2][r.noeud], present_prec, sv_prec)
-            u_am, u_av = self.pressions_eau(etat)
+            u_am, u_av = self.pressions_eau(etat, ecoul)
             f_ext = np.zeros(2 * n)
             f_ext[0::2] = self.force_eau_noeuds(u_am, u_av)
 
@@ -381,6 +410,7 @@ class MoteurPhases:
                 appuis=[{"nom": nm, "cote": d.cote, "type": d.type, "effort": float(e_), "actif": bool(a_)}
                         for nm, d, e_, a_ in zip(noms, defs, solution.efforts_appuis, solution.appuis_actifs)],
                 iterations=solution.iterations,
+                hydro=ecoul.serialiser() if ecoul is not None else None, ecoulement=ecoul,
             ))
         return ResultatCalcul(phases=resultats, z=self.z, avertissements=self.avertissements)
 
