@@ -216,3 +216,21 @@ Aucun coefficient partiel ni facteur normatif écrit en dur.
    tolérance de 5 %, licence RIDO, hébergement.
 
 Tests : 95 réussis, 6 ignorés (cas de validation et exemples RIDO absents).
+
+## Interface professionnelle (après J10) : fait
+
+- Structure plein écran : barre de titre (projet, pastille d'état, Recalculer Ctrl+↵,
+  Exporter, thème), navigation du modèle (arborescence), zone à onglets, inspecteur de la
+  phase active (chiffres clés, appuis, alertes), frise des phases (lecture, flèches).
+- Formulaires de saisie synchronisés dans les deux sens avec le script YAML (le script
+  reste la référence ; une valeur modifiée ne change que ses caractères dans le texte).
+- Coupe & diagrammes : axes communs et fixes, réticule synchronisé avec valeurs à la cote,
+  extrêmes annotés, enveloppes, zoom vertical Maj+molette, export PNG.
+- Maquette 3D : vues prédéfinies, plan de coupe, sélection d'un appui vers l'inspecteur,
+  thème et phase pilotés depuis l'application.
+- Efforts (carte de chaleur, tri), Vérifications groupées par famille avec barre de taux
+  et mention « À confirmer », note de synthèse imprimable, thème clair/sombre, écrans
+  1024 px (inspecteur en tiroir) et 768 px (navigation en tiroir), sans défilement horizontal.
+- Vérifié (Chrome piloté) : saisie φ → ligne du script seule modifiée ; script → formulaire ;
+  pied de paroi raccourci → calcul interrompu signalé en rouge et dans les alertes.
+  Le statut « Non vérifié » de la butée exige les coefficients de docs/normes.

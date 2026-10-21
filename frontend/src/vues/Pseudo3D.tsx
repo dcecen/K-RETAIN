@@ -34,19 +34,17 @@ export function Pseudo3D({ res, phase }: { res: Resultats; phase: number }) {
       },
     }
   }, [p3d, ph])
-  if (!ph.ok) return <p className="alerte rouge-fond">{ph.message}</p>
+  if (!ph.ok) return <div className="alerte rouge" style={{ margin: 12 }}>{ph.message}</div>
   return (
-    <div>
+    <div style={{ padding: 12 }}>
       {p3d.avertissements.map((a, i) => (
-        <div key={i} className="alerte">{a}</div>
+        <div key={i} className="alerte orange">{a}</div>
       ))}
-      <div className="cartes">
-        <div className="carte"><span>|y| max pseudo-3D</span><b>{ph.y_max_mm?.toFixed(1)} mm</b>
-          <small>2D : {ph.y_max_2d_mm?.toFixed(1) ?? '—'} mm</small></div>
-        <div className="carte"><span>Moment vertical</span><b>{ph.Mz_max?.toFixed(0)} / {ph.Mz_min?.toFixed(0)}</b><small>kN·m/m</small></div>
-        <div className="carte"><span>|Moment horizontal| max</span><b>{ph.Ms_absmax?.toFixed(0)}</b><small>kN·m/m</small></div>
-        <div className="carte"><span>Appuis ponctuels</span><b>{ph.appuis?.length ?? 0}</b>
-          <small>effort max {Math.max(0, ...(ph.appuis ?? []).map((a) => a.effort)).toFixed(0)} kN</small></div>
+      <div className="chiffres" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+        <div className="chiffre"><div className="lib">|y| max pseudo-3D</div><div className="val">{ph.y_max_mm?.toFixed(1)} mm</div><div className="sous">2D : {ph.y_max_2d_mm?.toFixed(1) ?? '—'} mm</div></div>
+        <div className="chiffre"><div className="lib">Moment vertical</div><div className="val">{ph.Mz_max?.toFixed(0)} / {ph.Mz_min?.toFixed(0)}</div><div className="sous">kN·m/m</div></div>
+        <div className="chiffre"><div className="lib">|Moment horizontal| max</div><div className="val">{ph.Ms_absmax?.toFixed(0)}</div><div className="sous">kN·m/m</div></div>
+        <div className="chiffre"><div className="lib">Appuis ponctuels</div><div className="val">{ph.appuis?.length ?? 0}</div><div className="sous">effort max {Math.max(0, ...(ph.appuis ?? []).map((a) => a.effort)).toFixed(0)} kN</div></div>
       </div>
       <Graphique data={data} layout={layout} hauteur={560} nom={`pseudo3d_${ph.nom}`} />
     </div>

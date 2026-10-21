@@ -23,6 +23,20 @@ export interface AppuiPhase {
   actif: boolean
 }
 
+export interface DefAppui {
+  nom: string
+  cote: number
+  type: string
+  angle: number
+  element: string | null
+  espacement: number
+  precharge: number
+  lierne: string | null
+  longueur: number | null
+  raideur: number
+  unilateral: boolean
+}
+
 export interface PhaseRes {
   nom: string
   ok: boolean
@@ -39,6 +53,7 @@ export interface PhaseRes {
   pressions?: { amont: Pressions; aval: Pressions }
   eau?: { z: number[]; u_amont: number[]; u_aval: number[] }
   appuis?: AppuiPhase[]
+  actions: { type: string; texte: string }[]
   synthese?: {
     y_max_mm: number
     z_y_max: number
@@ -46,6 +61,7 @@ export interface PhaseRes {
     M_max: number
     M_min: number
     V_absmax: number
+    butee_mobilisee: number | null
   }
 }
 
@@ -76,7 +92,7 @@ export interface Resultats {
   conventions: Record<string, string>
   paroi: { tete: number; pied: number; type?: string; [k: string]: unknown }
   couches: { nom: string; toit: number }[]
-  appuis: { nom: string; cote: number; type: string }[]
+  appuis: DefAppui[]
   phases: PhaseRes[]
   enveloppes: {
     z?: number[]

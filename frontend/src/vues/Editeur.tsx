@@ -9,6 +9,8 @@ import { aideMotCle, propositions } from '../lib/completion'
 // Monaco servi localement (pas de CDN) : l'application fonctionne hors réseau.
 self.MonacoEnvironment = { getWorker: () => new EditorWorker() }
 loader.config({ monaco })
+// Accès à l’éditeur pour les tests automatisés et le débogage.
+;(window as unknown as { monaco: typeof monaco }).monaco = monaco
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Schema = any

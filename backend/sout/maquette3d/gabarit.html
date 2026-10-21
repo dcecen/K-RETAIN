@@ -18,7 +18,14 @@
   .etiquette { position: absolute; font-size: 11px; background: rgba(255,255,255,0.85); padding: 1px 4px;
                border-radius: 3px; pointer-events: none; white-space: nowrap; transform: translate(-50%, -100%); }
   .note { color: #666; font-size: 11px; }
-  button { font: inherit; padding: 2px 8px; }
+  button, select { font: inherit; padding: 2px 8px; border: 1px solid #c9ced8; background: #fff; border-radius: 3px; color: inherit; }
+  button.actif { background: #2f5d8a; color: #fff; border-color: #2f5d8a; }
+  body.sombre #panneau, body.sombre #legende { background: rgba(28,33,41,0.94); color: #d8dee8; }
+  body.sombre button, body.sombre select { background: #232a35; border-color: #3a4352; color: #d8dee8; }
+  body.sombre .etiquette { background: rgba(28,33,41,0.85); color: #d8dee8; }
+  body.sombre .note { color: #9aa4b2; }
+  body.sombre button.actif { background: #5b8fc4; border-color: #5b8fc4; color: #0f1319; }
+  #selection { margin-top: 6px; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -33,6 +40,13 @@
   </div>
   <div class="ligne"><label><input id="voirSol" type="checkbox" checked> couches de sol</label>
     <label><input id="voirEau" type="checkbox" checked> nappes</label></div>
+  <div class="ligne">Vue :
+    <button data-vue="iso">Iso</button><button data-vue="face">Face</button>
+    <button data-vue="dessus">Dessus</button><button data-vue="coupe">Coupe</button></div>
+  <div class="ligne"><label><input id="voirCoupe" type="checkbox"> plan de coupe</label>
+    <select id="axeCoupe"><option value="x">selon x</option><option value="y">selon y</option></select></div>
+  <input id="posCoupe" type="range" min="0" max="1000" value="500" disabled>
+  <div id="selection" class="note"></div>
   <div class="note">Glisser : tourner · clic droit ou Maj+glisser : déplacer · molette : zoom.<br>
     y positif vers la fouille ; M positif face fouille tendue.</div>
   <div class="note" id="avert"></div>
@@ -54,6 +68,7 @@ const T = THREE;
 const conteneur = document.getElementById("vue");
 const rendu = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 rendu.setPixelRatio(window.devicePixelRatio);
+rendu.localClippingEnabled = true;
 conteneur.appendChild(rendu.domElement);
 const scene = new T.Scene();
 scene.background = new T.Color(0xeef1f5);
@@ -301,17 +316,17 @@ function appuis(ph, groupe) {
     let fin;
     if (a.type === "buton") {
       fin = P(pa.a[0], pa.a[1], a.cote);
-      groupe.add(cylindre(de, fin, a.D / 2, matButon));
+      const m = cylindre(de, fin, a.D / 2, matButon.clone()); m.userData.appui = pa.appui; groupe.add(m);
     } else if (a.type === "bracon") {
       fin = P(pa.a[0], pa.a[1], a.pied_bracon ?? ph.fond);
-      groupe.add(cylindre(de, fin, a.D / 2, matButon));
+      const m = cylindre(de, fin, a.D / 2, matButon.clone()); m.userData.appui = pa.appui; groupe.add(m);
     } else if (a.type === "tirant") {
       const Ll = a.longueur_libre || 8, Ls = a.longueur_scellee || 6, i = (a.angle || 0) * Math.PI / 180;
       const dx = pa.a[0] - pa.de[0], dy = pa.a[1] - pa.de[1], Lh = Math.hypot(dx, dy) || 1;
       const u = [dx / Lh, dy / Lh];
       const pnt = (L) => P(pa.de[0] + u[0] * L * Math.cos(i), pa.de[1] + u[1] * L * Math.cos(i), a.cote - L * Math.sin(i));
-      groupe.add(cylindre(de, pnt(Ll), 0.03, matTirant));
-      groupe.add(cylindre(pnt(Ll), pnt(Ll + Ls), 0.12, matTirant));
+      const m1 = cylindre(de, pnt(Ll), 0.05, matTirant.clone()); m1.userData.appui = pa.appui; groupe.add(m1);
+      const m2 = cylindre(pnt(Ll), pnt(Ll + Ls), 0.12, matTirant.clone()); m2.userData.appui = pa.appui; groupe.add(m2);
       fin = pnt(Ll + Ls);
     }
     if (fin && !etiquetes.has(pa.appui)) {                    // une étiquette par appui
@@ -334,7 +349,7 @@ function appuis(ph, groupe) {
   for (const [nom, a] of Object.entries(D.appuis)) {          // dalles : sur toute la fouille
     if (a.type === "dalle" && poses.has(nom)) {
       const m = bloc(C, null, a.cote - (a.epaisseur || 0.3) / 2, a.cote + (a.epaisseur || 0.3) / 2, matiere(0xbdbdbd));
-      if (m) { groupe.add(m); etiquettes.push({ pos: P((xmin + xmax) / 2, (ymin + ymax) / 2, a.cote + 0.3), texte: `${nom} (dalle)` }); }
+      if (m) { m.userData.appui = nom; groupe.add(m); etiquettes.push({ pos: P((xmin + xmax) / 2, (ymin + ymax) / 2, a.cote + 0.3), texte: `${nom} (dalle)` }); }
     }
   }
 }
@@ -365,6 +380,83 @@ function bornes(mode) {
   return { min: lo, max: hi };
 }
 
+// ----------------------------------------------------------------------------- plan de coupe
+const voirCoupe = document.getElementById("voirCoupe"), axeCoupe = document.getElementById("axeCoupe"),
+      posCoupe = document.getElementById("posCoupe");
+const planCoupe = new T.Plane(new T.Vector3(-1, 0, 0), 0);
+function majCoupe() {
+  posCoupe.disabled = !voirCoupe.checked;
+  const t = Number(posCoupe.value) / 1000;
+  if (axeCoupe.value === "x") {
+    planCoupe.normal.set(-1, 0, 0);
+    planCoupe.constant = (xmin - marge) + t * (xmax - xmin + 2 * marge);          // garde x ≤ x0
+  } else {
+    planCoupe.normal.set(0, 0, 1);
+    planCoupe.constant = (ymin - marge) + t * (ymax - ymin + 2 * marge);          // garde y ≤ y0
+  }
+  if (groupe) groupe.traverse((o) => {
+    if (o.material) { o.material.clippingPlanes = voirCoupe.checked ? [planCoupe] : null; o.material.needsUpdate = true; }
+  });
+}
+for (const el of [voirCoupe, axeCoupe]) el.addEventListener("change", majCoupe);
+posCoupe.addEventListener("input", majCoupe);
+
+// ----------------------------------------------------------------------------- vues prédéfinies
+function vue(nom) {
+  if (nom === "iso") { theta = -0.9; phi = 0.95; }
+  else if (nom === "face") { theta = Math.PI / 2; phi = Math.PI / 2 - 0.05; }
+  else if (nom === "dessus") { theta = Math.PI / 2; phi = 0.02; }
+  else if (nom === "coupe") {
+    voirCoupe.checked = true; axeCoupe.value = "x"; posCoupe.value = "500"; majCoupe();
+    theta = 0; phi = Math.PI / 2 - 0.05;
+  }
+  document.querySelectorAll("[data-vue]").forEach((b) => b.classList.toggle("actif", b.dataset.vue === nom));
+  placerCamera();
+}
+document.querySelectorAll("[data-vue]").forEach((b) => b.addEventListener("click", () => vue(b.dataset.vue)));
+
+// ----------------------------------------------------------------------------- sélection d'un appui
+const lanceur = new T.Raycaster();
+let depart = null, selectionne = null;
+rendu.domElement.addEventListener("pointerdown", (e) => { depart = { x: e.clientX, y: e.clientY }; });
+rendu.domElement.addEventListener("pointerup", (e) => {
+  if (!depart || Math.hypot(e.clientX - depart.x, e.clientY - depart.y) > 4 || e.button !== 0) return;
+  const r = rendu.domElement.getBoundingClientRect();
+  lanceur.setFromCamera(new T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+  const touches = lanceur.intersectObjects(groupe ? groupe.children : [], true).filter((t) => t.object.userData.appui);
+  selectionner(touches.length ? touches[0].object.userData.appui : null, true);
+});
+function selectionner(nom, notifier) {
+  selectionne = nom;
+  if (groupe) groupe.traverse((o) => {
+    if (o.userData.appui && o.material && o.material.emissive) o.material.emissive.setHex(o.userData.appui === nom ? 0x664400 : 0x000000);
+  });
+  const a = nom ? D.appuis[nom] : null;
+  document.getElementById("selection").textContent = a
+    ? `Sélection : ${nom} — ${a.type}${a.element ? ", " + a.element : ""}, cote ${a.cote} m, espacement ${a.espacement} m` : "";
+  if (notifier && window.parent !== window) window.parent.postMessage({ source: "retainwall-3d", type: "selection", appui: nom }, "*");
+}
+
+// ----------------------------------------------------------------------------- dialogue avec l'application
+window.addEventListener("message", (e) => {
+  const m = e.data || {};
+  if (m.source !== "retainwall") return;
+  if (m.type === "phase" && m.index >= 0 && m.index < D.phases.length && String(m.index) !== curseur.value) {
+    curseur.value = String(m.index); afficher(m.index);
+  } else if (m.type === "theme") {
+    document.body.classList.toggle("sombre", !!m.sombre);
+    scene.background = new T.Color(m.sombre ? 0x161b22 : 0xeef1f5);
+  } else if (m.type === "selection") {
+    selectionner(m.appui, false);
+  } else if (m.type === "image") {
+    rendu.render(scene, camera);
+    window.parent.postMessage({ source: "retainwall-3d", type: "image", url: rendu.domElement.toDataURL("image/png") }, "*");
+  }
+});
+function notifierPhase(i) {
+  if (window.parent !== window) window.parent.postMessage({ source: "retainwall-3d", type: "phase", index: i }, "*");
+}
+
 function afficher(i) {
   const ph = D.phases[i];
   document.getElementById("nomPhase").textContent = `Phase ${i + 1}/${D.phases.length} : ${ph.nom}` + (ph.ok ? "" : " (non calculée)");
@@ -385,10 +477,12 @@ function afficher(i) {
   if (voirEau.checked) eau(ph, groupe);
   appuis(ph, groupe);
   scene.add(groupe);
+  majCoupe();
+  selectionner(selectionne, false);
 }
-curseur.addEventListener("input", () => afficher(Number(curseur.value)));
-document.getElementById("prec").onclick = () => { curseur.value = String(Math.max(0, Number(curseur.value) - 1)); afficher(Number(curseur.value)); };
-document.getElementById("suiv").onclick = () => { curseur.value = String(Math.min(D.phases.length - 1, Number(curseur.value) + 1)); afficher(Number(curseur.value)); };
+curseur.addEventListener("input", () => { afficher(Number(curseur.value)); notifierPhase(Number(curseur.value)); });
+document.getElementById("prec").onclick = () => { curseur.value = String(Math.max(0, Number(curseur.value) - 1)); afficher(Number(curseur.value)); notifierPhase(Number(curseur.value)); };
+document.getElementById("suiv").onclick = () => { curseur.value = String(Math.min(D.phases.length - 1, Number(curseur.value) + 1)); afficher(Number(curseur.value)); notifierPhase(Number(curseur.value)); };
 for (const el of [selMode, voirSol, voirEau]) el.addEventListener("change", () => afficher(Number(curseur.value)));
 
 // ----------------------------------------------------------------------------- boucle
