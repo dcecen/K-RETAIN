@@ -93,3 +93,21 @@
 - **Limites** : mêmes coefficients pour les combinaisons fondamentales et accidentelles
   (à étendre selon la norme) ; pas de calcul d'écoulement ; tirants et écran négligés
   dans Bishop (sécuritaire).
+
+## J6 — Vérifications structurelles : fait (porte ouverte : coefficients EC2/EC3 non fournis)
+
+- `sout/verifs_struct/ec3.py` : Euler, χ (EN 1993-1-1 § 6.3.1.2, contrôlé sur les
+  valeurs publiées des courbes a, b, c), N_b,Rd, M_c,Rd, V_pl,Rd, amplification 1/(1 − N/Ncr).
+- `sout/verifs_struct/ec2.py` : flexion rectangulaire (diagramme rectangulaire), section
+  circulaire par intégration numérique, VRd,c.
+- `sout/verifs_struct/elements.py` : butons/bracons (flambement + poids propre +
+  température, résistance fabricant), tirants (armature), dalles (compression), liernes
+  (flexion bi-axiale + cisaillement ; raidisseurs signalés « non automatisé »),
+  palplanches (β_B, corrosion au prorata de l'épaisseur, interaction V-M), profilés et
+  blindage de berlinoise, paroi moulée (As requis, M_Rd si ferraillage fourni, VRd,c),
+  pieux (As requis par section circulaire) ; élément le plus léger de la base qui passe.
+- Efforts de calcul = effets caractéristiques × gamma_effets de la combinaison (approche
+  à confirmer selon la NF P 94-282 fournie).
+- **Hypothèses à confronter à la norme** : interaction N-M linéaire, liernes M = 0,1·q·e²,
+  profilés de classe 1-2 supposés, une âme par largeur de palplanche, tranchant des pieux
+  non automatisé, profilés candidats en S355 pour la suggestion.

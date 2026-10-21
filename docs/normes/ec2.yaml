@@ -16,7 +16,7 @@ diagramme_rectangulaire:
 
 # Effort tranchant sans armatures d'effort tranchant : VRd,c = [C_Rd_c·k·(100·ρl·fck)^(1/3)]·bw·d, ≥ v_min·bw·d
 tranchant:
-  C_Rd_c: { valeur: null, source: "" }                # TODO-NORME
+  C_Rd_c: { valeur: null, source: "" }                # TODO-NORME : valeur finale de C_Rd,c (coefficient déjà divisé par γc)
   coef_v_min: { valeur: null, source: "" }            # TODO-NORME : v_min = coef_v_min·k^(3/2)·fck^(1/2)
   k_max: { valeur: null, source: "" }                 # TODO-NORME : plafond de k = 1 + √(200/d)
   rho_l_max: { valeur: null, source: "" }             # TODO-NORME : plafond du taux d'armatures longitudinales

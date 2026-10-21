@@ -61,7 +61,10 @@ class Paroi(_Base):
     largeur_reaction_fiche: float | None = Field(
         None, gt=0, description="fiche discontinue : largeur de réaction imposée sous le fond (m par élément)")
     blindage: Blindage | None = Field(None, description="berlinoise : blindage entre profilés")
-    enrobage: float | None = Field(None, gt=0, description="enrobage des armatures (m)")
+    enrobage: float | None = Field(None, gt=0, description="distance du parement à l'axe des armatures (m)")
+    armatures_fouille: float | None = Field(None, gt=0, description="paroi moulée : armatures côté fouille (cm²/m)")
+    armatures_terre: float | None = Field(None, gt=0, description="paroi moulée : armatures côté terre (cm²/m)")
+    armatures_pieu: float | None = Field(None, gt=0, description="pieux : armatures longitudinales par pieu (cm²)")
 
 
 class Couche(_Base):
@@ -123,6 +126,7 @@ class Appui(_Base):
     epaisseur: float | None = Field(None, gt=0, description="dalle : épaisseur (m)")
     unilateral: bool | None = Field(None, description="ne reprend pas d'effort négatif (défaut : oui sauf dalle)")
     lierne: str | None = Field(None, description="profilé de lierne (base matériaux)")
+    nombre: int | None = Field(None, ge=1, description="tirant : nombre de torons ou de barres de l'élément")
     acier: str | None = Field(None, description="nuance d'acier de l'élément (base matériaux)")
     beton: str | None = Field(None, description="dalle : classe de béton (base matériaux)")
     pied_bracon: float | None = Field(None, description="bracon : cote de l'appui en pied (m)")

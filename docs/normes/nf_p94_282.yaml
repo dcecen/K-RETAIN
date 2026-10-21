@@ -57,6 +57,7 @@ stabilite_generale:
 tirants:
   gamma_effet: { valeur: null, source: "" }           # TODO-NORME
   gamma_a: { valeur: null, source: "" }               # TODO-NORME
+  gamma_armature: { valeur: null, source: "" }        # TODO-NORME : résistance de l'armature = n·A·f(p0,1k ou yk) / gamma_armature
 
 # Fiches discontinues (pieux disjoints, berlinoise) : largeur de réaction sous le fond de fouille
 # b_réaction = rapport_largeur × largeur physique de l'élément (diamètre ou largeur d'aile), plafonnée à l'entraxe.
