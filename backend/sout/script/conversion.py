@@ -52,6 +52,7 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
             remblayer_aval=ph.remblayer.aval if ph.remblayer else None,
             poser=_liste(ph.poser), deposer=_liste(ph.deposer), eau=eau,
             ajouter_surcharges=ajout, retirer_surcharges=list(ph.retirer_surcharges or []),
+            depuis=ph.depuis,
         ))
     return Modele(
         ecran=ecran, couches=couches, phases=phases, appuis=appuis,

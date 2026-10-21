@@ -77,6 +77,9 @@ export interface PhaseRes {
   eau?: { z: number[]; u_amont: number[]; u_aval: number[] }
   appuis?: AppuiPhase[]
   actions: { type: string; texte: string }[]
+  parent: number | null
+  enfants: number[]
+  depuis: string | null
   hydro?: Hydro | null
   synthese?: {
     y_max_mm: number

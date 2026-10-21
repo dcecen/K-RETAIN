@@ -183,6 +183,7 @@ class Phase(_Base):
     eau: NiveauxEau | None = Field(None, description="nouveaux niveaux d'eau (seules les clés écrites changent)")
     ajouter_surcharges: list[Surcharge] | None = Field(None, description="surcharges ajoutées")
     retirer_surcharges: list[str] | None = Field(None, description="noms des surcharges retirées")
+    depuis: str | None = Field(None, description="phase de départ : nom d'une phase antérieure ou « État initial » ; vide = la phase précédente ; permet des branches (variantes)")
 
 
 class Criteres(_Base):

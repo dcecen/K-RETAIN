@@ -169,6 +169,16 @@ même phase : `excaver` (cote du fond), `remblayer` (`amont` / `aval`), `poser` 
 Le bétonnage d'une dalle définitive se modélise par la pose d'un appui de type `dalle`.
 Une phase d'**état initial** (sol au repos) est toujours calculée en premier.
 
+**Branches (variantes, comme dans Plaxis).** Par défaut une phase repart de l'état de la phase
+précédente de la liste. Le mot-clé `depuis: <nom d'une phase antérieure>` (ou `depuis: État
+initial`) fait repartir la phase de l'état de cette phase-là : on obtient une branche, par
+exemple « terrassement final sans pompage » à côté de la séquence principale. Les noms des
+phases servant de point de départ doivent être uniques. Dans l'application, l'explorateur de
+phases (Saisie › Phases) dessine l'arbre, insère une phase après une autre, crée une variante
+depuis une phase et affiche l'état de calcul de chacune ; la frise du bas parcourt la branche
+de la phase active. Les enveloppes et les vérifications couvrent toutes les branches ; le
+pseudo-3D suit la branche de la dernière phase de la liste.
+
 ## 8. Vérifications
 
 Listez celles à mener dans `verifications` : `butee`, `equilibre_vertical`, `kranz`,
@@ -403,6 +413,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `eau` | bloc |  |  | nouveaux niveaux d'eau (seules les clés écrites changent) |
 | `ajouter_surcharges` | liste de bloc |  |  | surcharges ajoutées |
 | `retirer_surcharges` | liste de texte |  |  | noms des surcharges retirées |
+| `depuis` | texte |  |  | phase de départ : nom d'une phase antérieure ou « État initial » ; vide = la phase précédente ; permet des branches (variantes) |
 
 ### phases.remblayer
 

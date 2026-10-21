@@ -48,6 +48,9 @@ phases:
   - nom: Terrassement final et pompage
     excaver: -6.5
     eau: { aval: -7.0 }
+  - nom: Variante sans pompage       # branche : repart de l'état après la pose du buton
+    depuis: Pose du buton B1
+    excaver: -5.5
 
 verifications: [butee, equilibre_vertical, fond_de_fouille, stabilite_generale, structure]
 

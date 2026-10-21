@@ -163,8 +163,23 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
         if a.raideur is None and a.type == "tirant" and a.longueur_libre is None and a.longueur_elastique is None:
             e.append((("appuis", nom), f"tirant {nom} : longueur_libre obligatoire"))
     noms_surcharges = {sc.nom for sc in s.surcharges if sc.nom}
-    poses: set[str] = set()
+    noms_phases = [ph.nom for ph in s.phases]
+    parents: list[int] = []   # indice du parent (−1 = état initial)
     for i, ph in enumerate(s.phases):
+        if ph.depuis is None:
+            parents.append(i - 1)
+        elif ph.depuis == "État initial":
+            parents.append(-1)
+        elif ph.depuis not in noms_phases[:i]:
+            e.append((("phases", i, "depuis"), f"phase de départ « {ph.depuis} » inconnue ou postérieure"))
+            parents.append(i - 1)
+        else:
+            if noms_phases[:i].count(ph.depuis) > 1:
+                e.append((("phases", i, "depuis"), f"plusieurs phases s'appellent « {ph.depuis} » : renommez-les"))
+            parents.append(noms_phases.index(ph.depuis))
+    poses_par_phase: list[set[str]] = []
+    for i, ph in enumerate(s.phases):
+        poses = set(poses_par_phase[parents[i]]) if parents[i] >= 0 else set()
         for cle in ("poser", "deposer"):
             v = getattr(ph, cle)
             for nom in ([v] if isinstance(v, str) else (v or [])):
@@ -176,6 +191,7 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
                     e.append((("phases", i, cle), f"appui « {nom} » déposé avant d'avoir été posé"))
                 else:
                     poses.discard(nom)
+        poses_par_phase.append(poses)
         for sc in ph.ajouter_surcharges or []:
             if sc.nom:
                 noms_surcharges.add(sc.nom)

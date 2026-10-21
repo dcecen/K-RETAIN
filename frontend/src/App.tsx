@@ -119,15 +119,15 @@ export default function App() {
       const cible = e.target as HTMLElement
       if (cible.closest('input, textarea, select, .monaco-editor')) return
       if (!res) return
-      if (e.key === 'ArrowLeft') setPhase((p) => Math.max(0, p - 1))
-      if (e.key === 'ArrowRight') setPhase((p) => Math.min(res.phases.length - 1, p + 1))
+      if (e.key === 'ArrowLeft') setPhase((p) => res.phases[p]?.parent ?? Math.max(0, p - 1))
+      if (e.key === 'ArrowRight') setPhase((p) => res.phases[p]?.enfants?.[0] ?? Math.min(res.phases.length - 1, p + 1))
     }
     window.addEventListener('keydown', touche)
     return () => window.removeEventListener('keydown', touche)
   }, [calculer, res])
 
   const changerPhase = useCallback((i: number) => {
-    if (i < 0) setPhase((p) => (res ? Math.min(res.phases.length - 1, p + 1) : p))
+    if (i < 0) setPhase((p) => (res ? (res.phases[p]?.enfants?.[0] ?? Math.min(res.phases.length - 1, p + 1)) : p))
     else setPhase(i)
   }, [res])
 
@@ -138,6 +138,7 @@ export default function App() {
     ajouterCle: (c: sd.Chemin, k: string, v: unknown) => setTexteBrut((t) => sd.ajouterCle(t, c, k, v)),
     supprimer: (c: sd.Chemin) => setTexteBrut((t) => sd.supprimer(t, c)),
     deplacer: (c: sd.Chemin, i: number, j: number) => setTexteBrut((t) => sd.deplacer(t, c, i, j)),
+    inserer: (c: sd.Chemin, i: number, v: unknown) => setTexteBrut((t) => sd.inserer(t, c, i, v)),
     renommerAppui: (a: string, n: string) => setTexteBrut((t) => sd.renommerAppui(t, a, n)),
   }), [])
 
@@ -223,7 +224,7 @@ export default function App() {
           )}
           {onglet === 'saisie' && (
             <Saisie modele={erreurYaml ? null : modele} erreurs={erreurs} schema={schema} references={references} actions={actions}
-              section={section ?? 'projet'} selection={selection} onSelection={setSelection} />
+              section={section ?? 'projet'} selection={selection} onSelection={setSelection} phaseActive={phase} onPhaseActive={setPhase} res={res} />
           )}
           {onglet === 'script' && (
             <div className="vue-script">

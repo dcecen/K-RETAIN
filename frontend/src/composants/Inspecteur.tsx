@@ -49,6 +49,7 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
         <div className="insp-titre">Phase {phase + 1} / {res.phases.length}</div>
         <div className="insp-nom">{ph.nom}</div>
         <dl className="lignes-cle">
+          {ph.parent !== null && ph.parent !== phase - 1 && <><dt>Phase de départ</dt><dd style={{ fontFamily: 'inherit' }}>{res.phases[ph.parent]?.nom}</dd></>}
           <dt>Fond de fouille</dt><dd>{cote(ph.terrain_aval)}</dd>
           <dt>Terrain amont</dt><dd>{cote(ph.terrain_amont)}</dd>
           <dt>Nappe amont</dt><dd>{cote(ph.eau_amont)}</dd>

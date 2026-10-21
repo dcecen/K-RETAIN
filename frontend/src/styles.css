@@ -391,3 +391,12 @@ select.champ { padding: 0 2px; }
   .pastille-etat { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
   .barre-titre { gap: 6px; padding: 0 6px; }
 }
+
+/* ------------------------------------------------------------ explorateur de phases */
+.arbre-phases { border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; background: var(--panneau); }
+.ligne-phase { display: flex; align-items: center; gap: 8px; padding: 0 8px 0 4px; border-bottom: 1px solid var(--filet); cursor: pointer; font-size: 12.5px; }
+.ligne-phase:hover { background: var(--survol); }
+.ligne-phase.sel { background: var(--selection); }
+.ligne-phase.act { box-shadow: inset 3px 0 0 var(--accent); }
+.case-phase.ancetre { border-color: var(--accent); }
+.case-phase.branche::before { content: '⤷'; position: absolute; left: 3px; top: 1px; font-size: 10px; color: var(--texte-doux); }

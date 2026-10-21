@@ -33,10 +33,14 @@ export function FrisePhases({ res, phase, onPhase }: { res: Resultats | null; ph
     return <div className="frise zone-frise"><span className="doux">Aucun calcul : la frise des phases apparaîtra après le calcul.</span></div>
   }
   const ph = res.phases[Math.min(phase, n - 1)]
+  const ancetres = new Set<number>()
+  for (let k: number | null = phase; k !== null && k !== undefined; k = res.phases[k]?.parent ?? null) ancetres.add(k)
+  const precedent = ph.parent ?? Math.max(0, phase - 1)
+  const suivant = ph.enfants?.[0] ?? Math.min(n - 1, phase + 1)
   return (
     <div className="frise zone-frise">
-      <button className="btn icone" onClick={() => onPhase(Math.max(0, phase - 1))} title="Phase précédente (←)"><IconePrec /></button>
-      <button className="btn icone" onClick={() => onPhase(Math.min(n - 1, phase + 1))} title="Phase suivante (→)"><IconeSuiv /></button>
+      <button className="btn icone" onClick={() => onPhase(precedent)} title="Phase précédente dans la branche (←)"><IconePrec /></button>
+      <button className="btn icone" onClick={() => onPhase(suivant)} title="Phase suivante dans la branche (→)"><IconeSuiv /></button>
       <button className="btn icone" onClick={() => { if (!lecture && phase >= n - 1) onPhase(0); setLecture(!lecture) }}
         title={lecture ? 'Arrêter la lecture' : 'Lire les phases'}>{lecture ? <IconePause /> : <IconeLecture />}</button>
       <div className="cases" role="tablist" aria-label="Phases">
@@ -44,7 +48,7 @@ export function FrisePhases({ res, phase, onPhase }: { res: Resultats | null; ph
           const type = PRIORITE.find((t) => p.actions.some((a) => a.type === t)) ?? 'initial'
           return (
             <button key={i} role="tab" aria-selected={i === phase}
-              className={`case-phase ${i === phase ? 'actif' : ''} ${p.ok ? '' : 'echec'}`}
+              className={`case-phase ${i === phase ? 'actif' : ''} ${p.ok ? '' : 'echec'} ${ancetres.has(i) ? 'ancetre' : ''} ${p.depuis ? 'branche' : ''}`}
               onClick={() => onPhase(i)}
               title={`Phase ${i + 1} : ${p.nom}${p.actions.length ? '\n' + p.actions.map((a) => a.texte).join('\n') : ''}${p.ok ? '' : '\n' + p.message}`}>
               {ICONES[type]}

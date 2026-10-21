@@ -112,7 +112,7 @@ class MoteurPseudo3D:
         present_prec = np.zeros(ns * self.m2_taille, dtype=bool)
         poses: dict[str, list] = {}   # nom -> [(nœud, s, y_pose, k, F0)]
         sorties: list[PhasePseudo3D] = []
-        for ph in [Phase(nom="État initial")] + list(m.phases):
+        for ph in [Phase(nom="État initial")] + chaine_principale(m.phases):
             try:
                 poser, deposer = m2.appliquer_actions(etat, ph)
             except ErreurModele as e:
@@ -160,6 +160,18 @@ class MoteurPseudo3D:
                 appuis=[{"nom": nm, "s": sp, "effort": float(ef), "actif": bool(ac)}
                         for nm, sp, ef, ac in zip(noms, ss, eff, actif)]))
         return ResultatPseudo3D(self.s, self.z, sorties, self.avertissements)
+
+
+def chaine_principale(phases: list) -> list:
+    """Phases de la branche menant à la dernière phase de la liste (le pseudo-3D est linéaire)."""
+    noms = [p.nom for p in phases]
+    chaine = []
+    k = len(phases) - 1
+    while k >= 0:
+        chaine.append(phases[k])
+        p = phases[k]
+        k = noms.index(p.depuis) if (p.depuis is not None and p.depuis in noms[:k]) else k - 1
+    return chaine[::-1]
 
 
 def depuis_script(ex) -> ResultatPseudo3D:

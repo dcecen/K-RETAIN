@@ -287,3 +287,18 @@ sont signalées « PROJET ». Les modèles vides sont conservés dans `docs/norm
 tests les utilisent). **Toutes ces valeurs restent à contrôler sur le texte des normes par un
 ingénieur avant usage** ; la règle 1 du CLAUDE.md (pas de valeur inventée) est levée pour ce
 remplissage sur instruction explicite de l'utilisateur.
+
+
+## Explorateur de phases avec branches (façon Plaxis) : fait
+
+- Script : `depuis` sur une phase (nom d'une phase antérieure ou « État initial ») ; contrôles
+  (phase connue et antérieure, nom unique, appuis posés suivis par branche).
+- Moteur : instantané de l'état après chaque phase (chantier, appuis posés, déplacements,
+  mémoire des ressorts) ; une phase repart de l'instantané de sa phase de départ ; une phase
+  dont le départ n'est pas calculé est marquée « non calculée » sans bloquer les autres branches.
+  Résultats : `parent`, `enfants`, `depuis` par phase ; enveloppes et vérifications sur toutes
+  les branches ; pseudo-3D sur la branche de la dernière phase.
+- Interface : explorateur (voies et lignes de branchement, insertion après une phase, création
+  de variante, suppression, formulaire de la phase sélectionnée), frise et flèches qui suivent
+  la branche, inspecteur indiquant la phase de départ.
+- Tests : variante identique à un calcul linéaire tronqué, branche depuis une phase rompue.

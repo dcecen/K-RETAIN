@@ -135,3 +135,28 @@ def test_rupture_detectee_fiche_insuffisante():
     res = calculer(m)
     assert not res.complet
     assert res.phases[-1].message.startswith("Rupture")
+
+
+def test_branches_de_phases():
+    """Arbre de phases : une variante repart de l'état d'une phase antérieure (comme Plaxis)."""
+    app = {"B": DefAppui("B", -1.0, 50000.0)}
+    phases = [Phase("Exc1", excaver=-2.0), Phase("Pose", poser=["B"]), Phase("Exc2", excaver=-5.0),
+              Phase("Variante sans buton", excaver=-4.0, depuis="Exc1"), Phase("Variante suite", excaver=-4.5)]
+    res = calculer(_modele(phases, appuis=app))
+    assert res.complet, [p.message for p in res.phases]
+    assert [p.parent for p in res.phases] == [None, 0, 1, 2, 1, 4]
+    # la variante repart de Exc1 : aucun buton posé, déplacement plus grand que la phase butée à -5
+    var = res.phases[4]
+    assert var.appuis == [] and var.terrain_aval == -4.0
+    assert abs(var.y).max() > abs(res.phases[3].y).max() * 0.5
+    # la branche principale n'est pas modifiée par la présence de la variante
+    res_lin = calculer(_modele(phases[:3], appuis=app))
+    np.testing.assert_allclose(res.phases[3].y, res_lin.phases[3].y, atol=1e-12)
+    # la suite de la variante enchaîne bien sur la variante (implicite = phase précédente de la liste)
+    assert res.phases[5].terrain_aval == -4.5 and res.phases[5].appuis == []
+
+
+def test_branche_depuis_phase_rompue():
+    phases = [Phase("Exc", excaver=-13.5), Phase("Suite", excaver=-13.8), Phase("Var", excaver=-1.0, depuis="Exc")]
+    res = calculer(_modele(phases))
+    assert not res.phases[1].ok and "non calculée" in res.phases[2].message and "non calculée" in res.phases[3].message

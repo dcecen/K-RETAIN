@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { ErreurScript } from '../lib/api'
+import type { ErreurScript, Resultats } from '../lib/api'
+import { ArbrePhases } from '../composants/ArbrePhases'
 import type { Section, Selection } from '../lib/etat'
 import { IconeCorbeille, IconeDescendre, IconeMonter, IconePlus } from '../lib/icones'
 import { cheminErreur, type Chemin, type Modele } from '../lib/scriptDoc'
@@ -14,6 +15,7 @@ export interface Actions {
   ajouterCle: (chemin: Chemin, cle: string, valeur: unknown) => void
   supprimer: (chemin: Chemin) => void
   deplacer: (chemin: Chemin, i: number, j: number) => void
+  inserer: (chemin: Chemin, index: number, valeur: unknown) => void
   renommerAppui: (ancien: string, nouveau: string) => void
 }
 
@@ -387,42 +389,87 @@ function Appuis({ ctx, selection, onSelection }: { ctx: Ctx; selection: Selectio
   )
 }
 
-function Phases({ ctx, selection, onSelection }: { ctx: Ctx; selection: Selection; onSelection: (s: Selection) => void }) {
+function Phases({ ctx, selection, onSelection, phaseActive, onPhaseActive, res }: {
+  ctx: Ctx; selection: Selection; onSelection: (s: Selection) => void; phaseActive: number; onPhaseActive: (i: number) => void; res: Resultats | null
+}) {
   const phases: Modele[] = Array.isArray(ctx.modele.phases) ? ctx.modele.phases : []
   const appuis = Object.keys(ctx.modele.appuis ?? {})
+  const surcharges: string[] = (ctx.modele.surcharges ?? []).map((s: Modele, i: number) => s?.nom ?? `S${i + 1}`)
+  const sel = selection?.type === 'phase' ? selection.index : null
+  const ph = sel !== null ? phases[sel] : null
   const listeStr = (v: unknown): string => (Array.isArray(v) ? v.join(', ') : v ? String(v) : '')
   const fixerListe = (chemin: Chemin, texte: string) => {
     const l = texte.split(',').map((s) => s.trim()).filter(Boolean)
     ctx.actions.fixer(chemin, l.length === 0 ? '' : l.length === 1 ? l[0] : l)
   }
+  const nomLibre = (base: string) => {
+    const noms = new Set(phases.map((p) => String(p?.nom ?? '')))
+    let n = base, k = 2
+    while (noms.has(n)) n = `${base} ${k++}`
+    return n
+  }
+  const inserer = (apres: number) => {
+    // nouvelle phase enchaînée après `apres` (−1 = après l'état initial, en tête de liste) ;
+    // la phase qui suivait garde son enchaînement sur la nouvelle (parent implicite = précédente de la liste)
+    const nom = nomLibre('Nouvelle phase')
+    const suivante = phases[apres + 1]
+    const valeur: Record<string, unknown> = { nom }
+    if (apres >= 0 && phases[apres]?.depuis && suivante && !suivante.depuis) {
+      // on insère dans une branche : la nouvelle phase enchaîne sur `apres` et la suivante restait sur `apres`
+      valeur.depuis = phases[apres].nom
+    }
+    ctx.actions.inserer(['phases'], apres + 1, valeur)
+    if (suivante && !suivante.depuis && apres >= 0 && phases[apres]?.depuis) ctx.actions.fixer(['phases', apres + 2, 'depuis'], nom)
+    onSelection({ type: 'phase', index: apres + 1 })
+  }
+  const brancher = (depuis: number) => {
+    const nom = nomLibre('Variante')
+    ctx.actions.ajouter(['phases'], depuis >= 0 ? { nom, depuis: phases[depuis]?.nom } : { nom, depuis: 'État initial' })
+    onSelection({ type: 'phase', index: phases.length })
+  }
+  const supprimer = (i: number) => {
+    const nom = String(phases[i]?.nom ?? '')
+    const refs = phases.map((p, k) => (p?.depuis === nom ? k + 1 : 0)).filter(Boolean)
+    if (refs.length && !window.confirm(`La phase « ${nom} » est le point de départ des phases ${refs.join(', ')}. Supprimer quand même ?`)) return
+    ctx.actions.supprimer(['phases', i])
+    onSelection(null)
+  }
   return (
     <div className="saisie">
       <h2>Phases</h2>
-      <p className="aide">Chaque phase part de l'état de la précédente. Un appui posé dans une phase qui comporte une excavation est en place avant celle-ci. Plusieurs appuis : noms séparés par des virgules. Appuis définis : {appuis.join(', ') || 'aucun'}.</p>
-      <div className="bloc">
-        <div className="carte-phase" style={{ background: 'var(--panneau-2)' }}>
-          <span className="lib">#</span><span className="lib">Nom</span><span className="lib">Excaver à (m)</span><span className="lib">Poser</span><span className="lib">Déposer</span><span className="lib">Nappe aval (m)</span><span />
+      <p className="aide">Explorateur de phases : chaque phase repart de l'état de la précédente, ou de la phase indiquée par <span className="mono">depuis</span> (variante, comme une branche dans Plaxis). Insérez une phase après une autre, ou créez une variante à partir d'une phase ; cliquez une phase pour l'éditer et l'afficher dans les résultats.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 1fr) minmax(300px, 1fr)', gap: 16, alignItems: 'start' }}>
+        <ArbrePhases phases={phases} res={res} actif={phaseActive} selection={sel}
+          onChoisir={(i) => { onSelection(i >= 0 ? { type: 'phase', index: i } : null); if (res && i + 1 < res.phases.length) onPhaseActive(i + 1) }}
+          onInserer={inserer} onBrancher={brancher} onSupprimer={supprimer} />
+        <div className="bloc" style={{ margin: 0 }}>
+          <div className="bloc-titre">{ph ? `Phase ${sel! + 1} — ${ph.nom ?? ''}` : 'Sélectionnez une phase'}</div>
+          {ph && sel !== null && (
+            <div className="grille-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
+              <label style={{ gridColumn: '1 / -1' }}>Nom<Champ ctx={ctx} chemin={['phases', sel, 'nom']} valeur={ph.nom} type="text" large /></label>
+              <label>Phase de départ (vide = précédente)
+                <select className="champ champ-bloc" value={ph.depuis ?? ''} onChange={(e) => ctx.actions.fixer(['phases', sel, 'depuis'], e.target.value)}>
+                  <option value="">— précédente —</option>
+                  {phases.slice(0, sel).map((p, k) => <option key={k} value={String(p?.nom ?? '')}>{k + 1}. {p?.nom}</option>)}
+                </select></label>
+              <label>Excaver à (m)<Champ ctx={ctx} chemin={['phases', sel, 'excaver']} valeur={ph.excaver} placeholder="—" bloc="Phase" cle="excaver" large /></label>
+              <label>Poser (appuis, virgules)<input className="champ champ-bloc" key={`p${sel}${listeStr(ph.poser)}`} defaultValue={listeStr(ph.poser)} list="liste-appuis" placeholder="—"
+                onBlur={(e) => { if (e.target.value.trim() !== listeStr(ph.poser)) fixerListe(['phases', sel, 'poser'], e.target.value) }} /></label>
+              <label>Déposer<input className="champ champ-bloc" key={`d${sel}${listeStr(ph.deposer)}`} defaultValue={listeStr(ph.deposer)} list="liste-appuis" placeholder="—"
+                onBlur={(e) => { if (e.target.value.trim() !== listeStr(ph.deposer)) fixerListe(['phases', sel, 'deposer'], e.target.value) }} /></label>
+              <label>Nappe aval (m)<Champ ctx={ctx} chemin={['phases', sel, 'eau', 'aval']} valeur={ph.eau?.aval} placeholder="inchangée" large /></label>
+              <label>Nappe amont (m)<Champ ctx={ctx} chemin={['phases', sel, 'eau', 'amont']} valeur={ph.eau?.amont} placeholder="inchangée" large /></label>
+              <label>Remblai aval à (m)<Champ ctx={ctx} chemin={['phases', sel, 'remblayer', 'aval']} valeur={ph.remblayer?.aval} placeholder="—" large /></label>
+              <label>Remblai amont à (m)<Champ ctx={ctx} chemin={['phases', sel, 'remblayer', 'amont']} valeur={ph.remblayer?.amont} placeholder="—" large /></label>
+              <label style={{ gridColumn: '1 / -1' }}>Retirer des surcharges (noms, virgules){surcharges.length ? ` — définies : ${surcharges.join(', ')}` : ''}
+                <input className="champ champ-bloc" key={`r${sel}${listeStr(ph.retirer_surcharges)}`} defaultValue={listeStr(ph.retirer_surcharges)} placeholder="—"
+                  onBlur={(e) => { const l = e.target.value.split(',').map((s) => s.trim()).filter(Boolean); if (listeStr(l) !== listeStr(ph.retirer_surcharges)) ctx.actions.fixer(['phases', sel, 'retirer_surcharges'], l.length ? l : '') }} /></label>
+              {res?.phases[sel + 1] && !res.phases[sel + 1].ok && <div className="alerte rouge" style={{ gridColumn: '1 / -1' }}>{res.phases[sel + 1].message}</div>}
+            </div>
+          )}
         </div>
-        {phases.map((ph, i) => (
-          <div key={i} className={`carte-phase ${selection?.type === 'phase' && selection.index === i ? 'actif' : ''}`} onClick={() => onSelection({ type: 'phase', index: i })}>
-            <span className="mono doux">{i + 1}</span>
-            <Champ ctx={ctx} chemin={['phases', i, 'nom']} valeur={ph?.nom} type="text" />
-            <Champ ctx={ctx} chemin={['phases', i, 'excaver']} valeur={ph?.excaver} placeholder="—" />
-            <input className="champ" defaultValue={listeStr(ph?.poser)} key={`p${i}${listeStr(ph?.poser)}`} placeholder="—" list="liste-appuis"
-              onBlur={(e) => { if (e.target.value.trim() !== listeStr(ph?.poser)) fixerListe(['phases', i, 'poser'], e.target.value) }} />
-            <input className="champ" defaultValue={listeStr(ph?.deposer)} key={`d${i}${listeStr(ph?.deposer)}`} placeholder="—" list="liste-appuis"
-              onBlur={(e) => { if (e.target.value.trim() !== listeStr(ph?.deposer)) fixerListe(['phases', i, 'deposer'], e.target.value) }} />
-            <Champ ctx={ctx} chemin={['phases', i, 'eau', 'aval']} valeur={ph?.eau?.aval} placeholder="inchangée" />
-            <span style={{ whiteSpace: 'nowrap' }}>
-              <button className="btn icone discret" title="Monter" disabled={i === 0} onClick={(e) => { e.stopPropagation(); ctx.actions.deplacer(['phases'], i, i - 1) }}><IconeMonter taille={14} /></button>
-              <button className="btn icone discret" title="Descendre" disabled={i === phases.length - 1} onClick={(e) => { e.stopPropagation(); ctx.actions.deplacer(['phases'], i, i + 1) }}><IconeDescendre taille={14} /></button>
-              <button className="btn icone discret" title="Supprimer" onClick={(e) => { e.stopPropagation(); ctx.actions.supprimer(['phases', i]) }}><IconeCorbeille taille={14} /></button>
-            </span>
-          </div>
-        ))}
       </div>
       <datalist id="liste-appuis">{appuis.map((a) => <option key={a} value={a} />)}</datalist>
-      <button className="btn" onClick={() => ctx.actions.ajouter(['phases'], { nom: `Phase ${phases.length + 1}` })}><IconePlus /> Ajouter une phase</button>
       {ctx.erreurs.filter((e) => e.chemin.startsWith('phases')).map((e, i) => <div key={i} className="message-erreur" style={{ marginTop: 8 }}>{e.chemin} : {e.message}</div>)}
     </div>
   )
@@ -460,7 +507,7 @@ function Verifs({ ctx }: { ctx: Ctx }) {
   )
 }
 
-export function Saisie(p: Ctx & { section: Section; selection: Selection; onSelection: (s: Selection) => void }) {
+export function Saisie(p: Ctx & { section: Section; selection: Selection; onSelection: (s: Selection) => void; phaseActive: number; onPhaseActive: (i: number) => void; res: Resultats | null }) {
   const ctx: Ctx = p
   if (!p.modele || typeof p.modele !== 'object') {
     return <div className="vide-centre">Le script contient une erreur de syntaxe : corrigez-la dans l'onglet Script pour utiliser les formulaires.</div>
@@ -472,7 +519,7 @@ export function Saisie(p: Ctx & { section: Section; selection: Selection; onSele
     case 'eau': return <Eau ctx={ctx} />
     case 'surcharges': return <Surcharges ctx={ctx} />
     case 'appuis': return <Appuis ctx={ctx} selection={p.selection} onSelection={p.onSelection} />
-    case 'phases': return <Phases ctx={ctx} selection={p.selection} onSelection={p.onSelection} />
+    case 'phases': return <Phases ctx={ctx} selection={p.selection} onSelection={p.onSelection} phaseActive={p.phaseActive} onPhaseActive={p.onPhaseActive} res={p.res} />
     case 'verifications': return <Verifs ctx={ctx} />
   }
 }

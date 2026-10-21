@@ -72,6 +72,21 @@ export function ajouter(texte: string, chemin: Chemin, valeur: unknown): string 
   })
 }
 
+/** Insère un élément dans une liste à la position donnée. */
+export function inserer(texte: string, chemin: Chemin, index: number, valeur: unknown): string {
+  return modifier(texte, (doc) => {
+    const seq = doc.getIn(chemin, true)
+    const noeud = doc.createNode(valeur)
+    if (isSeq(seq)) {
+      const voisin = seq.items[Math.min(index, seq.items.length) - 1] ?? seq.items[0]
+      if (isMap(voisin) && voisin.flow && isMap(noeud)) noeud.flow = true
+      seq.items.splice(Math.max(0, Math.min(index, seq.items.length)), 0, noeud)
+    } else {
+      doc.setIn(chemin, doc.createNode([valeur]))
+    }
+  })
+}
+
 /** Ajoute une entrée nommée à un bloc (appuis, jeux d'eau). */
 export function ajouterCle(texte: string, chemin: Chemin, cle: string, valeur: unknown): string {
   return modifier(texte, (doc) => {

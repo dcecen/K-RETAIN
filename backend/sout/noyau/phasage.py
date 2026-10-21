@@ -59,6 +59,7 @@ class ResultatPhase:
     eau: dict = field(default_factory=dict)         # {"z", "u_amont", "u_aval"}
     appuis: list = field(default_factory=list)      # [{"nom", "cote", "effort", "actif"}]
     iterations: int = 0
+    parent: int | None = None                       # indice du résultat de la phase de départ (0 = état initial)
     hydro: dict | None = None                       # résultat hydraulique sérialisé (écoulement, bouchon)
     ecoulement: object = field(default=None, repr=False)  # objet ResultatEcoulement (vérifications)
 
@@ -337,14 +338,34 @@ class MoteurPhases:
         resultats: list[ResultatPhase] = []
 
         phases = [Phase(nom="État initial")] + list(m.phases)
+        noms_phases = [ph.nom for ph in phases]
+        # instantanés de l'état après chaque phase, pour repartir d'une phase antérieure (branches)
+        import copy
+        instantanes: dict[int, dict] = {}
+        parents: list[int | None] = [None]
         for k_ph, ph in enumerate(phases):
+            if k_ph > 0:
+                if ph.depuis is not None and ph.depuis in noms_phases[:k_ph]:
+                    parent = noms_phases.index(ph.depuis)
+                else:
+                    parent = k_ph - 1
+                parents.append(parent)
+                if parent not in instantanes:
+                    resultats.append(ResultatPhase(ph.nom, False, f"Phase de départ « {noms_phases[parent]} » non calculée",
+                                                   terrain[AMONT], terrain[AVAL], eau[AMONT], eau[AVAL], parent=parent))
+                    continue
+                if parent != k_ph - 1 or resultats[-1].ok is False:
+                    inst = copy.deepcopy(instantanes[parent])
+                    etat, poses, u, sv_prec, present_prec = inst["etat"], inst["poses"], inst["u"], inst["sv_prec"], inst["present_prec"]
+                    terrain, eau = etat["terrain"], etat["eau"]
+                    r.p_ref, r.y_ref, r.pa, r.pp, r.A, r.kh = (inst["ressorts"][c].copy() for c in ("p_ref", "y_ref", "pa", "pp", "A", "kh"))
             try:
                 poser, deposer = self.appliquer_actions(etat, ph)
                 ecoul = self.modele_eau(etat, k_ph, ph.nom)
             except ErreurModele as e:
                 resultats.append(ResultatPhase(ph.nom, False, f"Erreur de données : {e}",
-                                               terrain[AMONT], terrain[AVAL], eau[AMONT], eau[AVAL]))
-                break
+                                               terrain[AMONT], terrain[AVAL], eau[AMONT], eau[AVAL], parent=parents[k_ph]))
+                continue
             for nom in deposer:
                 poses.pop(nom, None)
             y_noeuds = u[0::2]
@@ -375,8 +396,8 @@ class MoteurPhases:
             try:
                 solution = resoudre(self.z, self.EI_elem, r, appuis, f_ext, u0=u, y_rupture=m.y_rupture)
             except RuptureEquilibre as e:
-                resultats.append(ResultatPhase(ph.nom, False, f"Rupture : {e}", **base))
-                break
+                resultats.append(ResultatPhase(ph.nom, False, f"Rupture : {e}", **base, parent=parents[k_ph]))
+                continue
 
             u = solution.u
             r.memoriser(solution.y)
@@ -410,8 +431,11 @@ class MoteurPhases:
                 appuis=[{"nom": nm, "cote": d.cote, "type": d.type, "effort": float(e_), "actif": bool(a_)}
                         for nm, d, e_, a_ in zip(noms, defs, solution.efforts_appuis, solution.appuis_actifs)],
                 iterations=solution.iterations,
-                hydro=ecoul.serialiser() if ecoul is not None else None, ecoulement=ecoul,
+                hydro=ecoul.serialiser() if ecoul is not None else None, ecoulement=ecoul, parent=parents[k_ph],
             ))
+            instantanes[k_ph] = {"etat": copy.deepcopy(etat), "poses": dict(poses), "u": u.copy(), "sv_prec": sv_prec.copy(),
+                                 "present_prec": present_prec.copy(),
+                                 "ressorts": {c: getattr(r, c).copy() for c in ("p_ref", "y_ref", "pa", "pp", "A", "kh")}}
         return ResultatCalcul(phases=resultats, z=self.z, avertissements=self.avertissements)
 
 

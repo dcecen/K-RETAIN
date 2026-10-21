@@ -55,6 +55,7 @@ class Phase:
     eau: dict = field(default_factory=dict)  # {"amont": z | None, "aval": z | None} ; clé absente = inchangé
     ajouter_surcharges: list[Surcharge] = field(default_factory=list)
     retirer_surcharges: list[str] = field(default_factory=list)
+    depuis: str | None = None             # phase de départ (nom) ; None = la phase précédente de la liste
 
 
 @dataclass

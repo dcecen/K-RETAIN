@@ -63,6 +63,9 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "") -> dict:
             "eau_amont": ph.eau_amont, "eau_aval": ph.eau_aval,
             "actions": ([{"type": "initial", "texte": "état initial, sol au repos"}] if k == 0
                         else actions_phase(modele.phases[k - 1], modele) if k - 1 < len(modele.phases) else []),
+            "parent": ph.parent,
+            "enfants": [j for j, q in enumerate(res.phases) if q.parent == k],
+            "depuis": (modele.phases[k - 1].depuis if 0 < k <= len(modele.phases) else None),
         }
         if ph.ok:
             y_mm = ph.y * 1e3
