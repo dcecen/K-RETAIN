@@ -12,7 +12,7 @@ from sout.normes import Normes
 from sout.verifs import Lecteur
 
 CAT = catalogue_par_defaut()
-NORMES_VIDES = mod_normes.charger()
+NORMES_VIDES = mod_normes.charger(mod_normes.DOSSIER / 'modeles')
 EFFORTS = {"N": 850.0, "V": 20.0, "M": 120.0, "T": 600.0}
 COMMUN = {"acier": "S355", "lierne": "HEB 300", "buton": "modulaire_A"}
 

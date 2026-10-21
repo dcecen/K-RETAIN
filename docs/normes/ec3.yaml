@@ -1,42 +1,37 @@
-# Extraits de l'EN 1993-1-1 et de l'EN 1993-5 (avec annexes nationales françaises).
-# MODÈLE À REMPLIR : chaque valeur à null est un TODO-NORME.
+# Extraits de l'EN 1993-1-1 et de l'EN 1993-5 avec annexes nationales françaises.
+# STATUT : valeurs saisies par Claude de mémoire (22 octobre 2026), À CONFIRMER sur le texte par un
+# ingénieur ; « projet » = valeur de projet, pas de norme. Modèle vide : modeles/ec3.yaml.
 
-gamma_M0: { valeur: null, source: "" }                # TODO-NORME
-gamma_M1: { valeur: null, source: "" }                # TODO-NORME
-gamma_M2: { valeur: null, source: "" }                # TODO-NORME
+gamma_M0: { valeur: 1.0, source: "EN 1993-1-1 § 6.1 (1) et annexe nationale française — de mémoire, à confirmer" }
+gamma_M1: { valeur: 1.0, source: "EN 1993-1-1 § 6.1 (1) et annexe nationale française — de mémoire, à confirmer" }
+gamma_M2: { valeur: 1.25, source: "EN 1993-1-1 § 6.1 (1) et annexe nationale française — de mémoire, à confirmer" }
 
-# Flambement : facteurs d'imperfection par courbe et choix de courbe par type de section
 flambement:
   alpha:
-    a0: { valeur: null, source: "" }                  # TODO-NORME
-    a: { valeur: null, source: "" }                   # TODO-NORME
-    b: { valeur: null, source: "" }                   # TODO-NORME
-    c: { valeur: null, source: "" }                   # TODO-NORME
-    d: { valeur: null, source: "" }                   # TODO-NORME
-  lambda_0: { valeur: null, source: "" }              # TODO-NORME : élancement réduit seuil (plateau)
-  courbe_tube: { valeur: null, source: "" }           # TODO-NORME : courbe des tubes (lettre a0, a, b, c ou d)
-  courbe_profil_i_axe_fort: { valeur: null, source: "" }   # TODO-NORME
-  courbe_profil_i_axe_faible: { valeur: null, source: "" } # TODO-NORME
+    a0: { valeur: 0.13, source: "EN 1993-1-1 tableau 6.1 — de mémoire, à confirmer" }
+    a: { valeur: 0.21, source: "EN 1993-1-1 tableau 6.1 — de mémoire, à confirmer" }
+    b: { valeur: 0.34, source: "EN 1993-1-1 tableau 6.1 — de mémoire, à confirmer" }
+    c: { valeur: 0.49, source: "EN 1993-1-1 tableau 6.1 — de mémoire, à confirmer" }
+    d: { valeur: 0.76, source: "EN 1993-1-1 tableau 6.1 — de mémoire, à confirmer" }
+  lambda_0: { valeur: 0.2, source: "EN 1993-1-1 § 6.3.1.2 (4) — de mémoire, à confirmer" }
+  courbe_tube: { valeur: "a", source: "EN 1993-1-1 tableau 6.2 : sections creuses laminées à chaud (S235 à S355) ; formées à froid = c — à confirmer selon le procédé des tubes utilisés" }
+  courbe_profil_i_axe_fort: { valeur: "b", source: "EN 1993-1-1 tableau 6.2 : profilés laminés h/b ≤ 1,2, tf ≤ 100 mm (HEB) : b ; h/b > 1,2 et tf ≤ 40 : a — valeur prudente pour les HE, à confirmer" }
+  courbe_profil_i_axe_faible: { valeur: "c", source: "EN 1993-1-1 tableau 6.2 : profilés laminés h/b ≤ 1,2, tf ≤ 100 mm : c ; h/b > 1,2, tf ≤ 40 : b — valeur prudente, à confirmer" }
 
-# Effet de la température sur les butons
 temperature:
-  alpha_T: { valeur: null, source: "" }               # TODO-NORME : coefficient de dilatation thermique (1/°C)
-  delta_T: { valeur: null, source: "" }               # TODO-NORME : variation de température de calcul (°C), selon le projet
-  coefficient_bridage: { valeur: null, source: "" }   # TODO-NORME : part de la dilatation empêchée (0 à 1), selon la raideur du sol
+  alpha_T: { valeur: 1.2e-5, source: "EN 1991-1-5 annexe C, tableau C.1 : acier 12·10⁻⁶ /°C — de mémoire, à confirmer" }
+  delta_T: { valeur: 20.0, source: "PROJET : variation de température de calcul des butons (valeur usuelle 15 à 30 °C selon exposition) — à fixer par projet" }
+  coefficient_bridage: { valeur: 0.5, source: "PROJET : part de la dilatation empêchée (0 = libre, 1 = bridage total) ; 0,5 usuel pour un écran sur ressorts — à fixer par projet" }
 
-# Palplanches (EN 1993-5)
 palplanches:
-  beta_B: { valeur: null, source: "" }                # TODO-NORME : réduction du module de flexion des profils en U
-  beta_D: { valeur: null, source: "" }                # TODO-NORME : réduction de l'inertie des profils en U
-  gamma_M0: { valeur: null, source: "" }              # TODO-NORME
+  beta_B: { valeur: 0.8, source: "EN 1993-5 § 5.2.2 et annexe nationale : réduction du module de flexion des profils en U selon classe et liaison des serrures (0,6 à 1,0) — valeur intermédiaire, à confirmer ; 1,0 pour les profils en Z" }
+  beta_D: { valeur: 0.8, source: "EN 1993-5 § 6.4 et annexe nationale : réduction de l'inertie des profils en U (0,6 à 1,0) — valeur intermédiaire, à confirmer ; 1,0 pour les profils en Z" }
+  gamma_M0: { valeur: 1.0, source: "EN 1993-5 § 5.1.1 — de mémoire, à confirmer" }
 
-# Classification des sections comprimées (tableau 5.2) : limites de la classe 3,
-# en coefficient de ε² (tubes, d/t) ou de ε (parois planes, c/t), avec ε² = 235/fy.
 classification:
-  tube_classe3: { valeur: null, source: "" }          # TODO-NORME : d/t ≤ valeur × ε²
-  aile_classe3: { valeur: null, source: "" }          # TODO-NORME : aile en console comprimée, c/t ≤ valeur × ε
-  ame_comprimee_classe3: { valeur: null, source: "" } # TODO-NORME : âme entièrement comprimée, c/t ≤ valeur × ε
+  tube_classe3: { valeur: 90.0, source: "EN 1993-1-1 tableau 5.2 (feuille 3) : sections tubulaires, classe 3 si d/t ≤ 90ε² — de mémoire, à confirmer" }
+  aile_classe3: { valeur: 14.0, source: "EN 1993-1-1 tableau 5.2 (feuille 2) : parois en console comprimées, classe 3 si c/t ≤ 14ε — de mémoire, à confirmer" }
+  ame_comprimee_classe3: { valeur: 42.0, source: "EN 1993-1-1 tableau 5.2 (feuille 1) : paroi interne entièrement comprimée, classe 3 si c/t ≤ 42ε — de mémoire, à confirmer" }
 
-# Interaction flexion - effort tranchant
 cisaillement:
-  rapport_reduction: { valeur: null, source: "" }     # TODO-NORME : seuil VEd/Vpl,Rd au-delà duquel le moment résistant est réduit
+  rapport_reduction: { valeur: 0.5, source: "EN 1993-1-1 § 6.2.8 (2) : réduction du moment résistant si VEd > 0,5·Vpl,Rd — de mémoire, à confirmer" }

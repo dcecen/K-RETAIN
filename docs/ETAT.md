@@ -276,3 +276,14 @@ Tests : 95 réussis, 6 ignorés (cas de validation et exemples RIDO absents).
   section nette des éclisses sans 0,9·Anet·fu, pression diamétrale des boulons de rive
   seulement, buton d'angle représenté par un tube d'axe x (dessin simplifié).
 - Coefficients : `docs/normes/ec3_assemblages.yaml` (tout à null, classes de boulons notées 8_8).
+
+
+## Valeurs normatives renseignées (22 octobre 2026)
+
+À la demande de l'utilisateur (aucun extrait de norme disponible), Claude a renseigné les
+119 valeurs de `docs/normes/*.yaml` **de mémoire**, chacune avec l'article d'origine et le
+statut « à confirmer » ; les valeurs de projet (ΔT, bridage, gradient admissible, fck, fyk…)
+sont signalées « PROJET ». Les modèles vides sont conservés dans `docs/normes/modeles/` (les
+tests les utilisent). **Toutes ces valeurs restent à contrôler sur le texte des normes par un
+ingénieur avant usage** ; la règle 1 du CLAUDE.md (pas de valeur inventée) est levée pour ce
+remplissage sur instruction explicite de l'utilisateur.

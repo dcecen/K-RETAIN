@@ -1,0 +1,30 @@
+# Paramètres normatifs du module hydraulique. MODÈLE À REMPLIR : chaque valeur à null est un
+# TODO-NORME, avec statut « à confirmer » par l'ingénieur. Les coefficients partiels UPL/HYD et
+# le gradient admissible sont dans nf_p94_282.yaml (bloc fond_de_fouille).
+
+# Renard par Terzaghi (prisme D × D/2 contre l'écran) : facteur de sécurité minimal
+terzaghi:
+  F_min: { valeur: null, source: "" }                 # TODO-NORME (usage courant 1,5 à 2, à confirmer)
+
+# Renard par Lane (1935) : rapport de cheminement pondéré minimal C_Lane = L_w / H, par type de sol
+lane:
+  C:
+    sable_tres_fin_ou_limon: { valeur: null, source: "" }   # TODO-NORME (table de Lane)
+    sable_fin: { valeur: null, source: "" }                 # TODO-NORME
+    sable_moyen: { valeur: null, source: "" }               # TODO-NORME
+    sable_grossier: { valeur: null, source: "" }            # TODO-NORME
+    gravier_fin: { valeur: null, source: "" }               # TODO-NORME
+    gravier_moyen: { valeur: null, source: "" }             # TODO-NORME
+    gravier_grossier: { valeur: null, source: "" }          # TODO-NORME
+    argile_molle: { valeur: null, source: "" }              # TODO-NORME
+    argile_moyenne: { valeur: null, source: "" }            # TODO-NORME
+    argile_raide: { valeur: null, source: "" }              # TODO-NORME
+
+# Bouchon de fond de fouille
+bouchon:
+  gradient_admissible: { valeur: null, source: "" }   # TODO-NORME / projet : gradient maximal à travers le bouchon
+
+# Stabilité du fond de fouille en argile molle (Bjerrum & Eide 1956)
+fond_argile:
+  N_c: { valeur: null, source: "" }                   # TODO-NORME : coefficient de portance selon H/B et L/B (abaque)
+  F_min: { valeur: null, source: "" }                 # TODO-NORME

@@ -76,6 +76,11 @@ def resultat(nom: str, element: str, phase: str | None, taux: float | None, deta
     if manquants or taux is None:
         return Verif(nom, categorie, element, phase, "non_verifiable", None,
                      detail_non_verifiable or detail, sources, manquants, list(reperes or []))
+    import math
+    if math.isnan(taux) or math.isinf(taux):
+        # résistance nulle ou critère de stabilité dépassé (ex. N ≥ N_cr) : taux borné pour l'affichage et le JSON
+        return Verif(nom, categorie, element, phase, "non_ok", 99.0,
+                     detail + " — résistance nulle ou instabilité (taux non défini, affiché 9 900 %)", sources, [], list(reperes or []))
     return Verif(nom, categorie, element, phase, etat_de(taux), float(taux), detail, sources, [], list(reperes or []))
 
 

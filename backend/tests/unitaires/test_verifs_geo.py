@@ -51,7 +51,7 @@ def test_butee_mecanique_avec_coefficients_fictifs():
     v, = butee.verifier(r, NORMES_TEST)
     assert v.taux == pytest.approx(1.1 * 1.2 * 1.3 * Bm / Bt)
     assert v.etat in ("ok", "attention", "non_ok")
-    v, = butee.verifier(r, mod_normes.charger())  # modèles livrés : valeurs nulles
+    v, = butee.verifier(r, mod_normes.charger(mod_normes.DOSSIER / 'modeles'))  # modèles livrés : valeurs nulles
     assert v.etat == "non_verifiable" and len(v.manquants) == 3 and "Bm/Bt" in v.detail
 
 
@@ -173,7 +173,7 @@ def test_poids_deja_uge_sous_la_nappe():
 
 def test_execution_complete_exemple():
     s = lire_script((RACINE / "exemples" / "fouille_exemple.yaml").read_text(encoding="utf-8"))
-    ex = executer(s, catalogue_par_defaut(), mod_normes.charger())
+    ex = executer(s, catalogue_par_defaut(), mod_normes.charger(mod_normes.DOSSIER / 'modeles'))
     noms = {v.nom for v in ex.verifications}
     assert {"Mobilisation de la butée", "Stabilité générale (Bishop)", "Fond de fouille — boulance (HYD)"} <= noms
     # Toutes les vérifications à coefficients partiels sont « non vérifiables » (normes non fournies) ;

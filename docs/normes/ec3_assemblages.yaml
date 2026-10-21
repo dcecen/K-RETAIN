@@ -1,62 +1,63 @@
-# Paramètres normatifs des assemblages (EN 1993-1-8, EN 1993-1-5, EN 1992-1-1 § 6.7, EN 1090-2).
-# MODÈLE À REMPLIR : chaque valeur à null est un TODO-NORME, statut « à confirmer » par l'ingénieur.
+# Paramètres normatifs des assemblages (EN 1993-1-8, EN 1993-1-5, EN 1992-1-1 § 6.7, EN 1090-2, EN 1992-4).
+# STATUT : valeurs saisies par Claude de mémoire (22 octobre 2026), À CONFIRMER sur le texte par un
+# ingénieur. Modèle vide : modeles/ec3_assemblages.yaml. Clés des classes de boulons : 8_8 pour 8.8.
 
-gamma_M0: { valeur: null, source: "" }                  # TODO-NORME (EN 1993-1-1)
-gamma_M1: { valeur: null, source: "" }                  # TODO-NORME
-gamma_M2: { valeur: null, source: "" }                  # TODO-NORME (EN 1993-1-8 § 2.2)
+gamma_M0: { valeur: 1.0, source: "EN 1993-1-1 § 6.1 — de mémoire, à confirmer" }
+gamma_M1: { valeur: 1.0, source: "EN 1993-1-1 § 6.1 — de mémoire, à confirmer" }
+gamma_M2: { valeur: 1.25, source: "EN 1993-1-8 § 2.2 (2) et annexe nationale (γM2 = 1,25 pour boulons, rivets, axes, soudures) — de mémoire, à confirmer" }
 
 boulons:
-  k2: { valeur: null, source: "" }                      # TODO-NORME : tableau 3.4 (traction)
-  coef_poinconnement: { valeur: null, source: "" }      # TODO-NORME : tableau 3.4, Bp,Rd = coef·π·dm·tp·fu/γM2
-  coef_interaction: { valeur: null, source: "" }        # TODO-NORME : tableau 3.4, Ft,Ed/(coef·Ft,Rd)
-  jeu_trou_M16_M24: { valeur: null, source: "" }        # TODO-NORME (EN 1090-2) : d0 − d (mm) pour M16 à M24
-  jeu_trou_sup_M24: { valeur: null, source: "" }        # TODO-NORME : au-delà de M24
-  fub:                                                  # TODO-NORME : tableau 3.1, résistance ultime (MPa) ; clés : classe avec « _ » (8_8 pour 8.8)
-    "4_6": { valeur: null, source: "" }
-    "5_6": { valeur: null, source: "" }
-    "8_8": { valeur: null, source: "" }
-    "10_9": { valeur: null, source: "" }
-  alpha_v:                                              # TODO-NORME : tableau 3.4, cisaillement
-    "4_6": { valeur: null, source: "" }
-    "5_6": { valeur: null, source: "" }
-    "8_8": { valeur: null, source: "" }
-    "10_9": { valeur: null, source: "" }
-  As:                                                   # TODO-NORME : section résistante (mm²), EN ISO 898-1
-    M12: { valeur: null, source: "" }
-    M16: { valeur: null, source: "" }
-    M20: { valeur: null, source: "" }
-    M24: { valeur: null, source: "" }
-    M27: { valeur: null, source: "" }
-    M30: { valeur: null, source: "" }
-    M36: { valeur: null, source: "" }
-  dm:                                                   # TODO-NORME : diamètre moyen de la tête (mm), poinçonnement
-    M12: { valeur: null, source: "" }
-    M16: { valeur: null, source: "" }
-    M20: { valeur: null, source: "" }
-    M24: { valeur: null, source: "" }
-    M27: { valeur: null, source: "" }
-    M30: { valeur: null, source: "" }
-    M36: { valeur: null, source: "" }
+  k2: { valeur: 0.9, source: "EN 1993-1-8 tableau 3.4 (k2 = 0,9 ; 0,63 pour boulons à tête fraisée) — de mémoire, à confirmer" }
+  coef_poinconnement: { valeur: 0.6, source: "EN 1993-1-8 tableau 3.4 : Bp,Rd = 0,6·π·dm·tp·fu/γM2 — de mémoire, à confirmer" }
+  coef_interaction: { valeur: 1.4, source: "EN 1993-1-8 tableau 3.4 : Fv,Ed/Fv,Rd + Ft,Ed/(1,4·Ft,Rd) ≤ 1 — de mémoire, à confirmer" }
+  jeu_trou_M16_M24: { valeur: 2.0, source: "EN 1090-2 tableau 11 : trous normaux, d0 = d + 2 mm pour M16 à M24 (+1 mm pour M12-M14) — de mémoire, à confirmer" }
+  jeu_trou_sup_M24: { valeur: 3.0, source: "EN 1090-2 tableau 11 : d0 = d + 3 mm au-delà de M24 — de mémoire, à confirmer" }
+  fub:                                                  # EN 1993-1-8 tableau 3.1 (MPa)
+    "4_6": { valeur: 400.0, source: "EN 1993-1-8 tableau 3.1 — de mémoire, à confirmer" }
+    "5_6": { valeur: 500.0, source: "EN 1993-1-8 tableau 3.1 — de mémoire, à confirmer" }
+    "8_8": { valeur: 800.0, source: "EN 1993-1-8 tableau 3.1 — de mémoire, à confirmer" }
+    "10_9": { valeur: 1000.0, source: "EN 1993-1-8 tableau 3.1 — de mémoire, à confirmer" }
+  alpha_v:                                              # EN 1993-1-8 tableau 3.4
+    "4_6": { valeur: 0.6, source: "EN 1993-1-8 tableau 3.4 — de mémoire, à confirmer" }
+    "5_6": { valeur: 0.6, source: "EN 1993-1-8 tableau 3.4 — de mémoire, à confirmer" }
+    "8_8": { valeur: 0.6, source: "EN 1993-1-8 tableau 3.4 — de mémoire, à confirmer" }
+    "10_9": { valeur: 0.5, source: "EN 1993-1-8 tableau 3.4 — de mémoire, à confirmer" }
+  As:                                                   # section résistante (mm²), EN ISO 898-1 / ISO 724
+    M12: { valeur: 84.3, source: "EN ISO 898-1 tableau — de mémoire, à confirmer" }
+    M16: { valeur: 157.0, source: "EN ISO 898-1 tableau — de mémoire, à confirmer" }
+    M20: { valeur: 245.0, source: "EN ISO 898-1 tableau — de mémoire, à confirmer" }
+    M24: { valeur: 353.0, source: "EN ISO 898-1 tableau — de mémoire, à confirmer" }
+    M27: { valeur: 459.0, source: "EN ISO 898-1 tableau — de mémoire, à confirmer" }
+    M30: { valeur: 561.0, source: "EN ISO 898-1 tableau — de mémoire, à confirmer" }
+    M36: { valeur: 817.0, source: "EN ISO 898-1 tableau — de mémoire, à confirmer" }
+  dm:                                                   # diamètre moyen de la tête (moyenne du sur-plats et du sur-angles), EN ISO 4014 / 4032 (mm)
+    M12: { valeur: 19.0, source: "(s + e)/2 avec s = 18, e = 20,0 (EN ISO 4014 / 4032) — de mémoire, à confirmer" }
+    M16: { valeur: 25.4, source: "(s + e)/2 avec s = 24, e = 26,8 — de mémoire, à confirmer" }
+    M20: { valeur: 31.8, source: "(s + e)/2 avec s = 30, e = 33,5 — de mémoire, à confirmer" }
+    M24: { valeur: 38.0, source: "(s + e)/2 avec s = 36, e = 40,0 — de mémoire, à confirmer" }
+    M27: { valeur: 43.1, source: "(s + e)/2 avec s = 41, e = 45,2 — de mémoire, à confirmer" }
+    M30: { valeur: 48.4, source: "(s + e)/2 avec s = 46, e = 50,9 — de mémoire, à confirmer" }
+    M36: { valeur: 57.9, source: "(s + e)/2 avec s = 55, e = 60,8 — de mémoire, à confirmer" }
 
 soudures:
-  beta_w:                                               # TODO-NORME : tableau 4.1, facteur de corrélation par nuance
-    S235: { valeur: null, source: "" }
-    S275: { valeur: null, source: "" }
-    S355: { valeur: null, source: "" }
-    S355GP: { valeur: null, source: "" }
-    S430GP: { valeur: null, source: "" }
-  gorge_min: { valeur: null, source: "" }               # TODO-NORME : gorge minimale (mm), § 4.5.2
+  beta_w:                                               # EN 1993-1-8 tableau 4.1
+    S235: { valeur: 0.8, source: "EN 1993-1-8 tableau 4.1 — de mémoire, à confirmer" }
+    S275: { valeur: 0.85, source: "EN 1993-1-8 tableau 4.1 — de mémoire, à confirmer" }
+    S355: { valeur: 0.9, source: "EN 1993-1-8 tableau 4.1 — de mémoire, à confirmer" }
+    S355GP: { valeur: 0.9, source: "EN 1993-1-8 tableau 4.1, assimilé S355 (palplanches EN 10248) — à confirmer" }
+    S430GP: { valeur: 1.0, source: "EN 1993-1-8 tableau 4.1, assimilé S420–S460 (βw = 1,0) — à confirmer" }
+  gorge_min: { valeur: 3.0, source: "EN 1993-1-8 § 4.5.2 (2) : gorge minimale 3 mm — de mémoire, à confirmer" }
 
-axes:                                                   # TODO-NORME : tableau 3.10
-  coef_cisaillement: { valeur: null, source: "" }       # Fv,Rd = coef·A·fup/γM2
-  coef_pression: { valeur: null, source: "" }           # Fb,Rd = coef·t·d·fy/γM0
-  coef_flexion: { valeur: null, source: "" }            # MRd = coef·Wel·fyp/γM0
+axes:                                                   # EN 1993-1-8 tableau 3.10
+  coef_cisaillement: { valeur: 0.6, source: "EN 1993-1-8 tableau 3.10 : Fv,Rd = 0,6·A·fup/γM2 — de mémoire, à confirmer" }
+  coef_pression: { valeur: 1.5, source: "EN 1993-1-8 tableau 3.10 : Fb,Rd = 1,5·t·d·fy/γM0 — de mémoire, à confirmer" }
+  coef_flexion: { valeur: 1.5, source: "EN 1993-1-8 tableau 3.10 : MRd = 1,5·Wel·fyp/γM0 — de mémoire, à confirmer" }
 
 ame:
-  coef_diffusion: { valeur: null, source: "" }          # TODO-NORME : longueur efficace ℓy ≈ ss + coef·(tf + r), EN 1993-1-5 § 6 (simplifié)
+  coef_diffusion: { valeur: 2.0, source: "SIMPLIFICATION : longueur efficace ℓy ≈ ss + 2·(tf + r) (diffusion à 45° dans l'aile et le congé), EN 1993-1-5 § 6.5 sans χF — à confirmer par le calcul complet" }
 
 beton:
-  coef_max_compression_localisee: { valeur: null, source: "" }   # TODO-NORME : FRdu ≤ coef·fcd·Ac0, EN 1992-1-1 § 6.7
+  coef_max_compression_localisee: { valeur: 3.0, source: "EN 1992-1-1 § 6.7 (2) : FRdu ≤ 3,0·fcd·Ac0 — de mémoire, à confirmer" }
 
-chevilles:                                              # résistances de calcul par catalogue (base matériaux) ; ici seulement l'interaction
-  exposant_interaction: { valeur: null, source: "" }    # TODO-NORME (EN 1992-4) : (N/NRd)^k + (V/VRd)^k ≤ 1
+chevilles:
+  exposant_interaction: { valeur: 1.5, source: "EN 1992-4 § 7.2.3 : (NEd/NRd)^1,5 + (VEd/VRd)^1,5 ≤ 1 (rupture acier) — de mémoire, à confirmer" }

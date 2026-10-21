@@ -15,7 +15,7 @@ from sout.script.lecteur import lire_script
 
 RACINE = Path(__file__).resolve().parents[3]
 CAT = catalogue_par_defaut()
-NORMES_VIDES = normes.charger()  # modèles livrés : toutes les valeurs à null
+NORMES_VIDES = normes.charger(normes.DOSSIER / 'modeles')  # modèles vides : toutes les valeurs à null
 
 
 def test_base_demo_et_proprietes_calculees():

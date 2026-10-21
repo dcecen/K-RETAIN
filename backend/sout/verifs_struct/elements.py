@@ -121,6 +121,8 @@ def _barre(sec: dict, N_k: float, L: float, angle: float, normes, cle: str) -> t
     N_Ed = g * (N_k + dN_T)
     fl = ec3.flambement(sec["A_cm2"], sec["I_cm4"], sec["fy"], sec["E"], L, alpha, lam0, gM1)
     q = sec["masse_kg_m"] * G / 1000 * math.cos(math.radians(angle))
+    if N_Ed >= fl["N_cr"]:
+        return math.inf, detail_k + f" — N_Ed = {N_Ed:.0f} kN ≥ N_cr = {fl['N_cr']:.0f} kN : flambement (instabilité)", lect
     M_Ed = g * q * L**2 / 8 * ec3.amplification(N_Ed, fl["N_cr"])
     W = sec.get("W_cm3") or 0
     M_Rd = ec3.m_rd(W, sec["fy"], gM1) if W else math.inf

@@ -1,30 +1,27 @@
-# Paramètres normatifs du module hydraulique. MODÈLE À REMPLIR : chaque valeur à null est un
-# TODO-NORME, avec statut « à confirmer » par l'ingénieur. Les coefficients partiels UPL/HYD et
-# le gradient admissible sont dans nf_p94_282.yaml (bloc fond_de_fouille).
+# Paramètres normatifs du module hydraulique. Les coefficients UPL/HYD et le gradient admissible
+# sont dans nf_p94_282.yaml (bloc fond_de_fouille).
+# STATUT : valeurs saisies par Claude de mémoire (22 octobre 2026), À CONFIRMER. Modèle vide : modeles/hydraulique.yaml.
 
-# Renard par Terzaghi (prisme D × D/2 contre l'écran) : facteur de sécurité minimal
 terzaghi:
-  F_min: { valeur: null, source: "" }                 # TODO-NORME (usage courant 1,5 à 2, à confirmer)
+  F_min: { valeur: 2.0, source: "PRATIQUE : facteur de sécurité usuel contre le renard par la méthode de Terzaghi, 1,5 à 2,0 (valeur prudente retenue) — à confirmer" }
 
-# Renard par Lane (1935) : rapport de cheminement pondéré minimal C_Lane = L_w / H, par type de sol
+# Rapport de cheminement pondéré minimal C_Lane = L_w / H (Lane, 1935, Trans. ASCE 100, table des « weighted creep ratios »)
 lane:
   C:
-    sable_tres_fin_ou_limon: { valeur: null, source: "" }   # TODO-NORME (table de Lane)
-    sable_fin: { valeur: null, source: "" }                 # TODO-NORME
-    sable_moyen: { valeur: null, source: "" }               # TODO-NORME
-    sable_grossier: { valeur: null, source: "" }            # TODO-NORME
-    gravier_fin: { valeur: null, source: "" }               # TODO-NORME
-    gravier_moyen: { valeur: null, source: "" }             # TODO-NORME
-    gravier_grossier: { valeur: null, source: "" }          # TODO-NORME
-    argile_molle: { valeur: null, source: "" }              # TODO-NORME
-    argile_moyenne: { valeur: null, source: "" }            # TODO-NORME
-    argile_raide: { valeur: null, source: "" }              # TODO-NORME
+    sable_tres_fin_ou_limon: { valeur: 8.5, source: "Lane (1935), table — de mémoire, à confirmer" }
+    sable_fin: { valeur: 7.0, source: "Lane (1935), table — de mémoire, à confirmer" }
+    sable_moyen: { valeur: 6.0, source: "Lane (1935), table — de mémoire, à confirmer" }
+    sable_grossier: { valeur: 5.0, source: "Lane (1935), table — de mémoire, à confirmer" }
+    gravier_fin: { valeur: 4.0, source: "Lane (1935), table — de mémoire, à confirmer" }
+    gravier_moyen: { valeur: 3.5, source: "Lane (1935), table — de mémoire, à confirmer" }
+    gravier_grossier: { valeur: 3.0, source: "Lane (1935), table (graviers grossiers et galets) — de mémoire, à confirmer" }
+    argile_molle: { valeur: 3.0, source: "Lane (1935), table — de mémoire, à confirmer" }
+    argile_moyenne: { valeur: 2.0, source: "Lane (1935), table — de mémoire, à confirmer" }
+    argile_raide: { valeur: 1.8, source: "Lane (1935), table — de mémoire, à confirmer" }
 
-# Bouchon de fond de fouille
 bouchon:
-  gradient_admissible: { valeur: null, source: "" }   # TODO-NORME / projet : gradient maximal à travers le bouchon
+  gradient_admissible: { valeur: 3.0, source: "PROJET : gradient maximal admis à travers un bouchon injecté ou de jet-grouting (usage courant 3 à 5 selon le traitement) — à fixer par projet" }
 
-# Stabilité du fond de fouille en argile molle (Bjerrum & Eide 1956)
 fond_argile:
-  N_c: { valeur: null, source: "" }                   # TODO-NORME : coefficient de portance selon H/B et L/B (abaque)
-  F_min: { valeur: null, source: "" }                 # TODO-NORME
+  N_c: { valeur: 5.7, source: "Terzaghi (1943) : Nc = 5,7 pour φ = 0 (fouille longue) ; Bjerrum & Eide (1956) donnent 5,7 à 9 selon H/B et L/B — valeur prudente, à confirmer selon la géométrie" }
+  F_min: { valeur: 1.5, source: "PRATIQUE : facteur de sécurité usuel sur la stabilité du fond en argile molle (1,5) — à confirmer" }

@@ -105,7 +105,7 @@ def test_execution_structure_exemple_avec_coefficients_de_test():
 
 def test_structure_sans_normes_non_verifiable():
     texte = (RACINE / "exemples" / "fouille_exemple.yaml").read_text(encoding="utf-8")
-    ex = executer(lire_script(texte), catalogue_par_defaut(), mod_normes.charger())
+    ex = executer(lire_script(texte), catalogue_par_defaut(), mod_normes.charger(mod_normes.DOSSIER / 'modeles'))
     for v in ex.verifications:
         if v.categorie == "structure":
             assert v.etat == "non_verifiable"
