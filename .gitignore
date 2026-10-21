@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+backend/.venv/
+.pytest_cache/
+*.egg-info/
+# Node
+frontend/node_modules/
+frontend/dist/
+# Données locales
+backend/data/*.sqlite
+backend/data/utilisateurs.json
+sorties/
