@@ -8,7 +8,13 @@ vérifications géotechniques (NF P 94-282) et structurelles (EC2, EC3), maquett
 > comparaison à K-Réa ou RIDO sur plusieurs cas et visa d'un ingénieur. Les valeurs de
 > norme ne sont pas fournies : voir `docs/normes/` et l'état d'avancement `docs/ETAT.md`.
 
-## Démarrage rapide (poste local)
+## Lancer le logiciel
+
+Double-cliquez sur **`Lancer RetainWall.bat`** (ou le raccourci « RetainWall » du Bureau).
+La première fois, il installe ce qui manque (Python 3.12 et Node.js doivent être présents),
+puis le navigateur s'ouvre sur http://localhost:8000. Fermer la fenêtre noire arrête le logiciel.
+
+## Démarrage pour le développement (poste local)
 
 ```powershell
 cd backend ; py -3.12 -m venv .venv ; .venv\Scripts\python -m pip install -e ".[test]" ; cd ..
