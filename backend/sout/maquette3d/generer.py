@@ -80,7 +80,10 @@ def _l(a) -> list:
     return [round(float(v), 4) for v in np.asarray(a, float)]
 
 
-def donnees(ex, p3d: dict | None = None) -> dict:
+def geometrie(ex) -> dict:
+    """Géométrie de la maquette, indépendante des résultats de phase : paroi, contour en
+    plan, couches, appuis et leur position en plan. Sert à la maquette autonome et à la
+    vue 3D de l'interface (renvoyée avec les résultats du calcul)."""
     s, m, res = ex.script, ex.modele, ex.resultat
     inf = m.ecran.infos
     sec = inf.get("section") or {}
@@ -111,8 +114,30 @@ def donnees(ex, p3d: dict | None = None) -> dict:
     contour = s.plan.contour if s.plan else RECTANGLE_DEFAUT
     plan_appuis = ([ap.model_dump() for ap in s.plan.appuis] if s.plan and s.plan.appuis
                    else placer_appuis(contour, appuis))
-    phases = []
+    couches = sorted(({"nom": c.nom, "toit": c.toit} for c in m.couches), key=lambda c: -c["toit"])
+    # gradient critique de la couche du fond, par phase (flèches de gradient de la maquette)
+    from ..sol.couches import indice_couche
+    couches_t = sorted(m.couches, key=lambda c: -c.toit)
+    i_crit = []
     for ph in res.phases:
+        if ph.ok and ph.hydro:
+            c_fond = couches_t[indice_couche(couches_t, ph.terrain_aval - 1e-6)]
+            i_crit.append(c_fond.gamma_dejauge / m.gamma_w)
+        else:
+            i_crit.append(None)
+    return {
+        "projet": s.projet, "paroi": paroi, "contour": contour, "plan_defaut": defaut,
+        "couches": couches, "z_bas": s.paroi.pied - max(3.0, 0.25 * (s.paroi.tete - s.paroi.pied)),
+        "appuis": appuis, "plan_appuis": plan_appuis, "i_critique": i_crit,
+        "assemblages": {nom: {"type": a.type, "appui": a.appui} for nom, a in s.assemblages.items()},
+    }
+
+
+def donnees(ex, p3d: dict | None = None) -> dict:
+    res = ex.resultat
+    g = geometrie(ex)
+    phases = []
+    for k, ph in enumerate(res.phases):
         d = {"nom": ph.nom, "ok": ph.ok, "fond": ph.terrain_aval, "terrain": ph.terrain_amont,
              "eau_amont": ph.eau_amont, "eau_aval": ph.eau_aval,
              "appuis": [a["nom"] for a in ph.appuis if a["actif"]] if ph.ok else []}
@@ -123,22 +148,15 @@ def donnees(ex, p3d: dict | None = None) -> dict:
                            "zu": _l(ph.eau["z"]), "u_amont": _l(ph.eau["u_amont"]), "u_aval": _l(ph.eau["u_aval"])}
             if ph.hydro:
                 h = ph.hydro
-                couches_t = sorted(m.couches, key=lambda c: -c.toit)
-                from ..sol.couches import indice_couche
-                c_fond = couches_t[indice_couche(couches_t, ph.terrain_aval - 1e-6)]
                 d["hydro"] = {
                     "regime": h["regime"], "charge_fond": h.get("charge_fond"), "equipotentielles": h.get("equipotentielles", []),
                     "bouchon": h.get("bouchon"), "gradient_sortie_x": h["gradient_sortie_x"], "gradient_sortie": h["gradient_sortie"],
-                    "gradient_sortie_max": h["gradient_sortie_max"], "i_critique": c_fond.gamma_dejauge / m.gamma_w,
+                    "gradient_sortie_max": h["gradient_sortie_max"], "i_critique": g["i_critique"][k],
                     "h_amont": h["h_amont"], "h_aval": h["h_aval"],
                 }
         phases.append(d)
-    couches = sorted(({"nom": c.nom, "toit": c.toit} for c in m.couches), key=lambda c: -c["toit"])
-    return {
-        "projet": s.projet, "paroi": paroi, "contour": contour, "plan_defaut": defaut,
-        "couches": couches, "z_bas": s.paroi.pied - max(3.0, 0.25 * (s.paroi.tete - s.paroi.pied)),
-        "appuis": appuis, "plan_appuis": plan_appuis, "phases": phases, "p3d": p3d,
-    }
+    sortie = {k: v for k, v in g.items() if k not in ("i_critique", "assemblages")}
+    return {**sortie, "phases": phases, "p3d": p3d}
 
 
 def generer_html(ex, p3d: dict | None = None) -> str:

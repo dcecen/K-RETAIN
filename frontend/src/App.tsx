@@ -12,12 +12,12 @@ import { Navigation } from './composants/Navigation'
 import { CoupeDiagrammes } from './vues/CoupeDiagrammes'
 import { Editeur } from './vues/Editeur'
 import { Efforts } from './vues/Efforts'
-import { Maquette3D } from './vues/Maquette3D'
 import { Materiaux } from './vues/Materiaux'
 import { Pseudo3D } from './vues/Pseudo3D'
 import { Saisie } from './vues/Saisie'
 import { Verifications } from './vues/Verifications'
 import { Assemblages } from './vues/Assemblages'
+import { Onglet3D } from './vue3d/Onglet3D'
 
 const CLE_BROUILLON = 'retainwall.brouillon'
 const lireBrouillon = () => { try { return localStorage.getItem(CLE_BROUILLON) } catch { return null } }
@@ -27,7 +27,6 @@ export default function App() {
   const [texte, setTexteBrut] = useState<string>(() => lireBrouillon() ?? '')
   const [erreurs, setErreurs] = useState<ErreurScript[]>([])
   const [res, setRes] = useState<Resultats | null>(null)
-  const [version, setVersion] = useState(0)
   const [phase, setPhase] = useState(0)
   const [onglet, setOnglet] = useState<Onglet>('coupe')
   const [section, setSection] = useState<Section | null>(null)
@@ -95,7 +94,6 @@ export default function App() {
       if (r.ok && r.resultats) {
         texteCalcule.current = texte
         setRes(r.resultats)
-        setVersion((v) => v + 1)
         setPhase(r.resultats.phases.length - 1)
         setEtat(r.resultats.complet
           ? { genre: 'ok', texte: `Calculé · ${r.resultats.phases.length} phases · ${ms} ms` }
@@ -117,7 +115,7 @@ export default function App() {
     const touche = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void calculer(); return }
       const cible = e.target as HTMLElement
-      if (cible.closest('input, textarea, select, .monaco-editor')) return
+      if (cible?.closest?.('input, textarea, select, .monaco-editor')) return
       if (!res) return
       if (e.key === 'ArrowLeft') setPhase((p) => res.phases[p]?.parent ?? Math.max(0, p - 1))
       if (e.key === 'ArrowRight') setPhase((p) => res.phases[p]?.enfants?.[0] ?? Math.min(res.phases.length - 1, p + 1))
@@ -212,9 +210,9 @@ export default function App() {
         </nav>
         <div className="contenu-onglet">
           {onglet === 'coupe' && (res ? <CoupeDiagrammes res={res} phase={phase} theme={theme} /> : sansResultats)}
-          {onglet === '3d' && (res ? <Maquette3D texte={texteCalcule.current} version={version} phase={phase} theme={theme}
-            selection={selection?.type === 'appui' ? selection.nom : null} onPhase={changerPhase}
-            onSelection={(n) => setSelection(n ? { type: 'appui', nom: n } : null)} /> : sansResultats)}
+          {onglet === '3d' && (res ? <Onglet3D res={res} texte={texteCalcule.current} phase={phase} theme={theme}
+            selection={selection?.type === 'appui' ? `appui:${selection.nom}` : null}
+            onSelection={(id) => setSelection(id?.startsWith('appui:') ? { type: 'appui', nom: id.slice(6) } : null)} /> : sansResultats)}
           {onglet === 'efforts' && (res ? <Efforts res={res} phase={phase} onPhase={setPhase} onAppui={(n) => { setSelection({ type: 'appui', nom: n }); setTiroirInsp(true) }} /> : sansResultats)}
           {onglet === 'verifications' && (res ? <Verifications res={res} /> : sansResultats)}
           {onglet === 'pseudo3d' && res?.pseudo3d && <Pseudo3D res={res} phase={phase} />}

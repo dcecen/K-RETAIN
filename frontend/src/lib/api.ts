@@ -113,6 +113,36 @@ export interface Dimensionnant {
   appuis?: Record<string, { effort_kN_m: number; effort_axial_kN: number; phase: string }>
 }
 
+/** Géométrie de la maquette 3D renvoyée avec le calcul (repère du plan : x, y en m ; cotes z en m). */
+export interface AppuiMaquette {
+  type: string
+  cote: number
+  angle: number
+  element: string | null
+  lierne: string | null
+  longueur: number | null
+  longueur_libre: number | null
+  longueur_scellee: number | null
+  epaisseur: number | null
+  pied_bracon: number | null
+  espacement: number
+  D: number
+}
+
+export interface Maquette {
+  projet: string
+  paroi: { type: string; tete: number; pied: number; epaisseur: number; diametre: number; entraxe: number
+    profil: string | null; b: number; h: number; tf: number; tw: number; blindage: number | null }
+  contour: number[][]
+  plan_defaut: boolean
+  couches: { nom: string; toit: number }[]
+  z_bas: number
+  appuis: Record<string, AppuiMaquette>
+  plan_appuis: { appui: string; de: number[]; a: number[] }[]
+  i_critique: (number | null)[]
+  assemblages: Record<string, { type: string; appui: string | null }>
+}
+
 export interface Resultats {
   projet: string
   complet: boolean
@@ -134,6 +164,7 @@ export interface Resultats {
     V_max?: number[]
   }
   dimensionnant: Dimensionnant
+  maquette?: Maquette
   verifications?: Verif[]
   suggestions?: { appui: string; element: string | null; taux: number | null; message: string }[]
   pseudo3d?: {

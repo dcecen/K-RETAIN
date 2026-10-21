@@ -400,3 +400,25 @@ select.champ { padding: 0 2px; }
 .ligne-phase.act { box-shadow: inset 3px 0 0 var(--accent); }
 .case-phase.ancetre { border-color: var(--accent); }
 .case-phase.branche::before { content: '⤷'; position: absolute; left: 3px; top: 1px; font-size: 10px; color: var(--texte-doux); }
+
+/* ---------------------------------------------------------------- vue 3D persistante */
+.onglet-3d { display: flex; flex-direction: column; height: 100%; }
+.onglet-3d-corps { flex: 1; min-height: 0; display: flex; position: relative; }
+.vue3d { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.vue3d-canvas { position: absolute; inset: 0; }
+.vue3d-canvas canvas { display: block; touch-action: none; }
+.vue3d-etiquettes { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.etiquette-3d { position: absolute; left: 0; top: 0; font-size: 11px; line-height: 1.3; padding: 1px 5px; border-radius: 3px;
+  background: color-mix(in srgb, var(--panneau) 88%, transparent); color: var(--texte); border: 1px solid var(--filet);
+  white-space: nowrap; will-change: transform; }
+.etiquette-3d[data-selection] { pointer-events: auto; cursor: pointer; }
+.etiquette-3d.choisie { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.etiquette-3d.axe { background: transparent; border: none; font-family: var(--mono); color: var(--texte-doux); }
+.vue3d-note { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: var(--texte-doux); pointer-events: none;
+  background: color-mix(in srgb, var(--panneau) 75%, transparent); padding: 3px 6px; border-radius: 3px; }
+.vue3d-diag { position: absolute; left: 10px; top: 10px; font-size: 11.5px; background: var(--panneau); color: var(--texte);
+  border: 1px solid var(--filet-fort); border-radius: 4px; padding: 6px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 5; }
+.vue3d-diag table { border-collapse: collapse; margin-top: 4px; }
+.vue3d-diag td { padding: 1px 6px 1px 0; }
+.onglet-3d .barre-outils { flex-wrap: nowrap; white-space: nowrap; overflow-x: auto; }
+.onglet-3d .barre-outils label { white-space: nowrap; }

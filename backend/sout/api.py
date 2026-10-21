@@ -110,6 +110,9 @@ def calcul(t: Texte) -> dict:
     r["verifications"] = [v.vers_dict() for v in ex.verifications]
     r["suggestions"] = ex.suggestions
     r["jeux_eau"] = {j: {"complet": res.complet} for j, (_, res) in ex.jeux.items() if j is not None}
+    from sout.maquette3d.generer import geometrie
+
+    r["maquette"] = geometrie(ex)   # géométrie de la vue 3D (contour, paroi, appuis en plan)
     if ex.script.calcul.mode == "pseudo3d":
         from sout.pseudo3d.calcul import depuis_script, serialiser as serialiser_p3d
 
