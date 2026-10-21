@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITRE__</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, sans-serif; background: #eef1f5; }
+  #vue { position: absolute; inset: 0; }
+  #panneau { position: absolute; left: 12px; top: 12px; background: rgba(255,255,255,0.94); border-radius: 6px;
+             padding: 10px 12px; box-shadow: 0 1px 6px rgba(0,0,0,0.15); font-size: 13px; max-width: 360px; }
+  #panneau h1 { font-size: 15px; margin: 0 0 6px; }
+  #panneau input[type=range] { width: 100%; }
+  #panneau .ligne { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+  #legende { position: absolute; right: 12px; bottom: 12px; background: rgba(255,255,255,0.94); padding: 8px 10px;
+             border-radius: 6px; font-size: 12px; }
+  #echelle { width: 180px; height: 12px; background: linear-gradient(to right, #2c7bb6, #abd9e9, #ffffbf, #fdae61, #d7191c); }
+  .etiquette { position: absolute; font-size: 11px; background: rgba(255,255,255,0.85); padding: 1px 4px;
+               border-radius: 3px; pointer-events: none; white-space: nowrap; transform: translate(-50%, -100%); }
+  .note { color: #666; font-size: 11px; }
+  button { font: inherit; padding: 2px 8px; }
+</style>
+</head>
+<body>
+<div id="vue"></div>
+<div id="etiquettes"></div>
+<div id="panneau">
+  <h1 id="titre"></h1>
+  <div class="ligne"><button id="prec">◀</button><span id="nomPhase" style="flex:1"></span><button id="suiv">▶</button></div>
+  <input id="curseur" type="range" min="0" value="0">
+  <div class="ligne">Couleur de la paroi :
+    <select id="mode"><option value="y">déplacement</option><option value="M">moment</option><option value="">aucune</option></select>
+  </div>
+  <div class="ligne"><label><input id="voirSol" type="checkbox" checked> couches de sol</label>
+    <label><input id="voirEau" type="checkbox" checked> nappes</label></div>
+  <div class="note">Glisser : tourner · clic droit ou Maj+glisser : déplacer · molette : zoom.<br>
+    y positif vers la fouille ; M positif face fouille tendue.</div>
+  <div class="note" id="avert"></div>
+</div>
+<div id="legende"><div id="titreEchelle"></div><div id="echelle"></div>
+  <div style="display:flex;justify-content:space-between"><span id="vmin"></span><span id="vmax"></span></div></div>
+<script>
+/* three.js — licence MIT :
+__LICENCE__
+*/
+__THREE__
+</script>
+<script>
+"use strict";
+const D = __DONNEES__;
+const T = THREE;
+
+// ----------------------------------------------------------------------------- scène
+const conteneur = document.getElementById("vue");
+const rendu = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+rendu.setPixelRatio(window.devicePixelRatio);
+conteneur.appendChild(rendu.domElement);
+const scene = new T.Scene();
+scene.background = new T.Color(0xeef1f5);
+const camera = new T.PerspectiveCamera(45, 1, 0.1, 5000);
+scene.add(new T.AmbientLight(0xffffff, 0.65));
+const soleil = new T.DirectionalLight(0xffffff, 0.9);
+soleil.position.set(40, 80, 30);
+scene.add(soleil);
+
+// Repère : plan (x, y) et cote z  ->  three (x, z, -y)
+const P = (x, y, z) => new T.Vector3(x, z, -y);
+
+const C = D.contour;
+const n = C.length;
+let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+for (const [x, y] of C) { xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); ymin = Math.min(ymin, y); ymax = Math.max(ymax, y); }
+const taille = Math.max(xmax - xmin, ymax - ymin, 10);
+const marge = Math.max(8, 0.5 * taille);
+const aire = C.reduce((s, [x0, y0], i) => { const [x1, y1] = C[(i + 1) % n]; return s + x0 * y1 - x1 * y0; }, 0) / 2;
+const sens = aire > 0 ? 1 : -1;
+const H = D.paroi.tete - D.paroi.pied;
+
+// ----------------------------------------------------------------------------- caméra (orbite)
+const cible = P((xmin + xmax) / 2, (ymin + ymax) / 2, D.paroi.tete - 0.4 * H);
+let rayon = 1.1 * (taille + 2 * marge) + H, theta = -0.9, phi = 0.95;
+function placerCamera() {
+  camera.position.set(cible.x + rayon * Math.sin(phi) * Math.cos(theta), cible.y + rayon * Math.cos(phi),
+                      cible.z + rayon * Math.sin(phi) * Math.sin(theta));
+  camera.lookAt(cible);
+}
+let glisse = null;
+rendu.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
+rendu.domElement.addEventListener("pointerdown", (e) => { glisse = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey }; });
+window.addEventListener("pointerup", () => { glisse = null; });
+window.addEventListener("pointermove", (e) => {
+  if (!glisse) return;
+  const dx = e.clientX - glisse.x, dy = e.clientY - glisse.y;
+  glisse.x = e.clientX; glisse.y = e.clientY;
+  if (glisse.pan) {
+    const droite = new T.Vector3().subVectors(camera.position, cible).cross(camera.up).normalize();
+    const k = rayon / 800;
+    cible.addScaledVector(droite, dx * k);
+    cible.y += dy * k;
+  } else {
+    theta += dx * 0.005;
+    phi = Math.min(Math.max(phi - dy * 0.005, 0.05), Math.PI - 0.05);
+  }
+  placerCamera();
+});
+rendu.domElement.addEventListener("wheel", (e) => { e.preventDefault(); rayon *= Math.exp(e.deltaY * 0.001); placerCamera(); }, { passive: false });
+
+// ----------------------------------------------------------------------------- outils
+const COULEURS_SOL = [0xe8d8b0, 0xd9c08c, 0xc9a96e, 0xb8925a, 0xd6c7a1, 0xa88a5c];
+function matiere(couleur, opts = {}) { return new T.MeshLambertMaterial({ color: couleur, side: T.DoubleSide, ...opts }); }
+function couleurEchelle(t) {
+  const pal = [[0x2c, 0x7b, 0xb6], [0xab, 0xd9, 0xe9], [0xff, 0xff, 0xbf], [0xfd, 0xae, 0x61], [0xd7, 0x19, 0x1c]];
+  t = Math.min(Math.max(t, 0), 1) * (pal.length - 1);
+  const i = Math.min(Math.floor(t), pal.length - 2), f = t - i;
+  return new T.Color(...pal[i].map((c, k) => (c + f * (pal[i + 1][k] - c)) / 255));
+}
+function interp(xs, ys, x) {
+  if (x <= xs[0]) return ys[0];
+  for (let i = 1; i < xs.length; i++) if (x <= xs[i]) { const t = (x - xs[i - 1]) / (xs[i] - xs[i - 1] || 1); return ys[i - 1] + t * (ys[i] - ys[i - 1]); }
+  return ys[ys.length - 1];
+}
+function forme(points, trou) {
+  const s = new T.Shape(points.map(([x, y]) => new T.Vector2(x, y)));
+  if (trou) s.holes.push(new T.Path(trou.map(([x, y]) => new T.Vector2(x, y))));
+  return s;
+}
+function bloc(points, trou, zBas, zHaut, mat) {
+  if (zHaut - zBas < 1e-3) return null;
+  const g = new T.ExtrudeGeometry(forme(points, trou), { depth: zHaut - zBas, bevelEnabled: false });
+  g.rotateX(-Math.PI / 2);               // (x, y) plan -> (x, -z) three ; extrusion selon +y
+  g.translate(0, zBas, 0);
+  return new T.Mesh(g, mat);
+}
+function cylindre(a, b, r, mat) {
+  const v = new T.Vector3().subVectors(b, a), L = v.length();
+  const g = new T.CylinderGeometry(r, r, L, 16);
+  const m = new T.Mesh(g, mat);
+  m.position.copy(a).addScaledVector(v, 0.5);
+  m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), v.clone().normalize());
+  return m;
+}
+function boite(centre, t, nrm, lt, ln, z0, z1, mat, segZ = 1) {
+  const g = new T.BoxGeometry(lt, z1 - z0, ln, 1, segZ, 1);
+  const m = new T.Mesh(g, mat);
+  m.position.copy(P(centre[0], centre[1], (z0 + z1) / 2));
+  m.rotation.y = Math.atan2(t[1], t[0]);  // axe local x selon la tangente (plan)
+  return m;
+}
+
+// ----------------------------------------------------------------------------- couleurs de paroi
+let echelle = { min: 0, max: 1, titre: "" };
+function valeurParoi(ph, mode, s, z) {
+  if (D.p3d && D.p3d.phases && D.p3d.phases[ph.index]) {
+    const q = D.p3d.phases[ph.index], g = mode === "M" ? q.M : q.y_mm;
+    if (g) {
+      const i = Math.max(0, Math.min(q.s.length - 1, Math.round(interp(q.s, q.s.map((_, k) => k), s))));
+      return interp(q.z, g[i], z);
+    }
+  }
+  if (!ph.profil) return 0;
+  return mode === "M" ? interp(ph.profil.zM, ph.profil.M, z) : interp(ph.profil.z, ph.profil.y_mm, z);
+}
+function colorer(geom, ph, mode, sDe) {
+  if (!mode) return;
+  const pos = geom.attributes.position, coul = [];
+  const v = new T.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const val = valeurParoi(ph, mode, sDe(v), v.y);
+    const c = couleurEchelle((val - echelle.min) / (echelle.max - echelle.min || 1));
+    coul.push(c.r, c.g, c.b);
+  }
+  geom.setAttribute("color", new T.Float32BufferAttribute(coul, 3));
+}
+
+// abscisse développée le long du contour d'un point three
+const longueurs = [0];
+for (let k = 0; k < n; k++) { const [x0, y0] = C[k], [x1, y1] = C[(k + 1) % n]; longueurs.push(longueurs[k] + Math.hypot(x1 - x0, y1 - y0)); }
+function abscisse(v) {
+  const x = v.x, y = -v.z;
+  let best = Infinity, sBest = 0;
+  for (let k = 0; k < n; k++) {
+    const [x0, y0] = C[k], [x1, y1] = C[(k + 1) % n];
+    const L = Math.hypot(x1 - x0, y1 - y0) || 1, tx = (x1 - x0) / L, ty = (y1 - y0) / L;
+    const s = Math.min(Math.max((x - x0) * tx + (y - y0) * ty, 0), L);
+    const d = Math.hypot(x0 + tx * s - x, y0 + ty * s - y);
+    if (d < best) { best = d; sBest = longueurs[k] + s; }
+  }
+  return sBest;
+}
+
+// ----------------------------------------------------------------------------- paroi
+function paroi(ph, mode, groupe) {
+  const p = D.paroi;
+  const matBase = mode ? new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })
+                       : matiere(p.type === "paroi_moulee" || p.type.startsWith("pieux") ? 0xa0a0a0 : 0x6d7b8a);
+  for (let k = 0; k < n; k++) {
+    const A = C[k], B = C[(k + 1) % n];
+    const L = Math.hypot(B[0] - A[0], B[1] - A[1]); if (L < 1e-6) continue;
+    const t = [(B[0] - A[0]) / L, (B[1] - A[1]) / L];
+    const ni = [-t[1] * sens, t[0] * sens];             // normale vers l'intérieur de la fouille
+    const pt = (s, o = 0) => [A[0] + t[0] * s + ni[0] * o, A[1] + t[1] * s + ni[1] * o];
+    if (p.type === "palplanche") {
+      // rideau ondulé : zigzag de pas b et d'amplitude h/2
+      const pas = Math.max(p.b, 0.3), amp = p.h, nb = Math.max(1, Math.round(L / pas));
+      const pts = [];
+      for (let i = 0; i <= 2 * nb; i++) pts.push(pt((i * L) / (2 * nb), (i % 2 ? 1 : -1) * amp / 2));
+      const segZ = 24, pos = [], idx = [];
+      for (let j = 0; j <= segZ; j++) {
+        const z = p.pied + (H * j) / segZ;
+        for (const [x, y] of pts) { const v = P(x, y, z); pos.push(v.x, v.y, v.z); }
+      }
+      const m = pts.length;
+      for (let j = 0; j < segZ; j++) for (let i = 0; i < m - 1; i++) {
+        const a = j * m + i, b = a + 1, c = a + m, d = c + 1;
+        idx.push(a, b, d, a, d, c);
+      }
+      const g = new T.BufferGeometry();
+      g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx); g.computeVertexNormals();
+      colorer(g, ph, mode, abscisse);
+      groupe.add(new T.Mesh(g, matBase));
+    } else if (p.type === "paroi_moulee") {
+      const nb = Math.max(1, Math.ceil(L / 5)), lp = L / nb;
+      for (let i = 0; i < nb; i++) {
+        const mesh = boite(pt((i + 0.5) * lp), t, ni, lp - 0.03, p.epaisseur, p.pied, p.tete, matBase, 24);
+        mesh.updateMatrix(); mesh.geometry.applyMatrix4(mesh.matrix); mesh.position.set(0, 0, 0); mesh.rotation.set(0, 0, 0);
+        colorer(mesh.geometry, ph, mode, abscisse);
+        groupe.add(mesh);
+      }
+    } else if (p.type.startsWith("pieux")) {
+      const nb = Math.max(1, Math.floor(L / p.entraxe));
+      for (let i = 0; i < nb; i++) {
+        const [x, y] = pt((i + 0.5) * L / nb);
+        const g = new T.CylinderGeometry(p.diametre / 2, p.diametre / 2, H, 16, 24);
+        g.translate(0, (p.tete + p.pied) / 2, 0);
+        const v = P(x, y, 0); g.translate(v.x, 0, v.z);
+        colorer(g, ph, mode, abscisse);
+        groupe.add(new T.Mesh(g, matBase));
+      }
+    } else if (p.type === "berlinoise") {
+      const nb = Math.max(1, Math.floor(L / p.entraxe));
+      const matBois = matiere(0xb07a43);
+      for (let i = 0; i <= nb; i++) {
+        const s = (i * L) / nb;
+        for (const o of [-p.h / 2 + p.tf / 2, p.h / 2 - p.tf / 2]) {   // ailes parallèles à la paroi
+          const m = boite(pt(s, o), t, ni, p.b, p.tf, p.pied, p.tete, matBase, 24);
+          m.updateMatrix(); m.geometry.applyMatrix4(m.matrix); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0);
+          colorer(m.geometry, ph, mode, abscisse); groupe.add(m);
+        }
+        const w = boite(pt(s), t, ni, p.tw, p.h - 2 * p.tf, p.pied, p.tete, matiere(0x6d7b8a));
+        groupe.add(w);
+        if (i < nb && p.blindage) {                                  // blindage jusqu'au fond de la phase
+          groupe.add(boite(pt(s + L / nb / 2, -p.h / 2 + p.tf + p.blindage / 2), t, ni, L / nb - p.b, p.blindage,
+                           ph.fond, Math.min(p.tete, ph.terrain), matBois));
+        }
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------- sol, eau, fond
+function sol(ph, groupe) {
+  const ext = [[xmin - marge, ymin - marge], [xmax + marge, ymin - marge], [xmax + marge, ymax + marge], [xmin - marge, ymax + marge]];
+  const contourOrd = sens > 0 ? C : [...C].reverse();
+  D.couches.forEach((c, i) => {
+    const bas = i + 1 < D.couches.length ? D.couches[i + 1].toit : D.z_bas;
+    const haut = Math.min(c.toit, ph.terrain);
+    const mat = matiere(COULEURS_SOL[i % COULEURS_SOL.length], { transparent: true, opacity: 0.28, depthWrite: false });
+    const a = bloc(ext, contourOrd, Math.max(bas, ph.fond), haut, mat);       // autour de la fouille
+    const b = bloc(ext, null, bas, Math.min(haut, ph.fond), mat);             // sous le fond
+    for (const m of [a, b]) if (m) { groupe.add(m); groupe.add(new T.LineSegments(new T.EdgesGeometry(m.geometry, 30), new T.LineBasicMaterial({ color: 0x8a7350, transparent: true, opacity: 0.5 }))); }
+  });
+  const fond = bloc(C, null, ph.fond - 0.05, ph.fond, matiere(0x8b5a2b));
+  if (fond) groupe.add(fond);
+}
+function eau(ph, groupe) {
+  const matEau = matiere(0x3b8fd9, { transparent: true, opacity: 0.35, depthWrite: false });
+  const ext = [[xmin - marge, ymin - marge], [xmax + marge, ymin - marge], [xmax + marge, ymax + marge], [xmin - marge, ymax + marge]];
+  if (ph.eau_amont !== null) {
+    const trou = ph.eau_amont > ph.fond ? (sens > 0 ? C : [...C].reverse()) : null;
+    const m = bloc(ext, trou, ph.eau_amont - 0.02, ph.eau_amont, matEau); if (m) groupe.add(m);
+  }
+  if (ph.eau_aval !== null && ph.eau_aval > ph.fond) {
+    const m = bloc(C, null, ph.fond, ph.eau_aval, matiere(0x3b8fd9, { transparent: true, opacity: 0.3, depthWrite: false }));
+    if (m) groupe.add(m);
+  }
+}
+
+// ----------------------------------------------------------------------------- appuis
+const etiquettes = [];
+function appuis(ph, groupe) {
+  const matButon = matiere(0x2ca02c), matTirant = matiere(0xc0392b), matLierne = matiere(0x34495e);
+  const poses = new Set(ph.appuis);
+  const liernesFaites = new Set();
+  const etiquetes = new Set();
+  for (const pa of D.plan_appuis) {
+    const a = D.appuis[pa.appui];
+    if (!a || !poses.has(pa.appui)) continue;
+    const de = P(pa.de[0], pa.de[1], a.cote);
+    let fin;
+    if (a.type === "buton") {
+      fin = P(pa.a[0], pa.a[1], a.cote);
+      groupe.add(cylindre(de, fin, a.D / 2, matButon));
+    } else if (a.type === "bracon") {
+      fin = P(pa.a[0], pa.a[1], a.pied_bracon ?? ph.fond);
+      groupe.add(cylindre(de, fin, a.D / 2, matButon));
+    } else if (a.type === "tirant") {
+      const Ll = a.longueur_libre || 8, Ls = a.longueur_scellee || 6, i = (a.angle || 0) * Math.PI / 180;
+      const dx = pa.a[0] - pa.de[0], dy = pa.a[1] - pa.de[1], Lh = Math.hypot(dx, dy) || 1;
+      const u = [dx / Lh, dy / Lh];
+      const pnt = (L) => P(pa.de[0] + u[0] * L * Math.cos(i), pa.de[1] + u[1] * L * Math.cos(i), a.cote - L * Math.sin(i));
+      groupe.add(cylindre(de, pnt(Ll), 0.03, matTirant));
+      groupe.add(cylindre(pnt(Ll), pnt(Ll + Ls), 0.12, matTirant));
+      fin = pnt(Ll + Ls);
+    }
+    if (fin && !etiquetes.has(pa.appui)) {                    // une étiquette par appui
+      etiquetes.add(pa.appui);
+      etiquettes.push({ pos: de.clone().lerp(fin, 0.5), texte: `${pa.appui}${a.element ? " — " + a.element : ""}` });
+    }
+    if (a.lierne && !liernesFaites.has(pa.appui)) {
+      liernesFaites.add(pa.appui);
+      for (let k = 0; k < n; k++) {
+        const A = C[k], B = C[(k + 1) % n], L = Math.hypot(B[0] - A[0], B[1] - A[1]);
+        if (L < 1e-6) continue;
+        const t = [(B[0] - A[0]) / L, (B[1] - A[1]) / L], ni = [-t[1] * sens, t[0] * sens];
+        const o = (D.paroi.type === "paroi_moulee" ? D.paroi.epaisseur / 2 : D.paroi.type.startsWith("pieux") ? D.paroi.diametre / 2 : D.paroi.h / 2) + 0.2;
+        const c = [(A[0] + B[0]) / 2 + ni[0] * o, (A[1] + B[1]) / 2 + ni[1] * o];
+        groupe.add(boite(c, t, ni, L, 0.3, a.cote - 0.15, a.cote + 0.15, matLierne));
+      }
+      etiquettes.push({ pos: P(C[0][0], C[0][1], a.cote + 0.4), texte: `lierne ${a.lierne}` });
+    }
+  }
+  for (const [nom, a] of Object.entries(D.appuis)) {          // dalles : sur toute la fouille
+    if (a.type === "dalle" && poses.has(nom)) {
+      const m = bloc(C, null, a.cote - (a.epaisseur || 0.3) / 2, a.cote + (a.epaisseur || 0.3) / 2, matiere(0xbdbdbd));
+      if (m) { groupe.add(m); etiquettes.push({ pos: P((xmin + xmax) / 2, (ymin + ymax) / 2, a.cote + 0.3), texte: `${nom} (dalle)` }); }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------- phases
+const curseur = document.getElementById("curseur"), selMode = document.getElementById("mode");
+const voirSol = document.getElementById("voirSol"), voirEau = document.getElementById("voirEau");
+curseur.max = String(D.phases.length - 1);
+curseur.value = String(D.phases.length - 1);
+document.getElementById("titre").textContent = D.projet;
+document.getElementById("avert").textContent = (D.plan_defaut ? "Plan par défaut (rectangle 20 × 12 m) : ajoutez un bloc « plan » au script. " : "")
+  + (D.p3d ? "Couleurs : champ pseudo-3D." : "Couleurs : profil du calcul 2D, identique sur tout le linéaire.");
+D.phases.forEach((p, i) => (p.index = i));
+let groupe = null;
+
+function bornes(mode) {
+  let lo = Infinity, hi = -Infinity;
+  for (const p of D.phases) {
+    if (D.p3d && D.p3d.phases && D.p3d.phases[p.index]) {
+      const q = D.p3d.phases[p.index], g = mode === "M" ? q.M : q.y_mm;
+      if (g) for (const r of g) for (const v of r) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    } else if (p.profil) {
+      for (const v of mode === "M" ? p.profil.M : p.profil.y_mm) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    }
+  }
+  if (!isFinite(lo)) { lo = 0; hi = 1; }
+  if (hi - lo < 1e-9) hi = lo + 1;
+  return { min: lo, max: hi };
+}
+
+function afficher(i) {
+  const ph = D.phases[i];
+  document.getElementById("nomPhase").textContent = `Phase ${i + 1}/${D.phases.length} : ${ph.nom}` + (ph.ok ? "" : " (non calculée)");
+  if (groupe) { scene.remove(groupe); groupe.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
+  groupe = new T.Group();
+  etiquettes.length = 0;
+  const mode = selMode.value;
+  if (mode) {
+    echelle = { ...bornes(mode), titre: mode === "M" ? "Moment (kN·m/m), toutes phases" : "Déplacement y (mm), toutes phases" };
+    document.getElementById("titreEchelle").textContent = echelle.titre;
+    document.getElementById("vmin").textContent = echelle.min.toFixed(1);
+    document.getElementById("vmax").textContent = echelle.max.toFixed(1);
+  }
+  document.getElementById("legende").style.display = mode ? "" : "none";
+  paroi(ph, mode, groupe);
+  if (voirSol.checked) sol(ph, groupe);
+  else { const f = bloc(C, null, ph.fond - 0.05, ph.fond, matiere(0x8b5a2b)); if (f) groupe.add(f); }
+  if (voirEau.checked) eau(ph, groupe);
+  appuis(ph, groupe);
+  scene.add(groupe);
+}
+curseur.addEventListener("input", () => afficher(Number(curseur.value)));
+document.getElementById("prec").onclick = () => { curseur.value = String(Math.max(0, Number(curseur.value) - 1)); afficher(Number(curseur.value)); };
+document.getElementById("suiv").onclick = () => { curseur.value = String(Math.min(D.phases.length - 1, Number(curseur.value) + 1)); afficher(Number(curseur.value)); };
+for (const el of [selMode, voirSol, voirEau]) el.addEventListener("change", () => afficher(Number(curseur.value)));
+
+// ----------------------------------------------------------------------------- boucle
+const coucheEtiquettes = document.getElementById("etiquettes");
+function redimensionner() {
+  const w = window.innerWidth, h = window.innerHeight;
+  rendu.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", redimensionner);
+function boucle() {
+  rendu.render(scene, camera);
+  coucheEtiquettes.innerHTML = "";
+  for (const e of etiquettes) {
+    const v = e.pos.clone().project(camera);
+    if (v.z > 1) continue;
+    const d = document.createElement("div");
+    d.className = "etiquette";
+    d.style.left = `${(v.x + 1) / 2 * window.innerWidth}px`;
+    d.style.top = `${(1 - v.y) / 2 * window.innerHeight}px`;
+    d.textContent = e.texte;
+    coucheEtiquettes.appendChild(d);
+  }
+  requestAnimationFrame(boucle);
+}
+redimensionner();
+placerCamera();
+afficher(D.phases.length - 1);
+boucle();
+</script>
+</body>
+</html>

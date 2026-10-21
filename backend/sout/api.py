@@ -136,3 +136,26 @@ def import_rido(f: FichierRido) -> dict:
 
     conv = convertir(f.texte, f.nom)
     return {"texte": conv.texte, "rapport": conv.rapport}
+
+
+@app.post("/api/maquette")
+def maquette(t: Texte):
+    """Maquette 3D autonome (fichier HTML unique)."""
+    from fastapi.responses import HTMLResponse
+
+    from sout.maquette3d.generer import generer_html
+
+    try:
+        ex = executer_texte(t.texte)
+    except ScriptInvalide as e:
+        raise HTTPException(400, "script invalide : " + "; ".join(str(x) for x in e.erreurs[:3])) from None
+    except (ErreurConversion, ErreurModele) as e:
+        raise HTTPException(400, str(e)) from None
+    p3d = None
+    if ex.script.calcul.mode == "pseudo3d" and ex.script.pseudo3d is not None:
+        try:
+            from sout.pseudo3d.calcul import champ_pour_maquette
+            p3d = champ_pour_maquette(ex)
+        except ImportError:
+            p3d = None
+    return HTMLResponse(generer_html(ex, p3d))

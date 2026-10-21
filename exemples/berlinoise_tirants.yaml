@@ -1,0 +1,51 @@
+# Projet fictif, valeurs d'illustration (base matériaux DEMO). Ne pas utiliser pour un projet réel.
+# Berlinoise HEB 300 tous les 2 m, un lit de tirants avec lierne, fouille en L.
+projet: Berlinoise avec tirants (exemple)
+calcul:
+  kh: schmitt
+  largeur_fouille: 18
+
+paroi:
+  type: berlinoise
+  profil: HEB 300
+  acier: S355
+  entraxe: 2.0
+  largeur_reaction_fiche: 0.9      # m par profilé sous le fond (valeur d'illustration)
+  blindage: { epaisseur: 0.08, materiau: bois, resistance: 10 }
+  tete: 0.0
+  pied: -11.0
+
+sol:
+  - { nom: Limon, toit: 0.0, gamma: 19, gamma_dejauge: 9, phi: 27, c: 5, EM: 6000, alpha: 0.5, pl: 600 }
+  - { nom: Sable graveleux, toit: -4.0, gamma: 20, gamma_dejauge: 11, phi: 35, EM: 20000, alpha: 0.33, pl: 1800 }
+
+surcharges:
+  - { nom: chantier, type: repartie, q: 10 }
+
+appuis:
+  T1:
+    type: tirant
+    cote: -1.5
+    element: TORON-DEMO-T15.7
+    nombre: 4
+    E: 195000
+    A: 6.0
+    angle: 20
+    espacement: 2.0
+    longueur_libre: 8
+    longueur_scellee: 6
+    diametre_forage: 0.15
+    qs: 150
+    precharge: 200
+    lierne: HEB 200
+
+plan:
+  contour: [[0, 0], [24, 0], [24, 10], [14, 10], [14, 18], [0, 18]]
+
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose et mise en tension T1, poser: T1 }
+  - { nom: "Terrassement final à -6,0", excaver: -6.0 }
+
+verifications: [butee, equilibre_vertical, kranz, stabilite_generale, deplacements, structure]
+criteres: { deplacement_max_mm: 30 }

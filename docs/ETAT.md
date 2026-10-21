@@ -121,3 +121,16 @@
   lecture du manuel RIDO (à fournir dans docs/rido), puis tester sur les exemples
   (test `test_exemples_rido_fournis`, ignoré pour l'instant).
 - Question ouverte : licence RIDO pour la lecture de son format.
+
+## J8 — Maquette 3D HTML : fait
+
+- Script : bloc `plan` (polygone de fouille, positions des appuis ; à défaut, placement
+  automatique à l'espacement de chaque appui ; sans plan, rectangle 20 × 12 m signalé).
+- `sout/maquette3d` : fichier HTML unique (three.js r169 intégré, licence MIT incluse,
+  aucune ressource externe) : paroi selon son type (palplanches ondulées, panneaux de
+  paroi moulée, pieux, profilés et blindage), butons/tirants/bracons/dalles/liernes avec
+  leur référence, couches de sol transparentes, nappes, fond de fouille par phase,
+  curseur de phase, couleur de paroi selon le déplacement ou le moment.
+- API `/api/maquette`, onglet « Maquette 3D » (aperçu + export du fichier).
+- Vérifié : le fichier exporté s'ouvre directement depuis le disque (file://) dans Chrome,
+  sans erreur JavaScript.
