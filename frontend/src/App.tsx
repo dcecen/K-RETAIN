@@ -5,6 +5,7 @@ import { Coupe } from './vues/Coupe'
 import { Diagrammes, Enveloppes } from './vues/Diagrammes'
 import { Synthese, TableauAppuis, Verifications } from './vues/Tableaux'
 import { Maquette } from './vues/Maquette'
+import { Materiaux } from './vues/Materiaux'
 
 const ONGLETS = ['Synthèse', 'Coupe', 'Diagrammes', 'Enveloppes', 'Appuis', 'Vérifications', 'Maquette 3D'] as const
 type Onglet = (typeof ONGLETS)[number]
@@ -38,6 +39,7 @@ export default function App() {
   const [enCours, setEnCours] = useState(false)
   const [serveur, setServeur] = useState<string>('connexion…')
   const [ligneCible, setLigneCible] = useState<number | null>(null)
+  const [vueMateriaux, setVueMateriaux] = useState(false)
   const minuterie = useRef<number | undefined>(undefined)
 
   useEffect(() => {
@@ -113,6 +115,9 @@ export default function App() {
         <h1>RetainWall</h1>
         <span className="sous-titre">écrans de soutènement — coefficients de réaction</span>
         <span className="espace" />
+        <button className="secondaire" onClick={() => setVueMateriaux(!vueMateriaux)}>
+          {vueMateriaux ? 'Retour aux résultats' : 'Base matériaux'}
+        </button>
         <span className="serveur">{serveur}</span>
       </header>
       <div className="avertissement-global">
@@ -163,7 +168,9 @@ export default function App() {
           </div>
         </section>
         <section className="panneau-resultats">
-          {!res || !ph ? (
+          {vueMateriaux ? (
+            <Materiaux surImport={() => api.references().then(setReferences)} />
+          ) : !res || !ph ? (
             <div className="vide-resultats">Saisissez ou chargez un script, puis « Calculer » (Ctrl+Entrée).</div>
           ) : (
             <>

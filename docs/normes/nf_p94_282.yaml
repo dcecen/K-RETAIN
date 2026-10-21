@@ -1,0 +1,65 @@
+# Extraits de la NF P 94-282 (et de l'annexe nationale de l'EN 1997-1) utilisés par RetainWall.
+# MODÈLE À REMPLIR : chaque valeur à null est un TODO-NORME. Recopiez la valeur de votre
+# exemplaire de la norme et indiquez l'article ou le tableau dans « source ».
+# Tant qu'une valeur est nulle, la vérification correspondante est « non vérifiable ».
+
+approche_de_calcul: { valeur: null, source: "" }   # TODO-NORME : approche retenue (texte, pour mémoire)
+
+# Coefficients appliqués aux effets des actions calculés aux ELS caractéristiques
+# (moments, efforts tranchants, efforts d'appui) pour obtenir les valeurs de calcul ELU.
+combinaisons:
+  ELU_fondamental:
+    gamma_effets: { valeur: null, source: "" }        # TODO-NORME
+  ELU_accidentel:
+    gamma_effets: { valeur: null, source: "" }        # TODO-NORME
+  ELS_caracteristique:
+    gamma_effets: { valeur: null, source: "" }        # TODO-NORME (en général 1, à confirmer)
+
+# Mobilisation de la butée : gamma_effet × Bm ≤ Bt / (gamma_R_e × gamma_R_d)
+butee:
+  gamma_effet: { valeur: null, source: "" }           # TODO-NORME
+  gamma_R_e: { valeur: null, source: "" }             # TODO-NORME
+  gamma_R_d: { valeur: null, source: "" }             # TODO-NORME
+
+# Équilibre vertical de l'écran : gamma_effet × Σ(efforts descendants) ≤ Qb/gamma_b + Qs/gamma_s
+equilibre_vertical:
+  gamma_effet: { valeur: null, source: "" }           # TODO-NORME
+  gamma_b: { valeur: null, source: "" }               # TODO-NORME (résistance de pointe)
+  gamma_s: { valeur: null, source: "" }               # TODO-NORME (frottement latéral)
+  gamma_R_d: { valeur: null, source: "" }             # TODO-NORME (coefficient de modèle)
+  k_p: { valeur: null, source: "" }                   # TODO-NORME : facteur pressiométrique de portance (qb = k_p · ple*)
+  coefficient_qs: { valeur: null, source: "" }        # TODO-NORME : frottement limite qs = coefficient_qs × pl (simplification à remplacer par les courbes)
+
+# Stabilité du massif d'ancrage (méthode de Kranz) : gamma_effet × T ≤ Tmax / gamma_R
+kranz:
+  gamma_effet: { valeur: null, source: "" }           # TODO-NORME
+  gamma_R: { valeur: null, source: "" }               # TODO-NORME
+
+# Fond de fouille
+fond_de_fouille:
+  soulevement:                                        # soulèvement global (UPL)
+    gamma_dst: { valeur: null, source: "" }           # TODO-NORME : sur les actions déstabilisatrices
+    gamma_stb: { valeur: null, source: "" }           # TODO-NORME : sur les actions stabilisatrices
+  boulance:                                           # boulance (HYD)
+    gamma_dst: { valeur: null, source: "" }           # TODO-NORME
+    gamma_stb: { valeur: null, source: "" }           # TODO-NORME
+  renard:                                             # érosion régressive
+    gradient_admissible: { valeur: null, source: "" } # TODO-NORME : gradient de sortie admissible (selon le sol)
+
+# Stabilité générale (cercles de glissement, méthode de Bishop)
+stabilite_generale:
+  gamma_phi: { valeur: null, source: "" }             # TODO-NORME : sur tan φ'
+  gamma_c: { valeur: null, source: "" }               # TODO-NORME : sur c'
+  gamma_R_d: { valeur: null, source: "" }             # TODO-NORME : coefficient de modèle
+  gamma_Q: { valeur: null, source: "" }               # TODO-NORME : sur les surcharges variables
+
+# Tirants : résistance du scellement R = π·Ds·Ls·qs ; gamma_effet × T ≤ R / gamma_a
+tirants:
+  gamma_effet: { valeur: null, source: "" }           # TODO-NORME
+  gamma_a: { valeur: null, source: "" }               # TODO-NORME
+
+# Fiches discontinues (pieux disjoints, berlinoise) : largeur de réaction sous le fond de fouille
+# b_réaction = rapport_largeur × largeur physique de l'élément (diamètre ou largeur d'aile), plafonnée à l'entraxe.
+# À défaut, donnez « largeur_reaction_fiche » dans le bloc paroi du script.
+fiche_discontinue:
+  rapport_largeur: { valeur: null, source: "" }       # TODO-NORME

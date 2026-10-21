@@ -54,3 +54,23 @@
 - Vérifié dans un navigateur (Chrome sans affichage) : calcul et affichage de l'exemple.
 - **Porte non franchie** : le cas 02 de référence n'est pas fourni ; l'exemple du cahier
   des charges est saisi et calculé à sa place (`exemples/fouille_exemple_EI.yaml`).
+
+## J4 — Types de paroi et base matériaux : fait (porte partiellement ouverte)
+
+- `sout/materiaux` : base SQLite (profilés, palplanches, butons modulaires, armatures,
+  aciers, bétons), import CSV/Excel (`python -m sout.materiaux.importer fichier.xlsx`
+  ou bouton « Base matériaux » de l'interface), modèles d'en-têtes dans
+  docs/catalogues/modele_*.csv. Propriétés des profilés en I et des tubes calculées à
+  partir des dimensions (contrôlé : HEB 300 conforme au catalogue).
+- **Jeu DEMO** livré pour faire tourner l'application : valeurs d'illustration (dont un
+  profil U et des butons fictifs), signalées dans l'interface ; à remplacer.
+- `sout/parois` : palplanches (β_D des profils en U exigé), paroi moulée (rapport
+  EI fissuré choisi), pieux sécants (seuls les pieux armés comptent : hypothèse à
+  confirmer), pieux disjoints, berlinoise ; fiches discontinues avec largeur de réaction
+  réduite sous le fond (script ou docs/normes, sinon calcul refusé).
+- `sout/normes.py` + modèles `docs/normes/{nf_p94_282,ec3,ec2}.yaml` (tout à null,
+  TODO-NORME).
+- Tests (verts) : les cinq types se calculent avec des éléments de la base, rigidités
+  vérifiées à la main, refus sans largeur de fiche ou sans β_D, import CSV + Excel.
+- **Porte non franchie** : cas04 (berlinoise) de référence absent ; règles de largeur de
+  fiche discontinue de la NF P 94-282 non fournies.

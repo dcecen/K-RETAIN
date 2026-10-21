@@ -1,0 +1,14 @@
+# DEMO : dimensions d'illustration ; propriétés calculées par sout.materiaux.sections
+ref;famille;h_mm;b_mm;tw_mm;tf_mm;r_mm;D_mm;t_mm;source;demo
+HEA 200;HEA;190;200;6.5;10;18;;;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+HEA 300;HEA;290;300;8.5;14;27;;;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+HEB 200;HEB;200;200;9;15;18;;;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+HEB 300;HEB;300;300;11;19;27;;;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+HEB 400;HEB;400;300;13.5;24;27;;;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+HEM 300;HEM;340;310;21;39;27;;;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+IPE 300;IPE;300;150;7.1;10.7;15;;;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+IPE 400;IPE;400;180;8.6;13.5;21;;;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+TUBE 323.9x10;tube;;;;;;323.9;10;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+TUBE 508x12.5;tube;;;;;;508;12.5;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+TUBE 610x12.5;tube;;;;;;610;12.5;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1
+TUBE 813x16;tube;;;;;;813;16;DEMO - valeurs d'illustration, a remplacer par le catalogue fournisseur;1

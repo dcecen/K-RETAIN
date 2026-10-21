@@ -7,10 +7,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from sout import __version__
+from sout import __version__, normes
 from sout.noyau.phasage import ErreurModele, calculer
 from sout.resultats import serialiser
 from sout.script.conversion import ErreurConversion, vers_modele
@@ -65,7 +65,7 @@ def valider(t: Texte) -> dict:
 def preparer(texte: str):
     """Script -> (script, modèle) ; lève ScriptInvalide ou ErreurConversion."""
     s = lire_script(texte)
-    return s, vers_modele(s, _catalogue())
+    return s, vers_modele(s, _catalogue(), normes.charger())
 
 
 @app.post("/api/calcul")
@@ -78,3 +78,37 @@ def calcul(t: Texte) -> dict:
     except (ErreurConversion, ErreurModele) as e:
         return {"ok": False, "erreurs": [{"ligne": None, "chemin": "", "message": str(e)}]}
     return {"ok": True, "erreurs": [], "resultats": serialiser(res, m, s.projet)}
+
+
+@app.get("/api/materiaux")
+def materiaux() -> dict:
+    """Contenu de la base matériaux, table par table."""
+    from sout.materiaux.base import TABLES
+
+    cat = _catalogue()
+    return {t: cat.lister(t) for t in TABLES}
+
+
+@app.get("/api/materiaux/references")
+def references() -> dict:
+    return _catalogue().references()
+
+
+@app.post("/api/materiaux/import")
+async def importer_catalogue(fichier: UploadFile) -> dict:
+    """Importe un catalogue CSV/XLSX (copié dans docs/catalogues) puis reconstruit la base."""
+    import tempfile
+
+    from sout.materiaux.importer import importer
+
+    nom = Path(fichier.filename or "catalogue.csv").name
+    if Path(nom).suffix.lower() not in (".csv", ".xlsx"):
+        raise HTTPException(400, "format attendu : .csv ou .xlsx")
+    with tempfile.TemporaryDirectory() as d:
+        chemin = Path(d) / nom
+        chemin.write_bytes(await fichier.read())
+        try:
+            compte = importer([chemin])
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+    return {"ok": True, "lignes": compte}
