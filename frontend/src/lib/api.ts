@@ -91,6 +91,24 @@ export interface Resultats {
   dimensionnant: Dimensionnant
   verifications?: Verif[]
   suggestions?: { appui: string; element: string | null; taux: number | null; message: string }[]
+  pseudo3d?: {
+    s: number[]
+    z: number[]
+    avertissements: string[]
+    phases: {
+      nom: string
+      ok: boolean
+      message: string
+      y_mm?: number[][]
+      M?: number[][]
+      y_max_mm?: number
+      y_max_2d_mm?: number
+      Mz_max?: number
+      Mz_min?: number
+      Ms_absmax?: number
+      appuis?: { nom: string; s: number; effort: number; actif: boolean }[]
+    }[]
+  }
 }
 
 export interface ReponseCalcul {

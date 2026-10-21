@@ -87,6 +87,13 @@ def calcul(t: Texte) -> dict:
     r["verifications"] = [v.vers_dict() for v in ex.verifications]
     r["suggestions"] = ex.suggestions
     r["jeux_eau"] = {j: {"complet": res.complet} for j, (_, res) in ex.jeux.items() if j is not None}
+    if ex.script.calcul.mode == "pseudo3d":
+        from sout.pseudo3d.calcul import depuis_script, serialiser as serialiser_p3d
+
+        try:
+            r["pseudo3d"] = serialiser_p3d(depuis_script(ex), ex.resultat)
+        except ErreurModele as e:
+            r["avertissements"].append(f"Pseudo-3D non calculé : {e}")
     return {"ok": True, "erreurs": [], "resultats": r}
 
 

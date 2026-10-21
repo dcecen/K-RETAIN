@@ -177,12 +177,112 @@ class MoteurPhases:
                 dsv += delta_sigma_v(s, self.d_zm, terrain)
         return contraintes_verticales(self.d_zm, terrain, eau, self.couches, self.m.gamma_w, dsv)
 
+    # ------------------------------------------------------------------
+    # Briques réutilisées par le calcul 2D et par le pseudo-3D
+    # ------------------------------------------------------------------
+    def etat_chantier_initial(self) -> dict:
+        m = self.m
+        return {"terrain": {AMONT: self.terrain_amont, AVAL: self.terrain_aval},
+                "eau": {AMONT: m.eau_amont, AVAL: m.eau_aval},
+                "surcharges": {s.nom: s for s in m.surcharges},
+                "poses": []}
+
+    def appliquer_actions(self, etat: dict, ph: Phase) -> tuple[list[str], list[str]]:
+        """Met à jour terrain, eau, surcharges et appuis posés. Renvoie (posés, déposés)."""
+        m = self.m
+        terrain, eau, surcharges = etat["terrain"], etat["eau"], etat["surcharges"]
+        if ph.excaver is not None:
+            if ph.excaver > terrain[AVAL] + 1e-9:
+                raise ErreurModele(f"excavation à {ph.excaver} au-dessus du terrain aval actuel ({terrain[AVAL]})")
+            if ph.excaver <= m.ecran.pied:
+                raise ErreurModele(f"excavation à {ph.excaver} sous le pied de l'écran")
+            terrain[AVAL] = ph.excaver
+        if ph.remblayer_aval is not None:
+            if ph.remblayer_aval < terrain[AVAL] - 1e-9:
+                raise ErreurModele("remblai aval sous le terrain aval actuel")
+            terrain[AVAL] = ph.remblayer_aval
+        if ph.remblayer_amont is not None:
+            if ph.remblayer_amont < terrain[AMONT] - 1e-9:
+                raise ErreurModele("remblai amont sous le terrain amont actuel")
+            terrain[AMONT] = ph.remblayer_amont
+        if "amont" in ph.eau:
+            eau[AMONT] = ph.eau["amont"]
+        if "aval" in ph.eau:
+            eau[AVAL] = ph.eau["aval"]
+        for nom in ph.retirer_surcharges:
+            if nom not in surcharges:
+                raise ErreurModele(f"surcharge « {nom} » à retirer inconnue")
+            del surcharges[nom]
+        for s in ph.ajouter_surcharges:
+            surcharges[s.nom] = s
+        for nom in ph.deposer:
+            if nom not in etat["poses"]:
+                raise ErreurModele(f"appui « {nom} » à déposer non posé")
+            etat["poses"].remove(nom)
+        for nom in ph.poser:
+            if nom not in m.appuis:
+                raise ErreurModele(f"appui « {nom} » inconnu")
+            if nom not in etat["poses"]:
+                etat["poses"].append(nom)
+        return list(ph.poser), list(ph.deposer)
+
+    def etat_sol(self, etat: dict) -> dict:
+        """Grandeurs par demi-maille (amont puis aval, longueur 2·nd) pour l'état de chantier."""
+        terrain, eau = etat["terrain"], etat["eau"]
+        liste_s = list(etat["surcharges"].values())
+        sv_am, _ = self._sigma_v(AMONT, terrain[AMONT], eau[AMONT], liste_s)
+        sv_av, _ = self._sigma_v(AVAL, terrain[AVAL], eau[AVAL], liste_s)
+        sv = np.concatenate([sv_am, sv_av])
+        present = np.concatenate([self.d_zh <= terrain[AMONT] + 1e-9, self.d_zh <= terrain[AVAL] + 1e-9])
+        pa = np.maximum(np.tile(self.d_kah, 2) * sv - np.tile(self.d_ca, 2), 0.0)
+        pp = np.tile(self.d_kph, 2) * sv + np.tile(self.d_cp, 2)
+        p0 = np.clip(np.tile(self.d_k0, 2) * sv, pa, pp)
+        fl = np.ones(2 * self.nd)
+        fr = np.ones(2 * self.nd)
+        if self.m.ecran.largeur_reaction is not None:
+            for cote, sl in ((AMONT, slice(0, self.nd)), (AVAL, slice(self.nd, 2 * self.nd))):
+                a_, b_ = self.m.ecran.largeur_reaction(self.d_zm, cote, terrain[AVAL])
+                fl[sl], fr[sl] = a_, b_
+        kh = np.tile(self.d_kh, 2) * np.where(fl > 0, fr / np.where(fl > 0, fl, 1.0), 0.0)
+        return {"sv": sv, "present": present, "pa": pa, "pp": pp, "p0": p0, "fl": fl, "kh": kh,
+                "kd": np.tile(self.d_kd, 2), "L": np.tile(self.d_L, 2)}
+
+    def pressions_eau(self, etat: dict) -> tuple[np.ndarray, np.ndarray]:
+        """(u amont, u aval) au milieu des demi-mailles (kPa)."""
+        gw, eau = self.m.gamma_w, etat["eau"]
+        u_am = np.where(self.d_zm < eau[AMONT], gw * (eau[AMONT] - self.d_zm), 0.0) if eau[AMONT] is not None else np.zeros(self.nd)
+        u_av = np.where(self.d_zm < eau[AVAL], gw * (eau[AVAL] - self.d_zm), 0.0) if eau[AVAL] is not None else np.zeros(self.nd)
+        return u_am, u_av
+
+    def force_eau_noeuds(self, u_am: np.ndarray, u_av: np.ndarray) -> np.ndarray:
+        """Force nette de l'eau par nœud (kN par mètre d'écran)."""
+        return np.bincount(self.d_noeud, weights=(u_am - u_av) * self.d_L, minlength=len(self.z))
+
+    @staticmethod
+    def mettre_a_jour_ressorts(r: Ressorts, sol: dict, y_ress: np.ndarray, present_prec: np.ndarray,
+                               sv_prec: np.ndarray, largeur: float | np.ndarray = 1.0) -> None:
+        """Nouvel état des ressorts pour la phase (décalage Kd·Δσ'v, sol mis en place au repos).
+
+        `largeur` : largeur d'écran représentée par chaque ressort (1 m en 2D)."""
+        present, sv = sol["present"], sol["sv"]
+        nouveau = present & ~present_prec
+        existant = present & present_prec
+        p_ref = r.p_ref.copy()
+        y_ref = r.y_ref.copy()
+        p_ref[nouveau] = sol["p0"][nouveau]
+        y_ref[nouveau] = y_ress[nouveau]
+        p_ref[existant] += sol["kd"][existant] * (sv[existant] - sv_prec[existant])
+        r.p_ref = np.clip(p_ref, sol["pa"], sol["pp"])
+        r.y_ref, r.pa, r.pp = y_ref, sol["pa"], sol["pp"]
+        r.A = np.where(present, sol["L"] * sol["fl"] * largeur, 0.0)
+        r.kh = sol["kh"]
+
+    # ------------------------------------------------------------------
     def calculer(self) -> ResultatCalcul:
         m = self.m
         n = len(self.z)
-        terrain = {AMONT: self.terrain_amont, AVAL: self.terrain_aval}
-        eau = {AMONT: m.eau_amont, AVAL: m.eau_aval}
-        surcharges: dict[str, Surcharge] = {s.nom: s for s in m.surcharges}
+        etat = self.etat_chantier_initial()
+        terrain, eau = etat["terrain"], etat["eau"]
         poses: dict[str, tuple[float, float]] = {}   # nom -> (y_pose, F0)
         u = np.zeros(2 * n)
         sv_prec = np.zeros(2 * self.nd)
@@ -191,88 +291,27 @@ class MoteurPhases:
         resultats: list[ResultatPhase] = []
 
         phases = [Phase(nom="État initial")] + list(m.phases)
-        for k, ph in enumerate(phases):
-            # --- actions de la phase ---------------------------------
+        for ph in phases:
             try:
-                if ph.excaver is not None:
-                    if ph.excaver > terrain[AVAL] + 1e-9:
-                        raise ErreurModele(f"excavation à {ph.excaver} au-dessus du terrain aval actuel ({terrain[AVAL]})")
-                    if ph.excaver <= m.ecran.pied:
-                        raise ErreurModele(f"excavation à {ph.excaver} sous le pied de l'écran")
-                    terrain[AVAL] = ph.excaver
-                if ph.remblayer_aval is not None:
-                    if ph.remblayer_aval < terrain[AVAL] - 1e-9:
-                        raise ErreurModele("remblai aval sous le terrain aval actuel")
-                    terrain[AVAL] = ph.remblayer_aval
-                if ph.remblayer_amont is not None:
-                    if ph.remblayer_amont < terrain[AMONT] - 1e-9:
-                        raise ErreurModele("remblai amont sous le terrain amont actuel")
-                    terrain[AMONT] = ph.remblayer_amont
-                if "amont" in ph.eau:
-                    eau[AMONT] = ph.eau["amont"]
-                if "aval" in ph.eau:
-                    eau[AVAL] = ph.eau["aval"]
-                for nom in ph.retirer_surcharges:
-                    if nom not in surcharges:
-                        raise ErreurModele(f"surcharge « {nom} » à retirer inconnue")
-                    del surcharges[nom]
-                for s in ph.ajouter_surcharges:
-                    surcharges[s.nom] = s
-                for nom in ph.deposer:
-                    if nom not in poses:
-                        raise ErreurModele(f"appui « {nom} » à déposer non posé")
-                    del poses[nom]
-                y_noeuds = u[0::2]
-                for nom in ph.poser:
-                    if nom not in m.appuis:
-                        raise ErreurModele(f"appui « {nom} » inconnu")
-                    a = m.appuis[nom]
-                    i = int(np.argmin(np.abs(self.z - a.cote)))
-                    poses[nom] = (float(y_noeuds[i]), a.precharge)
+                poser, deposer = self.appliquer_actions(etat, ph)
             except ErreurModele as e:
                 resultats.append(ResultatPhase(ph.nom, False, f"Erreur de données : {e}",
                                                terrain[AMONT], terrain[AVAL], eau[AMONT], eau[AVAL]))
                 break
+            for nom in deposer:
+                poses.pop(nom, None)
+            y_noeuds = u[0::2]
+            for nom in poser:
+                a = m.appuis[nom]
+                i = int(np.argmin(np.abs(self.z - a.cote)))
+                poses[nom] = (float(y_noeuds[i]), a.precharge)
 
-            # --- état du sol -----------------------------------------
-            liste_s = list(surcharges.values())
-            sv_am, _ = self._sigma_v(AMONT, terrain[AMONT], eau[AMONT], liste_s)
-            sv_av, _ = self._sigma_v(AVAL, terrain[AVAL], eau[AVAL], liste_s)
-            sv = np.concatenate([sv_am, sv_av])
-            present = np.concatenate([self.d_zh <= terrain[AMONT] + 1e-9, self.d_zh <= terrain[AVAL] + 1e-9])
-            kah2 = np.tile(self.d_kah, 2); kph2 = np.tile(self.d_kph, 2)
-            pa = np.maximum(kah2 * sv - np.tile(self.d_ca, 2), 0.0)
-            pp = kph2 * sv + np.tile(self.d_cp, 2)
-            p0 = np.clip(np.tile(self.d_k0, 2) * sv, pa, pp)
-
-            fl = np.ones(2 * self.nd)
-            fr = np.ones(2 * self.nd)
-            if m.ecran.largeur_reaction is not None:
-                for cote, sl in ((AMONT, slice(0, self.nd)), (AVAL, slice(self.nd, 2 * self.nd))):
-                    a_, b_ = m.ecran.largeur_reaction(self.d_zm, cote, terrain[AVAL])
-                    fl[sl], fr[sl] = a_, b_
-
-            y_ress = u[0::2][r.noeud]
-            nouveau = present & ~present_prec
-            existant = present & present_prec
-            p_ref = r.p_ref.copy()
-            y_ref = r.y_ref.copy()
-            p_ref[nouveau] = p0[nouveau]
-            y_ref[nouveau] = y_ress[nouveau]
-            p_ref[existant] += np.tile(self.d_kd, 2)[existant] * (sv[existant] - sv_prec[existant])
-            p_ref = np.clip(p_ref, pa, pp)
-            r.p_ref, r.y_ref, r.pa, r.pp = p_ref, y_ref, pa, pp
-            r.A = np.where(present, np.tile(self.d_L, 2) * fl, 0.0)
-            r.kh = np.tile(self.d_kh, 2) * np.where(fl > 0, fr / np.where(fl > 0, fl, 1.0), 0.0)
-
-            # --- eau -------------------------------------------------
-            gw = m.gamma_w
-            u_am = np.where(self.d_zm < eau[AMONT], gw * (eau[AMONT] - self.d_zm), 0.0) if eau[AMONT] is not None else np.zeros(self.nd)
-            u_av = np.where(self.d_zm < eau[AVAL], gw * (eau[AVAL] - self.d_zm), 0.0) if eau[AVAL] is not None else np.zeros(self.nd)
+            sol = self.etat_sol(etat)
+            self.mettre_a_jour_ressorts(r, sol, u[0::2][r.noeud], present_prec, sv_prec)
+            u_am, u_av = self.pressions_eau(etat)
             f_ext = np.zeros(2 * n)
-            f_ext[0::2] = np.bincount(self.d_noeud, weights=(u_am - u_av) * self.d_L, minlength=n)
+            f_ext[0::2] = self.force_eau_noeuds(u_am, u_av)
 
-            # --- appuis ----------------------------------------------
             noms = list(poses)
             defs = [m.appuis[nm] for nm in noms]
             appuis = Appuis(
@@ -284,18 +323,18 @@ class MoteurPhases:
                 unilateral=np.array([d.unilateral for d in defs], dtype=bool),
             )
 
-            # --- résolution ------------------------------------------
             base = dict(terrain_amont=terrain[AMONT], terrain_aval=terrain[AVAL],
                         eau_amont=eau[AMONT], eau_aval=eau[AVAL])
             try:
-                sol = resoudre(self.z, self.EI_elem, r, appuis, f_ext, u0=u, y_rupture=m.y_rupture)
+                solution = resoudre(self.z, self.EI_elem, r, appuis, f_ext, u0=u, y_rupture=m.y_rupture)
             except RuptureEquilibre as e:
                 resultats.append(ResultatPhase(ph.nom, False, f"Rupture : {e}", **base))
                 break
 
-            u = sol.u
-            r.memoriser(sol.y)
-            sv_prec, present_prec = sv, present
+            u = solution.u
+            r.memoriser(solution.y)
+            sv_prec, present_prec = sol["sv"], sol["present"]
+            present, fl, pa, pp, sv = sol["present"], sol["fl"], sol["pa"], sol["pp"], sol["sv"]
 
             pressions = {}
             for nom_cote, sl in (("amont", slice(0, self.nd)), ("aval", slice(self.nd, 2 * self.nd))):
@@ -304,11 +343,11 @@ class MoteurPhases:
                 f = fl[sl][msk][ordre]
                 pressions[nom_cote] = {
                     "z": self.d_zm[msk][ordre],
-                    "p": sol.p[sl][msk][ordre] * f,
+                    "p": solution.p[sl][msk][ordre] * f,
                     "pa": pa[sl][msk][ordre] * f,
                     "pp": pp[sl][msk][ordre] * f,
                     "p0": (np.tile(self.d_k0, 2) * sv)[sl][msk][ordre] * f,
-                    "statut": sol.statut[sl][msk][ordre],
+                    "statut": solution.statut[sl][msk][ordre],
                     # force du ressort = L × p (p est déjà rapportée au mètre linéaire d'écran)
                     "L": np.tile(self.d_L, 2)[sl][msk][ordre],
                     "z_noeud": self.z[r.noeud[sl][msk][ordre]],
@@ -318,12 +357,12 @@ class MoteurPhases:
             ordre = np.argsort(self.d_zm)
             resultats.append(ResultatPhase(
                 nom=ph.nom, ok=True, message="", **base,
-                z=self.z, y=sol.y, z_diag=sol.z_diag, M=sol.M, V=sol.V,
+                z=self.z, y=solution.y, z_diag=solution.z_diag, M=solution.M, V=solution.V,
                 pressions=pressions,
                 eau={"z": self.d_zm[ordre], "u_amont": u_am[ordre], "u_aval": u_av[ordre]},
                 appuis=[{"nom": nm, "cote": d.cote, "type": d.type, "effort": float(e_), "actif": bool(a_)}
-                        for nm, d, e_, a_ in zip(noms, defs, sol.efforts_appuis, sol.appuis_actifs)],
-                iterations=sol.iterations,
+                        for nm, d, e_, a_ in zip(noms, defs, solution.efforts_appuis, solution.appuis_actifs)],
+                iterations=solution.iterations,
             ))
         return ResultatCalcul(phases=resultats, z=self.z, avertissements=self.avertissements)
 

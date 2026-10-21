@@ -150,11 +150,11 @@ function boite(centre, t, nrm, lt, ln, z0, z1, mat, segZ = 1) {
 // ----------------------------------------------------------------------------- couleurs de paroi
 let echelle = { min: 0, max: 1, titre: "" };
 function valeurParoi(ph, mode, s, z) {
-  if (D.p3d && D.p3d.phases && D.p3d.phases[ph.index]) {
-    const q = D.p3d.phases[ph.index], g = mode === "M" ? q.M : q.y_mm;
+  if (D.p3d && D.p3d.phases && D.p3d.phases[ph.index] && D.p3d.phases[ph.index].ok) {
+    const q = D.p3d.phases[ph.index], g = mode === "M" ? q.M : q.y_mm, S = D.p3d.s, Z = D.p3d.z;
     if (g) {
-      const i = Math.max(0, Math.min(q.s.length - 1, Math.round(interp(q.s, q.s.map((_, k) => k), s))));
-      return interp(q.z, g[i], z);
+      const i = Math.max(0, Math.min(S.length - 1, Math.round(interp(S, S.map((_, k) => k), s))));
+      return interp(Z, g[i], z);
     }
   }
   if (!ph.profil) return 0;
@@ -353,7 +353,7 @@ let groupe = null;
 function bornes(mode) {
   let lo = Infinity, hi = -Infinity;
   for (const p of D.phases) {
-    if (D.p3d && D.p3d.phases && D.p3d.phases[p.index]) {
+    if (D.p3d && D.p3d.phases && D.p3d.phases[p.index] && D.p3d.phases[p.index].ok) {
       const q = D.p3d.phases[p.index], g = mode === "M" ? q.M : q.y_mm;
       if (g) for (const r of g) for (const v of r) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
     } else if (p.profil) {

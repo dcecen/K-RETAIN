@@ -6,8 +6,9 @@ import { Diagrammes, Enveloppes } from './vues/Diagrammes'
 import { Synthese, TableauAppuis, Verifications } from './vues/Tableaux'
 import { Maquette } from './vues/Maquette'
 import { Materiaux } from './vues/Materiaux'
+import { Pseudo3D } from './vues/Pseudo3D'
 
-const ONGLETS = ['Synthèse', 'Coupe', 'Diagrammes', 'Enveloppes', 'Appuis', 'Vérifications', 'Maquette 3D'] as const
+const ONGLETS = ['Synthèse', 'Coupe', 'Diagrammes', 'Enveloppes', 'Appuis', 'Vérifications', 'Pseudo-3D', 'Maquette 3D'] as const
 type Onglet = (typeof ONGLETS)[number]
 const CLE_BROUILLON = 'retainwall.brouillon'
 
@@ -221,7 +222,7 @@ export default function App() {
                 </div>
               )}
               <nav className="onglets">
-                {ONGLETS.map((o) => (
+                {ONGLETS.filter((o) => o !== 'Pseudo-3D' || res.pseudo3d).map((o) => (
                   <button key={o} className={o === onglet ? 'actif' : ''} onClick={() => setOnglet(o)}>
                     {o}
                   </button>
@@ -234,6 +235,7 @@ export default function App() {
                 {onglet === 'Enveloppes' && <Enveloppes res={res} />}
                 {onglet === 'Appuis' && <TableauAppuis res={res} phaseActive={phase} />}
                 {onglet === 'Vérifications' && <Verifications res={res} />}
+                {onglet === 'Pseudo-3D' && res.pseudo3d && <Pseudo3D res={res} phase={phase} />}
                 {onglet === 'Maquette 3D' && <Maquette texte={texte} />}
               </div>
             </>

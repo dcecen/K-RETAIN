@@ -134,3 +134,19 @@
 - API `/api/maquette`, onglet « Maquette 3D » (aperçu + export du fichier).
 - Vérifié : le fichier exporté s'ouvre directement depuis le disque (file://) dans Chrome,
   sans erreur JavaScript.
+
+## J9 — Pseudo-3D : fait
+
+- `sout/pseudo3d` : paroi en plaque orthotrope par analogie de grillage (Hambly) —
+  poutres verticales EI/m (comme le 2D), poutres horizontales `rigidite_horizontale`,
+  torsion √(Ds·Dz) ; sol en ressorts avec la même loi et le même phasage que le 2D
+  (briques communes extraites de `MoteurPhases`), appuis ponctuels à leur espacement,
+  bords libres/appuyés/encastrés, angle de fouille (w = 0 sur la ligne d'angle).
+- Script : `calcul.mode: pseudo3d` + bloc `pseudo3d` ; onglet « Pseudo-3D » (cartes du
+  déplacement et du moment vertical, comparaison au 2D) ; maquette 3D colorée par le champ.
+- Tests (verts) : flexion cylindrique identique au 2D (1e-6), paroi de 48 m avec appuis
+  ponctuels à moins de 5 % du 2D au centre, angle droit symétrique et cohérent (w nul à
+  l'angle, proche du 2D loin de l'angle), bords encastrés.
+- **Limites** : rigidité horizontale isotrope par défaut (avertissement affiché), parois
+  indéformables dans leur plan à l'angle, appuis répartis régulièrement (positions du
+  plan non encore reprises dans le pseudo-3D).

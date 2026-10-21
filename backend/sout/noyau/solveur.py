@@ -101,25 +101,27 @@ class SolutionPhase:
     residu: float
 
 
-def resoudre(
-    z: np.ndarray,
-    EI_elem: np.ndarray,
+def resoudre_general(
+    K: sparse.spmatrix,
+    ddl_w: np.ndarray,
     ressorts: Ressorts,
     appuis: Appuis,
     f_ext: np.ndarray,
     u0: np.ndarray | None = None,
     max_iter: int = 200,
     y_rupture: float = 5.0,
-) -> SolutionPhase:
-    """Résout l'équilibre d'une phase.
+) -> tuple[np.ndarray, int, float]:
+    """Équilibre K·u − f_sol(u) − f_appuis(u) − f_ext = 0 pour une structure quelconque.
 
-    f_ext : vecteur 2n des forces imposées (eau, forces nodales), kN/m et kN·m/m.
-    y_rupture : déplacement (m) au-delà duquel on déclare la rupture.
+    K : rigidité de la structure (N × N, creuse) ; ddl_w : indice du degré de liberté
+    transversal de chaque nœud (les ressorts et les appuis désignent des nœuds).
+    Renvoie (u, itérations, résidu).
     """
-    n = len(z)
-    Kb = assembler(z, EI_elem)
-    u = np.zeros(2 * n) if u0 is None else u0.astype(float).copy()
-    ddl_y = np.arange(0, 2 * n, 2)
+    N = K.shape[0]
+    n = len(ddl_w)
+    Kb = sparse.csc_matrix(K)
+    u = np.zeros(N) if u0 is None else u0.astype(float).copy()
+    ddl_y = np.asarray(ddl_w)
     p_init, _ = ressorts.pressions(u[ddl_y])
     echelle = max(1.0, float(np.abs(f_ext).max(initial=0.0)),
                   float(np.abs(ressorts.A * p_init).max(initial=0.0)),
@@ -129,6 +131,7 @@ def resoudre(
     # petite devant la raideur du sol pour ne pas fausser la direction de Newton.
     reg = 1e-9 * max(1.0, float((ressorts.A * ressorts.kh).max(initial=0.0)),
                      float(appuis.k.max(initial=0.0)))
+    diag_max = float(Kb.diagonal().max())
 
     def residu_et_tangente(u_: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         y = u_[ddl_y]
@@ -136,7 +139,7 @@ def resoudre(
         eff, actif = appuis.efforts(y)
         f_app = -np.bincount(appuis.noeud, weights=eff, minlength=n) if len(appuis) else np.zeros(n)
         k_app = np.bincount(appuis.noeud, weights=np.where(actif, appuis.k, 0.0), minlength=n) if len(appuis) else np.zeros(n)
-        f_int = np.zeros(2 * n)
+        f_int = np.zeros(N)
         f_int[ddl_y] = f_sol + f_app
         R = Kb @ u_ - f_int - f_ext
         return R, k_sol + k_app
@@ -151,11 +154,11 @@ def resoudre(
     it = 0
     pas_negligeable = False
     for it in range(1, max_iter + 1):
-        # Tolérance : forces en jeu + bruit d'arrondi de la rigidité de poutre.
-        tol_it = tol + 1e-13 * float(Kb.diagonal().max()) * max(float(np.abs(u).max()), 1e-6)
+        # Tolérance : forces en jeu + bruit d'arrondi de la rigidité de la structure.
+        tol_it = tol + 1e-13 * diag_max * max(float(np.abs(u).max()), 1e-6)
         if nR < tol_it or pas_negligeable:
             break
-        J = Kb + sparse.csc_matrix((kt + reg, (ddl_y, ddl_y)), shape=(2 * n, 2 * n))
+        J = Kb + sparse.csc_matrix((kt + reg, (ddl_y, ddl_y)), shape=(N, N))
         du = spsolve(J, -R)
         if not np.all(np.isfinite(du)):
             raise RuptureEquilibre("système singulier : aucun équilibre (mécanisme)")
@@ -177,10 +180,30 @@ def resoudre(
     else:
         if nR >= tol and not pas_negligeable:
             raise RuptureEquilibre(f"non-convergence après {max_iter} itérations (résidu {nR:.3e} kN)")
+    return u, it, float(nR)
 
+
+def resoudre(
+    z: np.ndarray,
+    EI_elem: np.ndarray,
+    ressorts: Ressorts,
+    appuis: Appuis,
+    f_ext: np.ndarray,
+    u0: np.ndarray | None = None,
+    max_iter: int = 200,
+    y_rupture: float = 5.0,
+) -> SolutionPhase:
+    """Résout l'équilibre d'une phase de l'écran 2D (poutre).
+
+    f_ext : vecteur 2n des forces imposées (eau, forces nodales), kN/m et kN·m/m.
+    y_rupture : déplacement (m) au-delà duquel on déclare la rupture.
+    """
+    n = len(z)
+    ddl_y = np.arange(0, 2 * n, 2)
+    u, it, nR = resoudre_general(assembler(z, EI_elem), ddl_y, ressorts, appuis, f_ext, u0, max_iter, y_rupture)
     y = u[ddl_y]
     p, statut = ressorts.pressions(y)
     eff, actif = appuis.efforts(y)
     zd, M, V = efforts_internes(z, EI_elem, u)
     return SolutionPhase(z=z, u=u, y=y, z_diag=zd, M=M, V=V, p=p, statut=statut,
-                         efforts_appuis=eff, appuis_actifs=actif, iterations=it, residu=float(nR))
+                         efforts_appuis=eff, appuis_actifs=actif, iterations=it, residu=nR)
