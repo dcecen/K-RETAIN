@@ -150,6 +150,8 @@ class MoteurPhases:
         EI_noeud = ec.EI_en(z)
         self.d_kh = np.array([_kh_couche(self.couches[i], EI_noeud[noeud[j]]) for j, i in enumerate(idx)])
         self.d_couche = idx
+        self.d_tan_delta_a = np.array([np.tan(np.radians(self.couches[i].delta_a_sur_phi * self.couches[i].phi)) for i in idx])
+        self.d_tan_delta_p = np.array([np.tan(np.radians(self.couches[i].delta_p_sur_phi * self.couches[i].phi)) for i in idx])
 
         # Ressorts : demi-mailles côté amont puis côté aval
         self.ressorts = Ressorts(
@@ -307,8 +309,11 @@ class MoteurPhases:
                     "pp": pp[sl][msk][ordre] * f,
                     "p0": (np.tile(self.d_k0, 2) * sv)[sl][msk][ordre] * f,
                     "statut": sol.statut[sl][msk][ordre],
-                    "A": r.A[sl][msk][ordre],
+                    # force du ressort = L × p (p est déjà rapportée au mètre linéaire d'écran)
+                    "L": np.tile(self.d_L, 2)[sl][msk][ordre],
                     "z_noeud": self.z[r.noeud[sl][msk][ordre]],
+                    "tan_delta": self.d_tan_delta_a[msk][ordre] if nom_cote == "amont" else self.d_tan_delta_p[msk][ordre],
+                    "couche": self.d_couche[msk][ordre],
                 }
             ordre = np.argsort(self.d_zm)
             resultats.append(ResultatPhase(

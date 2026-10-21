@@ -22,7 +22,8 @@ def _liste(v) -> list[str]:
     return [v] if isinstance(v, str) else list(v or [])
 
 
-def vers_modele(s: Script, catalogue=None, normes=None) -> Modele:
+def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) -> Modele:
+    """Modèle de calcul ; `jeu` choisit le jeu de niveaux d'eau (défaut : calcul.jeu_eau ou le premier)."""
     try:
         ecran = construire_ecran(s.paroi, catalogue, normes)
         appuis = {nom: construire_appui(nom, a, catalogue) for nom, a in s.appuis.items()}
@@ -30,7 +31,7 @@ def vers_modele(s: Script, catalogue=None, normes=None) -> Modele:
         raise ErreurConversion(str(e).strip("'\"")) from None
 
     couches = [Couche(**c.model_dump()) for c in s.sol]
-    jeu = s.calcul.jeu_eau or (next(iter(s.eau)) if s.eau else None)
+    jeu = jeu or s.calcul.jeu_eau or (next(iter(s.eau)) if s.eau else None)
     eau0 = s.eau[jeu] if jeu else None
 
     surcharges = [_surcharge(sc, f"S{i + 1}") for i, sc in enumerate(s.surcharges)]

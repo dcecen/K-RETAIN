@@ -28,6 +28,8 @@ class Calcul(_Base):
     pas: float = Field(0.1, gt=0.005, le=1.0, description="longueur maximale d'élément du maillage (m)")
     jeu_eau: str | None = Field(None, description="jeu de niveaux d'eau utilisé (défaut : le premier du bloc eau)")
     mode: Literal["2d", "pseudo3d"] = Field("2d", description="2d (par section) ou pseudo3d (plaque sur ressorts)")
+    largeur_fouille: float | None = Field(
+        None, gt=0, description="largeur de la fouille pour la stabilité générale (m) ; défaut : 2 × hauteur de paroi")
 
 
 class Blindage(_Base):

@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from sout import __version__, normes
-from sout.noyau.phasage import ErreurModele, calculer
+from sout.noyau.phasage import ErreurModele
 from sout.resultats import serialiser
 from sout.script.conversion import ErreurConversion, vers_modele
 from sout.script.lecteur import ScriptInvalide, lire_script
@@ -68,16 +68,26 @@ def preparer(texte: str):
     return s, vers_modele(s, _catalogue(), normes.charger())
 
 
+def executer_texte(texte: str):
+    """Script -> exécution complète (calculs par jeu d'eau + vérifications)."""
+    from sout.verifications import executer
+
+    return executer(lire_script(texte), _catalogue(), normes.charger())
+
+
 @app.post("/api/calcul")
 def calcul(t: Texte) -> dict:
     try:
-        s, m = preparer(t.texte)
-        res = calculer(m)
+        ex = executer_texte(t.texte)
     except ScriptInvalide as e:
         return {"ok": False, "erreurs": [x.vers_dict() for x in e.erreurs]}
     except (ErreurConversion, ErreurModele) as e:
         return {"ok": False, "erreurs": [{"ligne": None, "chemin": "", "message": str(e)}]}
-    return {"ok": True, "erreurs": [], "resultats": serialiser(res, m, s.projet)}
+    r = serialiser(ex.resultat, ex.modele, ex.script.projet)
+    r["verifications"] = [v.vers_dict() for v in ex.verifications]
+    r["suggestions"] = ex.suggestions
+    r["jeux_eau"] = {j: {"complet": res.complet} for j, (_, res) in ex.jeux.items() if j is not None}
+    return {"ok": True, "erreurs": [], "resultats": r}
 
 
 @app.get("/api/materiaux")

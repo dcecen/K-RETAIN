@@ -20,7 +20,7 @@ def _modele(phases, appuis=None, **kw):
 def _equilibre(ph, gamma_w=10.0):
     """Somme des forces horizontales sur l'écran (sol + eau + appuis)."""
     am, av = ph.pressions["amont"], ph.pressions["aval"]
-    F = np.sum(am["A"] * am["p"]) - np.sum(av["A"] * av["p"])
+    F = np.sum(am["L"] * am["p"]) - np.sum(av["L"] * av["p"])
     e = ph.eau
     dz = np.diff(ph.z)
     # eau : intégrale de (u_amont − u_aval) par demi-mailles (ordre = milieux croissants)

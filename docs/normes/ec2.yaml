@@ -6,6 +6,7 @@ gamma_s: { valeur: null, source: "" }                 # TODO-NORME
 alpha_cc: { valeur: null, source: "" }                # TODO-NORME
 fyk_armatures: { valeur: null, source: "" }           # TODO-NORME / projet : limite d'élasticité des armatures (MPa)
 Es: { valeur: null, source: "" }                      # TODO-NORME : module des armatures (MPa)
+poids_volumique_beton_arme: { valeur: null, source: "" }  # TODO-NORME (EN 1991-1-1) : kN/m3
 
 # Diagramme rectangulaire simplifié du béton
 diagramme_rectangulaire:

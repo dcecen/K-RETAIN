@@ -74,3 +74,22 @@
   vérifiées à la main, refus sans largeur de fiche ou sans β_D, import CSV + Excel.
 - **Porte non franchie** : cas04 (berlinoise) de référence absent ; règles de largeur de
   fiche discontinue de la NF P 94-282 non fournies.
+
+## J5 — Vérifications géotechniques : fait (porte ouverte : coefficients partiels non fournis)
+
+- `sout/verifs.py` : résultat commun (taux, état, détail, source, valeurs manquantes) ;
+  toute valeur de norme absente rend la vérification « non vérifiable » et affiche la
+  valeur caractéristique (sans coefficient partiel).
+- `sout/verifs_geo` : butée mobilisée, équilibre vertical (mobilisation de δp et
+  portance, **méthode simplifiée** à confronter à la norme), Kranz (équilibre du massif
+  d'ancrage), fond de fouille (soulèvement UPL, boulance HYD, renard par **longueur de
+  cheminement**), stabilité générale par Bishop simplifiée (recherche de cercles sous le
+  pied), déplacements ELS (critères du bloc `criteres`), scellement des tirants.
+- `sout/verifications.py` : calcul de chaque jeu d'eau, vérifications sur le cas le plus
+  défavorable ; les niveaux d'eau des phases s'appliquent à tous les jeux.
+- Tests (verts) : Kranz sur un cas manuel (T_max = γHL·tan φ), Bishop φ = 0 face à un
+  équilibre des moments indépendant (< 1 %), fond de fouille calculé à la main,
+  mécanique des coefficients avec des valeurs de test fictives.
+- **Limites** : mêmes coefficients pour les combinaisons fondamentales et accidentelles
+  (à étendre selon la norme) ; pas de calcul d'écoulement ; tirants et écran négligés
+  dans Bishop (sécuritaire).

@@ -78,9 +78,9 @@ def test_autostable_equilibre_global():
     assert res.complet
     ph = res.phases[-1]
     am, av = ph.pressions["amont"], ph.pressions["aval"]
-    F = np.sum(am["A"] * am["p"]) - np.sum(av["A"] * av["p"])
+    F = np.sum(am["L"] * am["p"]) - np.sum(av["L"] * av["p"])
     # les forces des ressorts s'appliquent aux nœuds
-    Mo = np.sum(am["A"] * am["p"] * am["z_noeud"]) - np.sum(av["A"] * av["p"] * av["z_noeud"])
+    Mo = np.sum(am["L"] * am["p"] * am["z_noeud"]) - np.sum(av["L"] * av["p"] * av["z_noeud"])
     assert abs(F) < 1e-6
     assert abs(Mo) < 1e-6
     # pressions toujours entre les limites
