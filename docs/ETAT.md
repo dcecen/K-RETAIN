@@ -37,3 +37,20 @@
   qui décolle, erreurs de données, rupture détectée.
 - **Reste à faire** : écoulement autour de l'écran (seul le régime hydrostatique est
   traité) ; **porte non franchie** : cas02 K-Réa/RIDO absent.
+
+## J3 — Langage de script et interface 2D : fait (porte partiellement ouverte)
+
+- `sout/script` : schéma pydantic (mots-clés français, unités et bornes en description),
+  lecteur ruamel.yaml avec numéro de ligne, erreurs traduites en français, contrôles de
+  cohérence (appuis inconnus, dépose avant pose, Schmitt sans EM, etc.), conversion vers
+  le modèle de calcul.
+- API : `/api/calcul`, `/api/valider`, `/api/schema`, `/api/exemples`.
+- Interface : éditeur Monaco local (sans CDN) avec coloration YAML, auto-complétion
+  guidée par le schéma (mots-clés, valeurs possibles, références de la base), aide au
+  survol, erreurs soulignées et cliquables, validation en direct ; bouton Calculer
+  (Ctrl+Entrée), curseur de phase commun, onglets Synthèse, Coupe, Diagrammes
+  (y, M, V, pressions face aux limites, eau), Enveloppes et phase dimensionnante,
+  tableau des efforts d'appui ; export PNG/SVG des graphiques ; ouvrir/enregistrer.
+- Vérifié dans un navigateur (Chrome sans affichage) : calcul et affichage de l'exemple.
+- **Porte non franchie** : le cas 02 de référence n'est pas fourni ; l'exemple du cahier
+  des charges est saisi et calculé à sa place (`exemples/fouille_exemple_EI.yaml`).
