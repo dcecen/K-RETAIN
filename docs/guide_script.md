@@ -80,7 +80,7 @@ criteres: { deplacement_max_mm: 30 }
 
 | Type | Données nécessaires | Rigidité calculée |
 | --- | --- | --- |
-| `palplanche` | `profil`, `acier` (profils en U : `beta_D`) | E·I du catalogue (× β_D pour les U) |
+| `palplanche` | `profil`, `acier` (profils en U : `beta_D` ; `classe_section` si le catalogue ne la donne pas) | E·I du catalogue (× β_D pour les U) |
 | `paroi_moulee` | `epaisseur`, `beton` (option `rapport_EI_fissure`) | Ecm·e³/12 |
 | `pieux_secants` | `diametre`, `entraxe`, `beton`, `primaires_armes` | EI des pieux armés / entraxe des armés |
 | `pieux_disjoints` | `diametre`, `entraxe`, `beton`, largeur de fiche | EI d'un pieu / entraxe |
@@ -100,9 +100,10 @@ des données CPT, donnez `qc` et la corrélation retenue `EM_sur_qc` (il n'exist
 corrélation universelle : elle doit être choisie et justifiée couche par couche).
 
 Les obliquités sont données en rapport à φ' : `delta_a_sur_phi` (poussée) et
-`delta_p_sur_phi` (butée), 0 par défaut (Rankine). Au-delà de |δp| = φ/3, la butée de
-Coulomb n'est pas conservative : l'application l'indique et recommande les tables de
-Kérisel-Absi.
+`delta_p_sur_phi` (butée), 0 par défaut (Rankine). Avec les coefficients de Coulomb,
+`delta_p_sur_phi` est limité à 1/3 : au-delà, la butée de Coulomb (surface plane) n'est
+pas du côté de la sécurité et le calcul est refusé ; utilisez alors les tables de
+Kérisel-Absi (`calcul: { coefficients: kerisel_absi }`).
 
 ## 5. Eau
 
@@ -110,8 +111,10 @@ Le bloc `eau` contient un ou plusieurs **jeux de niveaux** (par exemple `service
 `exceptionnel`). Chaque jeu est calculé ; les vérifications retiennent le cas le plus
 défavorable. Un jeu dont le nom contient « except » ou « accid » est vérifié en
 combinaison accidentelle. Dans une phase, `eau: { aval: -7.0 }` ne change que les clés
-écrites (pour tous les jeux). Seul le régime hydrostatique est calculé ; le fond de fouille
-est vérifié par la méthode de la longueur de cheminement (simplifiée).
+écrites (pour tous les jeux). Seul le régime hydrostatique est calculé (un avertissement
+le rappelle dès que les nappes amont et aval diffèrent : la butée peut être surestimée) ;
+le fond de fouille est vérifié par la méthode de la longueur de cheminement (simplifiée).
+Le poids volumique de l'eau vaut 10 kN/m³ par défaut (`calcul.gamma_w`).
 
 ## 6. Appuis
 
@@ -124,7 +127,9 @@ est vérifié par la méthode de la longueur de cheminement (simplifiée).
 
 `raideur` (kN/m par mètre d'écran) court-circuite le calcul de raideur. `precharge` est
 l'effort axial par appui (précharge d'un buton, précontrainte d'un tirant), appliqué à la
-pose. `lierne` désigne le profilé de lierne à vérifier.
+pose. `lierne` désigne le profilé de lierne à vérifier (donnez aussi `acier`, sa nuance).
+Un appui posé dans une phase qui comporte aussi une excavation est en place avant cette
+excavation : il en reprend les déplacements.
 
 ## 7. Phases
 
@@ -230,6 +235,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `primaires_armes` | true / false |  | False | pieux sécants : pieux primaires armés |
 | `rapport_EI_fissure` | nombre |  |  | béton : rapport EI fissuré / EI non fissuré choisi par l'ingénieur (> 0, ≤ 1) |
 | `beta_D` | nombre |  |  | palplanches en U : réduction d'inertie β_D (EN 1993-5, à fournir) (> 0, ≤ 1) |
+| `classe_section` | entier |  |  | palplanches : classe de section (EN 1993-5) si le catalogue ne la donne pas (≥ 1, ≤ 4) |
 | `perte_epaisseur` | nombre |  |  | palplanches : perte d'épaisseur par corrosion, totale (mm) (≥ 0) |
 | `largeur_reaction_fiche` | nombre |  |  | fiche discontinue : largeur de réaction imposée sous le fond (m par élément) (> 0) |
 | `blindage` | bloc |  |  | berlinoise : blindage entre profilés |

@@ -30,6 +30,13 @@ palplanches:
   beta_D: { valeur: null, source: "" }                # TODO-NORME : réduction de l'inertie des profils en U
   gamma_M0: { valeur: null, source: "" }              # TODO-NORME
 
+# Classification des sections comprimées (tableau 5.2) : limites de la classe 3,
+# en coefficient de ε² (tubes, d/t) ou de ε (parois planes, c/t), avec ε² = 235/fy.
+classification:
+  tube_classe3: { valeur: null, source: "" }          # TODO-NORME : d/t ≤ valeur × ε²
+  aile_classe3: { valeur: null, source: "" }          # TODO-NORME : aile en console comprimée, c/t ≤ valeur × ε
+  ame_comprimee_classe3: { valeur: null, source: "" } # TODO-NORME : âme entièrement comprimée, c/t ≤ valeur × ε
+
 # Interaction flexion - effort tranchant
 cisaillement:
   rapport_reduction: { valeur: null, source: "" }     # TODO-NORME : seuil VEd/Vpl,Rd au-delà duquel le moment résistant est réduit

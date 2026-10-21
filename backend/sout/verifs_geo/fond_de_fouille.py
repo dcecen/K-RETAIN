@@ -22,7 +22,8 @@ from ..noyau.phasage import ResultatCalcul
 from ..sol.couches import contraintes_verticales, trier
 from ..verifs import Lecteur, Verif, resultat
 
-SOURCE = "NF P 94-282 / EN 1997-1 (UPL, HYD) — longueur de cheminement (méthode simplifiée)"
+SOURCE = ("NF P 94-282 / EN 1997-1 (UPL, HYD) — longueur de cheminement (méthode simplifiée, perte de charge "
+          "uniforme : peut sous-estimer le gradient de sortie d'une fouille étroite ; à confirmer par un calcul d'écoulement)")
 
 
 def charges(modele: Modele, ph) -> dict | None:

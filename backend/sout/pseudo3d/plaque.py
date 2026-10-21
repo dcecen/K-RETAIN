@@ -28,21 +28,22 @@ def largeurs_tributaires(x: np.ndarray) -> np.ndarray:
     return t
 
 
+def _moyenne_noeuds(v_elem: np.ndarray, nz: int) -> np.ndarray:
+    """Valeur aux nœuds : moyenne des éléments adjacents (même règle partout)."""
+    s = np.zeros(nz)
+    c = np.zeros(nz)
+    s[:-1] += v_elem; c[:-1] += 1
+    s[1:] += v_elem; c[1:] += 1
+    return s / c
+
+
 def assembler(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarray) -> sparse.csc_matrix:
     """Rigidité du grillage. Dz_elem, Ds_elem : rigidités par mètre pour chaque élément vertical (selon z)."""
     ns, nz = len(s), len(z)
     ds = largeurs_tributaires(s)
     dz = largeurs_tributaires(z)
-    Dz_noeud = np.zeros(nz)
-    Ds_noeud = np.zeros(nz)
-    cpt = np.zeros(nz)
-    for j in range(nz - 1):
-        for jj in (j, j + 1):
-            Dz_noeud[jj] += Dz_elem[j]
-            Ds_noeud[jj] += Ds_elem[j]
-            cpt[jj] += 1
-    Dz_noeud /= cpt
-    Ds_noeud /= cpt
+    Dz_noeud = _moyenne_noeuds(Dz_elem, nz)
+    Ds_noeud = _moyenne_noeuds(Ds_elem, nz)
     lig, col, val = [], [], []
 
     def ajouter(ddl, k):
@@ -90,7 +91,7 @@ def moments(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarr
     Mz /= cz
     Ms = np.zeros((ns, nz))
     if ns > 1:
-        Ds_noeud = np.interp(z, 0.5 * (z[1:] + z[:-1]), Ds_elem)
+        Ds_noeud = _moyenne_noeuds(Ds_elem, nz)
         cs = np.zeros(ns)
         for i in range(ns - 1):
             L = s[i + 1] - s[i]

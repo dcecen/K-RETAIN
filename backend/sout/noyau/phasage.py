@@ -143,7 +143,17 @@ class MoteurPhases:
         nd = len(noeud)
 
         # Propriétés par demi-maille
-        props = [_coefficients_couche(c, modele.coefficients) for c in self.couches]
+        if modele.coefficients == "coulomb":
+            for c in self.couches:
+                if c.delta_p_sur_phi > 1.0 / 3.0 + 1e-9:
+                    raise ErreurModele(
+                        f"couche « {c.nom} » : butée de Coulomb avec δp/φ' = {c.delta_p_sur_phi:.2f} > 1/3 refusée "
+                        "(la surface plane de Coulomb surestime alors Kp, côté insécurité). Réduisez delta_p_sur_phi "
+                        "à 1/3 au plus ou utilisez coefficients: kerisel_absi avec les tables fournies.")
+        try:
+            props = [_coefficients_couche(c, modele.coefficients) for c in self.couches]
+        except ValueError as e:
+            raise ErreurModele(str(e)) from None
         idx = np.array([indice_couche(self.couches, zm) for zm in self.d_zm])
         tab = np.array(props)[idx]
         self.d_kah, self.d_kph, self.d_k0, self.d_ca, self.d_cp, self.d_kd = tab.T
@@ -162,11 +172,19 @@ class MoteurPhases:
         )
         self.nd = nd
         self.avertissements: list[str] = []
-        if modele.coefficients == "coulomb" and any(c.delta_p_sur_phi > 1.0 / 3.0 for c in self.couches):
+        hauts = [z for z in [self.terrain_amont, self.terrain_aval]
+                 + [ph.remblayer_amont for ph in modele.phases] + [ph.remblayer_aval for ph in modele.phases]
+                 if z is not None]
+        if max(hauts) > self.couches[0].toit + 1e-9:
             self.avertissements.append(
-                "Butée de Coulomb avec |δp| > φ/3 : Kp surestimé, non conservatif. "
-                "Fournissez les tables de Kérisel-Absi (docs/normes/kerisel_absi)."
-            )
+                f"Terrain ou remblai au-dessus du toit de la première couche ({self.couches[0].toit} m) : "
+                f"il prend les propriétés de « {self.couches[0].nom} ». Définissez une couche de remblai si besoin.")
+        nappes = [(modele.eau_amont, modele.eau_aval)] + [(ph.eau.get("amont"), ph.eau.get("aval")) for ph in modele.phases]
+        if any(a is not None and b is not None and abs(a - b) > 1e-6 for a, b in nappes) or \
+                (modele.eau_amont is not None and any("aval" in ph.eau for ph in modele.phases)):
+            self.avertissements.append(
+                "Nappes amont et aval différentes : seul le régime hydrostatique est calculé. L'écoulement "
+                "autour de l'écran (qui réduit la butée côté fouille) n'est pas modélisé : butée possiblement surestimée.")
 
     # ------------------------------------------------------------------
     def _sigma_v(self, cote: int, terrain: float, eau: float | None, surcharges: list[Surcharge]) -> tuple[np.ndarray, np.ndarray]:
@@ -346,7 +364,7 @@ class MoteurPhases:
                     "p": solution.p[sl][msk][ordre] * f,
                     "pa": pa[sl][msk][ordre] * f,
                     "pp": pp[sl][msk][ordre] * f,
-                    "p0": (np.tile(self.d_k0, 2) * sv)[sl][msk][ordre] * f,
+                    "p0": sol["p0"][sl][msk][ordre] * f,
                     "statut": solution.statut[sl][msk][ordre],
                     # force du ressort = L × p (p est déjà rapportée au mètre linéaire d'écran)
                     "L": np.tile(self.d_L, 2)[sl][msk][ordre],

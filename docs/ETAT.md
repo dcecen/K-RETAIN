@@ -150,3 +150,69 @@
 - **Limites** : rigidité horizontale isotrope par défaut (avertissement affiché), parois
   indéformables dans leur plan à l'angle, appuis répartis régulièrement (positions du
   plan non encore reprises dans le pseudo-3D).
+
+## J10 — Revue croisée et mise à disposition : fait (porte non franchie)
+
+### Mise à disposition
+- Guide utilisateur `docs/guide_script.md` (référence des mots-clés générée depuis le
+  schéma, testée pour rester à jour) ; README ; notice `docs/INSTALLATION.md`.
+- Lanceur `Lancer RetainWall.bat` (double-clic, raccourci sur le Bureau) : installe ce qui
+  manque, compile l'interface si besoin, sert tout sur http://localhost:8000.
+- Déploiement : accès par identifiant (HTTP Basic, mots de passe PBKDF2 hachés,
+  `RETAINWALL_AUTH=1`), interface servie par FastAPI, `Dockerfile` (non testé : Docker
+  absent du poste), `lancer_production.ps1`. Mode production testé de bout en bout.
+
+### Revue croisée par un sous-agent indépendant (chaque formule contre sa source)
+Conformes et contrôlés numériquement : Coulomb/Rankine/Jaky, Schmitt, σ'v, Boussinesq,
+Flamant, poutre EF (Hetényi < 0,1 %), conventions de signe, loi des ressorts, solveur,
+raideurs d'appuis, EI des cinq parois, sections (HEB/IPE < 0,1 %), EC3 et EC2 (modèle à
+fibres indépendant 0,02 %), statique de Kranz, Bishop, grillage (Navier 0,7 %).
+Aucun coefficient partiel ni facteur normatif écrit en dur.
+
+Écarts corrigés (avec test de non-régression) :
+| Gravité | Constat | Correction |
+| --- | --- | --- |
+| Critique | Kp de Coulomb sans garde de domaine (valeurs absurdes au-delà du pôle) | refus hors domaine |
+| Critique | Équilibre vertical : une résultante montante pouvait être masquée par une autre phase | contrôle « mobilisation de δp » sur toutes les phases, séparé de la portance |
+| Majeur | Butée de Coulomb avec δp/φ > 1/3 seulement signalée | calcul refusé (Kérisel-Absi ou δp ≤ φ/3) |
+| Majeur | Pas de classification des sections (classe 4 calculée sur section brute) | classe 4 refusée (limites lues dans ec3.yaml) ; classe des palplanches exigée |
+| Majeur | Poids de l'écran sans déjaugeage | poids déjaugé sous la nappe la plus haute |
+| Majeur | Écoulement non modélisé sans avertissement | avertissement à l'exécution |
+| Mineur à majeur | Recherche de Bishop trop grossière (+2 %) | grille élargie + affinage local |
+| Mineur | Frottement amont toujours vers le bas | sens selon compression/décompression du sol |
+| Mineur | Liernes M = 0,1·q·e² non sécuritaire pour 2 travées | M = q·e²/8, V = 0,625·q·e |
+| Mineur | Appuis pseudo-3D redistribués (raideur totale sous-estimée) | espacement exact |
+| Mineur | Dalle divisée à tort par l'espacement ; tirant sans longueur : erreur brute | corrigés |
+| Mineur | Kranz : φ au milieu de BA | φ le plus faible traversé |
+| Mineur | Kérisel-Absi interpolé linéairement | interpolation en ln K |
+| Mineur | Couche sous la pointe mal choisie ; remblai au-dessus de la 1re couche silencieux | corrigé ; avertissement |
+| Mineur | S355 implicite (liernes, suggestions), taux 2,0 arbitraire, As « requis » si μ > μlim | supprimés / état « non vérifié » / As non défini |
+
+Écarts documentés, non corrigés (à trancher avec la norme ou les cas de référence) :
+- Équilibre vertical : Qs cumulé aux composantes p·tan δ (double comptage possible),
+  qb = k_p·pl brut au lieu de ple* (NF P 94-262), qs proportionnel à pl : signalés dans
+  le détail du résultat.
+- Fond de fouille par longueur de cheminement (Bligh) : peut sous-estimer le gradient de
+  sortie d'une fouille étroite ; un calcul d'écoulement reste à développer.
+- Décalage Kd·Δσ'v, définition exacte de Bm/Bt, surcharges par Δσv sans effet miroir,
+  états correspondants avec δ ≠ 0 : hypothèses à valider contre K-Réa.
+- Eau nette sur toute la largeur pour les fiches discontinues ; même rapport de largeur
+  amont et aval sous le fond ; pieux sécants : seuls les pieux armés comptent.
+- Kranz : lits de tirants étudiés séparément, surcharges initiales seules.
+- Bishop : cercle écarté si une tranche a mα ≤ 0,05 ; tirants et écran négligés.
+- Pseudo-3D : angle traité comme rigide (w = 0), plaque isotrope par défaut.
+- Valeurs par défaut documentées : γw = 10 kN/m³ (modifiable), largeur de fouille 2H
+  dans Bishop (signalée dans le résultat), 7 850 kg/m³ pour estimer une masse absente du
+  catalogue.
+
+## Synthèse : ce qui manque pour un usage en projet
+
+1. **Cas de référence K-Réa/RIDO** (cas01 à cas05) : aucune porte « fini quand » exigeant
+   une comparaison n'est franchie (J1 partiel, J2, J3, J4, J5, J7, J10).
+2. **Extraits de normes** dans docs/normes (tous les coefficients sont à null) : les
+   vérifications affichent « non vérifiable » avec la liste des valeurs manquantes.
+3. **Catalogues fournisseurs** pour remplacer le jeu DEMO ; **manuel RIDO** pour l'import.
+4. Points ouverts du cahier des charges : corrélation qc → EM, critères de déplacement,
+   tolérance de 5 %, licence RIDO, hébergement.
+
+Tests : 95 réussis, 6 ignorés (cas de validation et exemples RIDO absents).

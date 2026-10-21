@@ -96,10 +96,11 @@ class MoteurPseudo3D:
         self.m2_taille = m2
 
     def _positions_appui(self, espacement: float) -> np.ndarray:
+        """Appuis réels à leur espacement exact, centrés sur la longueur modélisée."""
         L = self.s[-1]
         nb = max(1, int(np.floor(L / espacement + 1e-9)))
-        pos = (np.arange(nb) + 0.5) * L / nb
-        return pos
+        debut = (L - (nb - 1) * espacement) / 2
+        return debut + espacement * np.arange(nb)
 
     def calculer(self) -> ResultatPseudo3D:
         m, m2 = self.m, self.m2

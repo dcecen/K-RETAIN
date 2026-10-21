@@ -53,6 +53,9 @@ def flexion_rectangulaire(M_kNm: float, b: float, d: float, mat: Materiaux) -> d
     if disc < 0:
         return {"mu": mu, "mu_lim": mu_lim, "As_cm2": math.inf, "x_sur_d": math.inf}
     lx = d * (1 - math.sqrt(disc))
+    if mu > mu_lim:
+        # acier non plastifié : pas de section d'acier tendu seule qui convienne
+        return {"mu": mu, "mu_lim": mu_lim, "As_cm2": math.inf, "x_sur_d": lx / mat.lam / d}
     As = mat.eta * fcd * b * lx / mat.fyd * 1e4
     return {"mu": mu, "mu_lim": mu_lim, "As_cm2": As, "x_sur_d": lx / mat.lam / d}
 
@@ -107,7 +110,7 @@ def m_rd_circulaire(D: float, As_cm2: float, r_s: float, mat: Materiaux, n_barre
 def as_circulaire(M_kNm: float, D: float, r_s: float, mat: Materiaux) -> float:
     """Section d'armatures (cm²) requise pour M dans une section circulaire (∞ si impossible)."""
     M = abs(M_kNm)
-    haut = math.pi * D**2 / 4 * 1e4 * 0.08  # plafond de recherche : 8 % de la section
+    haut = math.pi * D**2 / 4 * 1e4 * 0.08  # borne de recherche numérique (8 % de la section), pas une valeur normative
     if m_rd_circulaire(D, haut, r_s, mat) < M:
         return math.inf
     bas = 0.0

@@ -7,7 +7,10 @@ fournies par l'utilisateur dans docs/normes/kerisel_absi/ (voir README).
 Format attendu (CSV, séparateur « ; » ou « , ») :
     ka.csv : phi;delta_sur_phi;K      (K = coefficient tabulé, incliné de δ)
     kp.csv : phi;delta_sur_phi;K
-Écran vertical, terre-plein horizontal. Interpolation bilinéaire.
+Écran vertical, terre-plein horizontal. Interpolation bilinéaire sur ln K (K varie de
+façon convexe, une interpolation linéaire surestimerait Kp).
+Convention : delta_sur_phi est donné en valeur absolue (≥ 0), y compris en butée où
+les tables originales l'écrivent négatif.
 """
 from __future__ import annotations
 
@@ -55,8 +58,9 @@ def _interpoler(nom: str, phi: float, delta_sur_phi: float) -> float:
     i, j = max(i, 0), max(j, 0)
     tx = (phi - phis[i]) / (phis[i + 1] - phis[i]) if len(phis) > 1 else 0.0
     ty = (delta_sur_phi - rapports[j]) / (rapports[j + 1] - rapports[j]) if len(rapports) > 1 else 0.0
-    return float((1 - tx) * (1 - ty) * g[i, j] + tx * (1 - ty) * g[i + 1, j]
-                 + (1 - tx) * ty * g[i, j + 1] + tx * ty * g[i + 1, j + 1])
+    lg = np.log(g)
+    return float(np.exp((1 - tx) * (1 - ty) * lg[i, j] + tx * (1 - ty) * lg[i + 1, j]
+                        + (1 - tx) * ty * lg[i, j + 1] + tx * ty * lg[i + 1, j + 1]))
 
 
 def kah(phi: float, delta_sur_phi: float) -> float:

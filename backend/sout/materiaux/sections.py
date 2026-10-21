@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import math
 
-MASSE_VOLUMIQUE_ACIER = 7850.0  # kg/m3, masse volumique de l'acier de construction
+# kg/m3 : masse volumique de l'acier de construction, utilisée seulement pour estimer la
+# masse linéique d'un profilé dont le catalogue ne la donne pas (la valeur du catalogue prime).
+MASSE_VOLUMIQUE_ACIER = 7850.0
 
 
 def tube(D: float, t: float) -> dict:

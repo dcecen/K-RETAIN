@@ -77,21 +77,23 @@ NORMES_TEST = Normes({
                            "courbe_tube": V("a"), "courbe_profil_i_axe_faible": V("c")},
             "temperature": {"alpha_T": V(1.2e-5), "delta_T": V(10.0), "coefficient_bridage": V(0.5)},
             "palplanches": {"gamma_M0": V(1.0), "beta_B": V(1.0)},
+            "classification": {"tube_classe3": V(90.0), "aile_classe3": V(14.0), "ame_comprimee_classe3": V(42.0)},
             "cisaillement": {"rapport_reduction": V(0.5)}},
 })
 
 
 def test_execution_structure_exemple_avec_coefficients_de_test():
     texte = (RACINE / "exemples" / "fouille_exemple.yaml").read_text(encoding="utf-8")
-    texte = texte.replace("precharge: 50 }", "precharge: 50, lierne: HEB 300 }")
+    texte = texte.replace("precharge: 50 }", "precharge: 50, lierne: HEB 300, acier: S355 }")
+    texte = texte.replace("  acier: S355GP\n", "  acier: S355GP\n  classe_section: 2\n")
     s = lire_script(texte)
     ex = executer(s, catalogue_par_defaut(), NORMES_TEST)
     vs = {v.nom: v for v in ex.verifications if v.categorie == "structure"}
     pal = vs["Palplanches — flexion et cisaillement"]
     assert pal.taux is not None and 0 < pal.taux < 2
-    # M_Ed / M_c,Rd attendu : W élastique (classe non renseignée) 2 600 cm³/m, fy 355 MPa
+    # M_Ed / M_c,Rd attendu : classe 2 déclarée -> W plastique 3 059 cm³/m, fy 355 MPa
     Mk = max(abs(p.M).max() for p in ex.resultat.phases if p.ok)
-    assert pal.taux >= 1.35 * Mk / (2600e-6 * 355e3) - 1e-9
+    assert pal.taux >= 1.35 * Mk / (3059e-6 * 355e3) - 1e-9
     assert vs["Buton — flambement et flexion"].taux > 0
     assert vs["Buton — résistance fabricant"].taux == pytest.approx(
         1.35 * max(a["effort"] for p in ex.resultat.phases if p.ok for a in p.appuis) * 6 / 2000)
@@ -150,3 +152,24 @@ def test_parois_beton_et_berlinoise(paroi, attendus):
     vs = {v.nom: v for v in ex.verifications}
     for nom in attendus:
         assert vs[nom].taux is not None and vs[nom].taux > 0, (nom, vs[nom].detail, vs[nom].manquants)
+
+
+
+def test_section_de_classe_4_refusee():
+    from sout.verifs import Lecteur
+    from sout.verifs_struct.elements import classe_compression
+
+    tube = {"ref": "tube mince", "fy": 355.0, "courbe": "tube", "D_mm": 1016.0, "t_mm": 12.0}
+    msg = classe_compression(tube, Lecteur(NORMES_TEST))
+    assert msg and "classe 4" in msg                     # d/t = 84,7 > 90 × 235/355 = 59,6
+    tube["t_mm"] = 20.0
+    assert classe_compression(tube, Lecteur(NORMES_TEST)) is None
+    heb = {"ref": "HEB 300", "fy": 355.0, "courbe": "i", "h_mm": 300, "b_mm": 300, "tw_mm": 11, "tf_mm": 19, "r_mm": 27}
+    assert classe_compression(heb, Lecteur(NORMES_TEST)) is None
+
+
+def test_palplanche_sans_classe_non_verifiable():
+    texte = (RACINE / "exemples" / "fouille_exemple.yaml").read_text(encoding="utf-8")
+    ex = executer(lire_script(texte), catalogue_par_defaut(), NORMES_TEST)
+    pal = next(v for v in ex.verifications if v.nom == "Palplanches — flexion et cisaillement")
+    assert pal.etat == "non_verifiable" and any("classe" in m for m in pal.manquants)

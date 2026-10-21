@@ -56,6 +56,8 @@ class Paroi(_Base):
         None, gt=0, le=1, description="béton : rapport EI fissuré / EI non fissuré choisi par l'ingénieur")
     beta_D: float | None = Field(
         None, gt=0, le=1, description="palplanches en U : réduction d'inertie β_D (EN 1993-5, à fournir)")
+    classe_section: int | None = Field(
+        None, ge=1, le=4, description="palplanches : classe de section (EN 1993-5) si le catalogue ne la donne pas")
     perte_epaisseur: float | None = Field(
         None, ge=0, description="palplanches : perte d'épaisseur par corrosion, totale (mm)")
     largeur_reaction_fiche: float | None = Field(

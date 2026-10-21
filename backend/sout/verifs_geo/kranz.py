@@ -11,11 +11,14 @@ point B), la droite de rupture BA, et un écran fictif vertical passant par A
   action de l'écran (opposée à la poussée calculée au-dessus de B, inclinée de δa),
   poussée active P1 sur l'écran fictif (δ = 0, coefficient de Rankine/Coulomb du
   calcul), réaction R sur BA inclinée de φ' sur la normale (cohésion négligée,
-  du côté de la sécurité), effort d'ancrage T selon l'axe du tirant.
+  du côté de la sécurité ; φ' le plus faible des couches traversées), effort d'ancrage
+  T selon l'axe du tirant.
 - T_max résout l'équilibre des forces (2 équations, inconnues T_max et R).
 Critère : gamma_effet · T ≤ T_max / gamma_R (docs/normes/nf_p94_282.yaml → kranz).
 Hypothèses : contraintes effectives (γ' sous la nappe amont, pas de poussée d'eau
-sur les limites du massif), surcharges en bande non prises en compte sur P1.
+sur les limites du massif), surcharges en bande non prises en compte sur P1,
+surcharges réparties initiales seules (comptées dans le poids du massif), chaque
+lit de tirants étudié séparément (pas de massif combiné pour plusieurs lits).
 """
 from __future__ import annotations
 
@@ -93,8 +96,8 @@ def t_max(couches, z_t: float, z_nappe: float | None, z_B: float, x_A: float, z_
         sv += g * (z1 - z0)
 
     # Réaction sur BA
-    zm = 0.5 * (z_B + z_A)
-    phi = math.radians(couches[indice_couche(couches, zm)].phi)
+    # φ' le plus faible des couches traversées par BA (du côté de la sécurité)
+    phi = math.radians(min(couches[indice_couche(couches, z)].phi for z in np.linspace(min(z_B, z_A), max(z_B, z_A), 41)))
     t_up = np.array([x_A - 0.0, z_A - z_B])
     t_up /= np.linalg.norm(t_up)                  # de B vers A
     n_in = np.array([-t_up[1], t_up[0]])          # normale

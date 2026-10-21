@@ -8,10 +8,15 @@ Sources :
 - Rankine (1857) : cas δ = 0, Ka = tan²(π/4 − φ/2), Kp = tan²(π/4 + φ/2).
 - Jaky (1944) : K0 = 1 − sin φ' (sol normalement consolidé).
 - Caquot & Kérisel, *Traité de mécanique des sols* : théorème des états
-  correspondants pour la cohésion, H = c'·cot φ'.
+  correspondants pour la cohésion, H = c'·cot φ'. Exact pour δ = 0 ; pour δ ≠ 0,
+  RetainWall applique le coefficient Ka(δ) du sol pulvérulent, ce qui est une
+  approximation (l'obliquité du problème transformé diffère de δ). À confronter
+  aux expressions de la NF P 94-282 lorsqu'elles seront fournies.
 
 Avertissement : pour la butée avec δ > φ/3, la formule de Coulomb (surface
-plane) surestime Kp et n'est pas du côté de la sécurité. Les tables de
+plane) surestime nettement Kp par rapport aux surfaces de rupture courbes
+(Kérisel-Absi) et n'est pas du côté de la sécurité ; ce seuil usuel est appliqué
+comme limite par le moteur (refus au-delà). Les tables de
 Kérisel-Absi (surfaces courbes) doivent alors être préférées dès qu'elles sont
 fournies dans docs/normes/kerisel_absi (voir sout.sol.kerisel_absi).
 """
@@ -47,6 +52,12 @@ def kp_coulomb(phi: float, delta: float = 0.0) -> float:
     """
     p, d = _verifier(phi, delta)
     racine = math.sqrt(math.sin(p + d) * math.sin(p) / math.cos(d))
+    # Domaine de validité : la surface plane de Coulomb n'a de solution que si
+    # sin(φ+δ)·sin φ < cos δ ; au-delà la formule donne des valeurs absurdes.
+    if racine >= 0.95:
+        raise ValueError(
+            f"butée de Coulomb hors de son domaine de validité (φ' = {phi}°, δ = {abs(delta)}°) : "
+            "réduisez δp ou utilisez les tables de Kérisel-Absi")
     return math.cos(p) ** 2 / (math.cos(d) * (1.0 - racine) ** 2)
 
 

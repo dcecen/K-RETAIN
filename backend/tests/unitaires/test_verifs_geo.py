@@ -133,11 +133,42 @@ def test_deplacements_et_criteres():
 
 
 def test_equilibre_vertical_butee_verticale_non_mobilisable():
-    # δp/φ = 1 et écran sans poids : la butée verticale soulève l'écran -> échec
-    sol = Couche("Sable", 0.0, 20, 10, 30, EM=10000, alpha=1 / 3, delta_p_sur_phi=1.0)
+    # δp/φ = 1/3 (maximum admis avec Coulomb) et écran sans poids : la butée verticale soulève l'écran
+    sol = Couche("Sable", 0.0, 20, 10, 30, EM=10000, alpha=1 / 3, delta_p_sur_phi=1 / 3)
     m, r = _calc([Phase("Exc", excaver=-4.0)], couches=[sol])
-    v, = equilibre_vertical.verifier(m, r, NORMES_TEST)
-    assert v.etat == "non_ok" and "montante" in v.detail
+    v = {x.nom: x for x in equilibre_vertical.verifier(m, r, NORMES_TEST)}
+    mob = v["Équilibre vertical (mobilisation de δp)"]
+    assert mob.etat == "non_ok" and "montante" in mob.detail
+
+
+def test_butee_coulomb_au_dela_de_phi_sur_3_refusee():
+    from sout.noyau.phasage import ErreurModele
+    sol = Couche("Sable", 0.0, 20, 10, 30, EM=10000, alpha=1 / 3, delta_p_sur_phi=1.0)
+    with pytest.raises(ErreurModele, match="1/3"):
+        _calc([Phase("Exc", excaver=-4.0)], couches=[sol])
+    with pytest.raises(ValueError, match="domaine de validité"):
+        coef.kp_coulomb(46, 46)
+
+
+def test_equilibre_vertical_aucune_phase_masquee(monkeypatch):
+    """Revue J10 : une phase à résultante montante ne doit pas être masquée par une phase
+    ultérieure à résultante descendante plus forte."""
+    m, r = _calc([Phase("P1", excaver=-1.0), Phase("P2", excaver=-2.0), Phase("P3", excaver=-3.0)])
+    valeurs = {"P1": (60.0, 10.0), "P2": (10.0, 40.0), "P3": (60.0, 10.0)}  # (descend, monte)
+    monkeypatch.setattr(equilibre_vertical, "_efforts_verticaux", lambda mod, ph, W, A: valeurs[ph.nom])
+    v = {x.nom: x for x in equilibre_vertical.verifier(m, r, NORMES_TEST)}
+    mob = v["Équilibre vertical (mobilisation de δp)"]
+    assert mob.phase == "P2" and mob.taux == pytest.approx(4.0) and mob.etat == "non_ok"
+    assert "Équilibre vertical (portance)" in v
+
+
+def test_poids_deja_uge_sous_la_nappe():
+    m, r = _calc([Phase("Exc", excaver=-4.0)], eau_amont=0.0, eau_aval=0.0)
+    ph = r.phases[-1]
+    d_sec, _ = equilibre_vertical._efforts_verticaux(m, ph, 0.0, 0.0)
+    d_noye, _ = equilibre_vertical._efforts_verticaux(m, ph, 100.0, 0.01)
+    # poids 100 kN/m moins Archimède : γw × A × longueur noyée (12 m)
+    assert d_noye - d_sec == pytest.approx(100.0 - 10.0 * 0.01 * 12.0)
 
 
 def test_execution_complete_exemple():
@@ -145,5 +176,8 @@ def test_execution_complete_exemple():
     ex = executer(s, catalogue_par_defaut(), mod_normes.charger())
     noms = {v.nom for v in ex.verifications}
     assert {"Mobilisation de la butée", "Stabilité générale (Bishop)", "Fond de fouille — boulance (HYD)"} <= noms
-    assert all(v.etat == "non_verifiable" for v in ex.verifications if v.categorie == "geotechnique")
+    # Toutes les vérifications à coefficients partiels sont « non vérifiables » (normes non fournies) ;
+    # la mobilisation de δp est un pur équilibre, sans coefficient partiel : elle est calculée.
+    assert all(v.etat == "non_verifiable" for v in ex.verifications
+               if v.categorie == "geotechnique" and "mobilisation de δp" not in v.nom)
     assert all(v.manquants for v in ex.verifications if v.etat == "non_verifiable" and "critère" not in v.detail)

@@ -127,21 +127,46 @@ def facteur(p: Profil, xc: float, zc: float, R: float, gphi: float = 1.0, gc: fl
     return F
 
 
+def _F(p: Profil, z_pied: float, xc: float, zc: float, zb: float, gphi, gc, gQ) -> float:
+    R = zc - zb
+    # le cercle doit passer sous le pied en x = 0
+    if R <= abs(xc) or zc - math.sqrt(R**2 - xc**2) > z_pied:
+        return math.inf
+    F = facteur(p, xc, zc, R, gphi, gc, gQ)
+    return math.inf if F is None else F
+
+
 def recherche(p: Profil, z_tete: float, z_pied: float, gphi=1.0, gc=1.0, gQ=1.0, n: int = 10) -> tuple[float, tuple]:
-    """Cercle critique (F minimal) parmi les cercles passant sous le pied."""
+    """Cercle critique (F minimal) parmi les cercles passant sous le pied.
+
+    Grille large (centre et profondeur de tangence), puis affinage local par
+    recherche par motifs (pas divisé par deux jusqu'à 1 % de la hauteur), qui
+    peut sortir des bornes de la grille si le minimum s'y trouve."""
     H = max(z_tete - z_pied, 1.0)
     meilleur = (math.inf, None)
-    for xc in np.linspace(-1.5 * H, 0.6 * H, n):
-        for zc in np.linspace(p.z_amont + 0.1 * H, p.z_amont + 2.0 * H, n):
-            for zb in np.linspace(z_pied - 0.05 * H, z_pied - 1.2 * H, max(n // 2, 3)):
-                R = zc - zb
-                # le cercle doit passer sous le pied en x = 0
-                if R <= abs(xc) or zc - math.sqrt(R**2 - xc**2) > z_pied:
-                    continue
-                F = facteur(p, xc, zc, R, gphi, gc, gQ)
-                if F is not None and F < meilleur[0]:
-                    meilleur = (F, (xc, zc, R))
-    return meilleur
+    for xc in np.linspace(-2.0 * H, 1.0 * H, n):
+        for zc in np.linspace(p.z_amont + 0.05 * H, p.z_amont + 3.0 * H, n):
+            for zb in np.linspace(z_pied - 0.02 * H, z_pied - 2.0 * H, max(n // 2, 3)):
+                F = _F(p, z_pied, xc, zc, zb, gphi, gc, gQ)
+                if F < meilleur[0]:
+                    meilleur = (F, (xc, zc, zb))
+    if meilleur[1] is None:
+        return meilleur
+    F0, x = meilleur[0], list(meilleur[1])
+    pas = 0.1 * H
+    while pas > 0.01 * H:
+        progres = False
+        for k in range(3):
+            for sgn in (1.0, -1.0):
+                essai = list(x)
+                essai[k] += sgn * pas
+                F = _F(p, z_pied, *essai, gphi, gc, gQ)
+                if F < F0 - 1e-9:
+                    F0, x, progres = F, essai, True
+        if not progres:
+            pas /= 2
+    xc, zc, zb = x
+    return F0, (xc, zc, zc - zb)
 
 
 def profil_de(modele: Modele, ph, largeur: float | None) -> Profil:
@@ -174,7 +199,8 @@ def verifier(modele: Modele, res: ResultatCalcul, normes, largeur: float | None 
         return [resultat("Stabilité générale (Bishop)", "massif", ph.nom, None, "aucun cercle pertinent trouvé",
                          SOURCE, detail_non_verifiable="aucun cercle passant sous le pied et ressortant dans la fouille")]
     detail_k = (f"F caractéristique = {Fk:.2f} (centre x = {cercle_k[0]:.1f}, z = {cercle_k[1]:.1f}, "
-                f"R = {cercle_k[2]:.1f} m)")
+                f"R = {cercle_k[2]:.1f} m) ; largeur de fouille {p.largeur:.1f} m"
+                + ("" if largeur else " (par défaut 2 × hauteur de paroi : précisez calcul.largeur_fouille)"))
     taux = None
     detail = detail_k
     if not lect.manquants:

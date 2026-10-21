@@ -5,8 +5,10 @@ extraits de norme fournis lors de la relecture croisée) :
 - butons et bracons : longueur de flambement = longueur de l'appui (articulé aux
   deux extrémités) ; interaction compression-flexion linéaire
   N/Nb,Rd + M/M,Rd ≤ 1 avec moment de poids propre qL²/8 amplifié par 1/(1 − N/Ncr) ;
-- liernes : poutre continue sur appuis équidistants (3 travées ou plus),
-  M = 0,1·q·e², V = 0,6·q·e ; flexion bi-axiale linéaire ; sections de classe 1 ou 2 ;
+- liernes : poutre continue sur deux travées (cas défavorable des poutres continues
+  courantes), M = q·e²/8, V = 0,625·q·e ; flexion bi-axiale linéaire ; sections de classe 1 ou 2 ;
+- sections de classe 4 (tubes, âmes ou ailes élancées) : refusées, la section efficace
+  n'étant pas implémentée (limites lues dans docs/normes/ec3.yaml → classification) ;
 - palplanches : propriétés réduites par la corrosion au prorata de l'épaisseur
   ((t − perte)/t) ; une âme par largeur de palplanche pour le cisaillement ;
 - paroi moulée : flexion simple (effort normal négligé, du côté de la sécurité en flexion composée).
@@ -46,14 +48,53 @@ def section_element(ref: str, acier: str | None, catalogue) -> dict:
         return {"ref": ref, "A_cm2": el.get("A_cm2"), "I_cm4": el.get("I_cm4"), "W_cm3": el.get("W_cm3"),
                 "masse_kg_m": (el.get("masse_kg") or 0) / L_el, "N_Rd_kN": el.get("N_Rd_kN"),
                 "fy": ac["fy_MPa"], "E": el.get("E_MPa") or ac["E_MPa"], "courbe": "tube",
+                "D_mm": el.get("D_mm"), "t_mm": el.get("t_mm"),
                 "demo": bool(el.get("demo") or ac.get("demo"))}
     if el["categorie"] == "profiles":
         tube = el.get("famille") == "tube"
         return {"ref": ref, "A_cm2": el["A_cm2"], "I_cm4": min(el["Iy_cm4"], el["Iz_cm4"]),
                 "W_cm3": el["Wel_y_cm3"], "masse_kg_m": el.get("masse_kg_m") or 0, "N_Rd_kN": None,
                 "fy": ac["fy_MPa"], "E": ac["E_MPa"], "courbe": "tube" if tube else "i",
+                "D_mm": el.get("D_mm"), "t_mm": el.get("t_mm"), "h_mm": el.get("h_mm"), "b_mm": el.get("b_mm"),
+                "tw_mm": el.get("tw_mm"), "tf_mm": el.get("tf_mm"), "r_mm": el.get("r_mm") or 0.0,
                 "demo": bool(el.get("demo") or ac.get("demo"))}
     raise KeyError(f"{ref} n'est ni un buton ni un profilé")
+
+
+def classe_compression(sec: dict, lect: Lecteur) -> str | None:
+    """Contrôle de classe 4 d'une section comprimée (EN 1993-1-1 tableau 5.2).
+
+    Les limites d'élancement (coefficients de ε² pour les tubes, de ε pour les parois
+    planes) sont lues dans docs/normes/ec3.yaml → classification ; ε² = 235/fy.
+    Renvoie un message si la section est de classe 4 (section efficace non
+    implémentée), None sinon."""
+    eps2 = 235.0 / sec["fy"]
+    if sec.get("courbe") == "tube":
+        if not (sec.get("D_mm") and sec.get("t_mm")):
+            lect.manquants.append(f"base matériaux : D et t de {sec['ref']} (classification)")
+            return None
+        lim = lect.v("ec3", "classification.tube_classe3")
+        if lim is not None and sec["D_mm"] / sec["t_mm"] > lim * eps2:
+            return (f"section de classe 4 (d/t = {sec['D_mm'] / sec['t_mm']:.0f} > {lim * eps2:.0f}) : "
+                    "calcul de la section efficace non implémenté")
+        return None
+    dims = [sec.get(k) for k in ("h_mm", "b_mm", "tw_mm", "tf_mm")]
+    if not all(dims):
+        lect.manquants.append(f"base matériaux : dimensions de {sec['ref']} (classification)")
+        return None
+    h, b, tw, tf = dims
+    r = sec.get("r_mm") or 0.0
+    eps = eps2 ** 0.5
+    lim_aile = lect.v("ec3", "classification.aile_classe3")
+    lim_ame = lect.v("ec3", "classification.ame_comprimee_classe3")
+    if lim_aile is None or lim_ame is None:
+        return None
+    c_aile = (b - tw - 2 * r) / 2
+    c_ame = h - 2 * tf - 2 * r
+    if c_aile / tf > lim_aile * eps or c_ame / tw > lim_ame * eps:
+        return (f"section de classe 4 (aile c/t = {c_aile / tf:.1f}, âme c/t = {c_ame / tw:.1f}) : "
+                "calcul de la section efficace non implémenté")
+    return None
 
 
 def _barre(sec: dict, N_k: float, L: float, angle: float, normes, cle: str) -> tuple[float | None, str, Lecteur]:
@@ -70,6 +111,9 @@ def _barre(sec: dict, N_k: float, L: float, angle: float, normes, cle: str) -> t
     cb = lect.v("ec3", "temperature.coefficient_bridage")
     if not sec.get("I_cm4") or not sec.get("A_cm2"):
         lect.manquants.append(f"base matériaux : section ou inertie de {sec['ref']}")
+    classe4 = classe_compression(sec, lect)
+    if classe4:
+        lect.manquants.append(classe4)
     detail_k = f"N caractéristique = {N_k:.0f} kN, L = {L:.2f} m, élément {sec['ref']}"
     if lect.manquants:
         return None, detail_k, lect
@@ -199,8 +243,9 @@ def _lierne(nom, a, H, phase, catalogue, normes, cle) -> list[Verif]:
     titre = "Lierne — flexion bi-axiale et cisaillement"
     try:
         p = catalogue.profil(a.lierne)
-        nuance = a.acier or "S355"
-        ac = catalogue.acier(nuance)
+        if a.acier is None:
+            raise KeyError(f"appui {nom} : nuance d'acier de la lierne (mot-clé acier) obligatoire")
+        ac = catalogue.acier(a.acier)
     except KeyError as e:
         return [resultat(titre, f"{nom} ({a.lierne})", phase, None, "", SRC_EC3, categorie="structure",
                          detail_non_verifiable=str(e))]
@@ -215,7 +260,7 @@ def _lierne(nom, a, H, phase, catalogue, normes, cle) -> list[Verif]:
     if lect.manquants:
         sorties.append(resultat(titre, f"{nom} ({a.lierne})", phase, None, detail, SRC_EC3, lect, "structure"))
     else:
-        My, Mz, V = g * 0.1 * q * e**2, g * 0.1 * qv * e**2, g * 0.6 * q * e
+        My, Mz, V = g * 0.125 * q * e**2, g * 0.125 * qv * e**2, g * 0.625 * q * e
         fy = ac["fy_MPa"]
         MyR, MzR = ec3.m_rd(p["Wpl_y_cm3"], fy, gM0), ec3.m_rd(p["Wpl_z_cm3"], fy, gM0)
         VR = ec3.v_pl_rd(p.get("Avz_cm2") or 0, fy, gM0)
@@ -224,7 +269,7 @@ def _lierne(nom, a, H, phase, catalogue, normes, cle) -> list[Verif]:
         detail += (f" ; My = {My:.0f}, Mz = {Mz:.1f} kN·m (M,Rd {MyR:.0f} / {MzR:.0f}) ; "
                    f"V = {V:.0f} kN (Vpl,Rd {VR:.0f})")
         sorties.append(resultat(titre, f"{nom} ({a.lierne})", phase, max(t_flex, t_cis), detail,
-                                SRC_EC3 + " ; poutre continue M = 0,1·q·e²", lect, "structure"))
+                                SRC_EC3 + " ; poutre continue sur deux travées (cas défavorable) M = q·e²/8, V = 0,625·q·e", lect, "structure"))
     sorties.append(resultat("Lierne — raidisseurs", f"{nom} ({a.lierne})", phase, None, "", "EN 1993-1-5 § 6",
                             categorie="structure",
                             detail_non_verifiable=f"effort concentré au droit de chaque appui ≈ {q * e:.0f} kN (caractéristique) : "
@@ -272,7 +317,11 @@ def verifier_paroi(s, m, r, catalogue, normes, cle: str, suffixe: str) -> list[V
         reduc = 1.0
         if p.perte_epaisseur and sec.get("t_mm"):
             reduc = max(0.0, 1 - p.perte_epaisseur / sec["t_mm"])
-        classe = sec.get("classe")
+        classe = p.classe_section or sec.get("classe")
+        if classe is None:
+            lect.manquants.append("classe de section de la palplanche (catalogue ou paroi.classe_section)")
+        elif int(classe) == 4:
+            lect.manquants.append("palplanche de classe 4 : calcul de la section efficace non implémenté")
         W = (sec["Wpl_cm3_m"] if classe in (1, 2, 1.0, 2.0) and sec.get("Wpl_cm3_m") else sec["Wel_cm3_m"]) * reduc
         detail = f"M_k = {Mk:.0f} kN·m/m, V_k = {Vk:.0f} kN/m ; {p.profil}" + (" (DEMO)" if inf.get("demo") else "")
         taux = None
@@ -396,6 +445,7 @@ def _beton(p, inf, r, Mp, Mn, Vk, php, phn, phv, normes, cle, suffixe) -> list[V
         detail = f"M_k par pieu armé = {Mk * e_arm:.0f} kN·m (entraxe des pieux armés {e_arm:.2f} m)"
         taux = None
         det_nv = detail
+        insuffisant = False
         if not lect.manquants:
             r_s = D / 2 - p.enrobage
             As_req = ec2.as_circulaire(g * Mk * e_arm, D, r_s, mat)
@@ -406,9 +456,14 @@ def _beton(p, inf, r, Mp, Mn, Vk, php, phn, phv, normes, cle, suffixe) -> list[V
                 taux = g * Mk * e_arm / MR
                 detail += f" ; As fourni {p.armatures_pieu} cm², M_Rd = {MR:.0f} kN·m"
             elif math.isinf(As_req):
-                taux = 2.0  # section insuffisante même avec 8 % d'acier
-        sorties.append(resultat("Pieux — flexion (section circulaire)", "pieux", ph and ph + suffixe, taux, detail,
-                                SRC_EC2, lect, "structure", detail_non_verifiable=det_nv))
+                insuffisant = True
+        if insuffisant:
+            sorties.append(Verif("Pieux — flexion (section circulaire)", "structure", "pieux", ph and ph + suffixe,
+                                 "non_ok", None, detail + " — section de béton insuffisante : aucun ferraillage de la "
+                                 "plage de recherche (borne de calcul, non normative) ne suffit", SRC_EC2, []))
+        else:
+            sorties.append(resultat("Pieux — flexion (section circulaire)", "pieux", ph and ph + suffixe, taux, detail,
+                                    SRC_EC2, lect, "structure", detail_non_verifiable=det_nv))
         sorties.append(resultat("Pieux — effort tranchant", "pieux", phv and phv + suffixe, None, "", SRC_EC2,
                                 categorie="structure",
                                 detail_non_verifiable=f"V_k par pieu = {Vk * e_arm:.0f} kN — section équivalente "
@@ -421,18 +476,19 @@ def _beton(p, inf, r, Mp, Mn, Vk, php, phn, phv, normes, cle, suffixe) -> list[V
 # ---------------------------------------------------------------------------
 def suggestions(s, ex, catalogue, normes) -> list[dict]:
     sorties = []
-    candidats = []
-    for t in ("butons", "profiles"):
-        for row in catalogue.lister(t):
-            try:
-                sec = section_element(row["ref"], None if t == "butons" else "S355", catalogue)
-            except KeyError:
-                continue
-            candidats.append(sec)
-    candidats.sort(key=lambda c: c["masse_kg_m"] or math.inf)
     for nom, a in s.appuis.items():
         if a.type not in ("buton", "bracon") or not a.longueur:
             continue
+        candidats = []
+        for t in ("butons", "profiles"):
+            if t == "profiles" and a.acier is None:
+                continue  # nuance des profilés inconnue : pas de valeur implicite
+            for row in catalogue.lister(t):
+                try:
+                    candidats.append(section_element(row["ref"], a.acier if t == "profiles" else None, catalogue))
+                except KeyError:
+                    continue
+        candidats.sort(key=lambda c: c["masse_kg_m"] or math.inf)
         pire_N, cle_pire = 0.0, "ELU_fondamental"
         for jeu, (m, r) in ex.jeux.items():
             if not r.complet:
@@ -444,6 +500,9 @@ def suggestions(s, ex, catalogue, normes) -> list[dict]:
             continue
         choix, manque = None, []
         for c in candidats:
+            l_classe = Lecteur(normes)
+            if classe_compression(c, l_classe):
+                continue  # section de classe 4 : écartée
             taux, _, lect = _barre(c, pire_N, a.longueur, a.angle, normes, cle_pire)
             if lect.manquants:
                 manque = lect.manquants

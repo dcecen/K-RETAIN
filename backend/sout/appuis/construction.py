@@ -42,6 +42,8 @@ def construire_appui(nom: str, a, catalogue=None) -> DefAppui:
         E, A = _E_A(nom, a, catalogue)
         k = raideurs.raideur_barre(E, A, a.longueur, a.espacement, angle)
     elif a.type == "tirant":
+        if a.longueur_libre is None and a.longueur_elastique is None:
+            raise ErreurAppui(f"tirant {nom} : longueur_libre (ou longueur_elastique) obligatoire")
         E, A = _E_A(nom, a, catalogue)
         k = raideurs.raideur_tirant(E, A, a.longueur_libre or a.longueur_elastique, a.espacement, angle,
                                     a.longueur_elastique)
@@ -57,7 +59,7 @@ def construire_appui(nom: str, a, catalogue=None) -> DefAppui:
                 E = catalogue.beton(a.beton)["Ecm_MPa"]
             else:
                 raise ErreurAppui(f"dalle {nom} : donnez E (MPa) ou une classe de béton de la base")
-            k = raideurs.raideur_dalle(E, a.epaisseur, a.longueur, a.symetrique) / a.espacement
+            k = raideurs.raideur_dalle(E, a.epaisseur, a.longueur, a.symetrique)  # déjà par mètre d'écran
     else:
         raise ErreurAppui(f"appui {nom} : type inconnu {a.type}")
     F0 = raideurs.force_horizontale(a.precharge, a.espacement, angle) if a.precharge else 0.0
