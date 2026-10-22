@@ -487,3 +487,33 @@ select.champ { padding: 0 2px; }
 .panneau-coupe-locale .pied { display: flex; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--filet); }
 .panneau-coupe-locale .pied input { flex: 1; min-width: 0; border: 1px solid var(--filet-fort); border-radius: 3px; background: var(--panneau-2); padding: 3px 6px; font-size: 12px; }
 @media (max-width: 1400px) { .panneau-coupe-locale { width: 420px; } }
+
+/* ---------------------------------------------------------------- panneau de résultats et navigation 3D */
+.fil-ariane { display: flex; align-items: center; gap: 2px; padding: 3px 10px; border-bottom: 1px solid var(--filet); font-size: 12.5px; background: var(--panneau-2); min-height: 26px; flex-wrap: wrap; }
+.fil-ariane .sep { color: var(--texte-faible); margin: 0 4px; }
+.fil-ariane .miette { border: none; background: transparent; color: var(--accent); cursor: pointer; padding: 1px 3px; border-radius: 3px; font: inherit; }
+.fil-ariane .miette:hover { background: var(--survol); text-decoration: underline; }
+.fil-ariane span:last-child .miette { color: var(--texte); font-weight: 600; }
+.panneau-resultats { position: relative; flex-shrink: 0; border-left: 1px solid var(--filet); background: var(--panneau); display: flex; flex-direction: column; min-height: 0; }
+.panneau-resultats .poignee-redim { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 3; }
+.panneau-resultats .poignee-redim:hover { background: var(--accent); opacity: 0.4; }
+.panneau-resultats .filtre { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--texte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.panneau-resultats .volets { display: flex; border-bottom: 1px solid var(--filet); }
+.panneau-resultats .volet { flex: 1; border: none; background: transparent; padding: 6px 4px; font-size: 12.5px; color: var(--texte-doux); cursor: pointer; }
+.panneau-resultats .volet.actif { color: var(--texte); box-shadow: inset 0 -2px 0 var(--accent); font-weight: 500; }
+.panneau-resultats .panneau-corps { display: flex; flex-direction: column; }
+.panneau-resultats .courbes-pleines { flex: 1; min-height: 420px; display: flex; }
+.panneau-resultats .courbes-pleines > div { flex: 1; }
+.panneau-resultats .efforts-compacts { font-size: 12px; }
+.tableau.compact { font-size: 11.5px; }
+.tableau.compact th, .tableau.compact td { padding: 3px 6px; }
+.tableau.compact tr.etat-non_ok td { color: var(--rouge); }
+.points-attention { list-style: none; margin: 0; padding: 0; }
+.points-attention li { display: flex; gap: 8px; align-items: baseline; padding: 4px 6px; border-radius: 3px; cursor: pointer; font-size: 12.5px; }
+.points-attention li:hover { background: var(--survol); }
+.points-attention li.rouge .num { color: var(--rouge); font-weight: 600; }
+.points-attention li.orange .num { color: var(--orange); font-weight: 600; }
+.etiquette-3d.alerte { pointer-events: auto; cursor: pointer; font-weight: 600; }
+.etiquette-3d.alerte.rouge { background: var(--rouge-doux); color: var(--rouge); border-color: var(--rouge); }
+.etiquette-3d.alerte.orange { background: var(--orange-doux); color: var(--orange); border-color: var(--orange); }
+.barre-retour { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--filet); background: var(--accent-doux); font-size: 12.5px; }

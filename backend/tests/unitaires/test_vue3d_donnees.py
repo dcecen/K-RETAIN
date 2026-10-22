@@ -49,6 +49,13 @@ def test_complement_appuis_fleches_et_elu(exemple):
     assert b1["fleche_lierne_mm"] is None          # B1 n'a pas de lierne dans l'exemple
 
 
+def test_couches_avec_coefficients_du_calcul(exemple):
+    c = exemple["couches"]
+    assert [x["nom"] for x in c] == ["Remblai", "Sable dense"]
+    assert 0.3 < c[0]["kah"] < 0.4 and c[0]["kph"] > 2 and 0.4 < c[0]["k0"] < 0.6
+    assert c[0]["kh"] > 0 and c[1]["kh"] > c[0]["kh"]
+
+
 def test_geometrie_maquette_renvoyee_avec_le_calcul(exemple):
     g = exemple["maquette"]
     assert g["contour"] and g["plan_defaut"] is True

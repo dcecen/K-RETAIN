@@ -18,6 +18,7 @@ import { Saisie } from './vues/Saisie'
 import { Verifications } from './vues/Verifications'
 import { Assemblages } from './vues/Assemblages'
 import { Onglet3D } from './vue3d/Onglet3D'
+import { decoderAncre, encoderAncre } from './vue3d/navigation'
 
 const CLE_BROUILLON = 'retainwall.brouillon'
 const lireBrouillon = () => { try { return localStorage.getItem(CLE_BROUILLON) } catch { return null } }
@@ -30,6 +31,10 @@ export default function App() {
   const [resBase, setResBase] = useState<Resultats | null>(null)       // résultats de la première coupe
   const [projet, setProjet] = useState<ProjetCoupes | null>(null)      // coupes de calcul du projet
   const [coupeActive, setCoupeActive] = useState(0)
+  const [selection3d, setSelection3d] = useState<string | null>(null)   // objet sélectionné dans la maquette
+  const [prereglage, setPrereglage] = useState<string | null>(null)       // dernier préréglage de calques appliqué
+  const [retour3d, setRetour3d] = useState(false)                         // onglet ouvert depuis la maquette
+  const ancreInitiale = useRef(decoderAncre(window.location.hash))
   const [phase, setPhase] = useState(0)
   const [onglet, setOnglet] = useState<Onglet>('coupe')
   const [section, setSection] = useState<Section | null>(null)
@@ -184,6 +189,33 @@ export default function App() {
     renommerAppui: (a: string, n: string) => setTexteBrut((t) => sd.renommerAppui(t, a, n)),
   }), [])
 
+  /** Sélection depuis la maquette : « appui:B1 » → inspecteur de l'appui, « couche:1 » → couche. */
+  const selectionner3d = useCallback((id: string | null) => {
+    setSelection3d(id)
+    if (id?.startsWith('appui:')) setSelection({ type: 'appui', nom: id.slice(6) })
+    else if (id?.startsWith('couche:')) setSelection({ type: 'couche', index: Number(id.slice(7)) || 0 })
+    else setSelection(null)
+  }, [])
+
+  // Ancre d'URL partageable : coupe, phase, sélection, préréglage de calques
+  useEffect(() => {
+    if (!res) return
+    const h = encoderAncre({ coupe: coupeActive, phase, selection: selection3d, prereglage })
+    if (window.location.hash !== h) window.history.replaceState(null, '', h)
+  }, [res, coupeActive, phase, selection3d, prereglage])
+  useEffect(() => {
+    const a = ancreInitiale.current
+    if (!a || !res || !projet) return
+    ancreInitiale.current = null
+    if (a.coupe > 0 && a.coupe < projet.coupes.length) changerCoupe(a.coupe)
+    const cible = (projet.coupes[a.coupe]?.resultats ?? res)
+    setPhase(Math.min(a.phase, cible.phases.length - 1))
+    if (a.selection) selectionner3d(a.selection)
+    if (a.prereglage) setPrereglage(a.prereglage)
+    setOnglet('3d')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [res, projet])
+
   const choisirSection = (s: Section, sel: Selection = null) => {
     setSection(s)
     setSelection(sel)
@@ -261,11 +293,15 @@ export default function App() {
         </nav>
         <div className="contenu-onglet">
           {onglet === 'coupe' && (res ? <CoupeDiagrammes res={res} phase={phase} theme={theme} /> : sansResultats)}
+          {retour3d && onglet !== '3d' && (
+            <div className="barre-retour"><button className="btn" onClick={() => { setOnglet('3d'); setRetour3d(false) }}>← Retour à la maquette 3D</button>
+              {selection3d && <span className="doux">Ouvert depuis la maquette · {selection3d}</span>}</div>
+          )}
           {onglet === '3d' && (res ? <Onglet3D res={res} texte={texteCalcule.current} phase={phase} theme={theme} projet={projet} coupeActive={coupeActive} onCoupe={changerCoupe} cotes={modele?.plan?.cotes ?? {}} onEpingler={(e) => actions.ajouter(['coupes'], e)}
-            selection={selection?.type === 'appui' ? `appui:${selection.nom}` : null}
-            onSelection={(id) => setSelection(id?.startsWith('appui:') ? { type: 'appui', nom: id.slice(6) } : null)} /> : sansResultats)}
+            selection={selection3d} onSelection={selectionner3d} modele={erreurYaml ? null : modele} onPhase={setPhase}
+            onOuvrir={(o) => { setOnglet(o); setRetour3d(true) }} prereglageInitial={ancreInitiale.current?.prereglage ?? prereglage} onPrereglage={setPrereglage} /> : sansResultats)}
           {onglet === 'efforts' && (res ? <Efforts res={res} phase={phase} onPhase={setPhase} onAppui={(n) => { setSelection({ type: 'appui', nom: n }); setTiroirInsp(true) }} /> : sansResultats)}
-          {onglet === 'verifications' && (res ? <Verifications res={res} projet={projet} /> : sansResultats)}
+          {onglet === 'verifications' && (res ? <Verifications res={res} projet={projet} filtre={retour3d ? selection3d : null} onRetour={() => { setOnglet('3d'); setRetour3d(false) }} /> : sansResultats)}
           {onglet === 'pseudo3d' && res?.pseudo3d && <Pseudo3D res={res} phase={phase} />}
           {onglet === 'assemblages' && (
             <Assemblages res={res} modele={erreurYaml ? null : modele} references={references} theme={theme}
@@ -300,7 +336,7 @@ export default function App() {
       </main>
 
       <div className="zone-insp">
-        <Inspecteur res={res} phase={phase} selection={selection} modele={modele} onSelection={setSelection} />
+        <Inspecteur res={res} phase={phase} selection={selection} modele={modele} onSelection={(sel) => { setSelection(sel); setSelection3d(sel?.type === 'appui' ? `appui:${sel.nom}` : sel?.type === 'couche' ? `couche:${sel.index}` : null) }} />
       </div>
 
       <FrisePhases res={res} phase={phase} onPhase={changerPhase} />

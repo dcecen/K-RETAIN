@@ -8,7 +8,9 @@ import {
 } from './calques'
 
 /** Panneau « Calques » : arbre avec visibilité, opacité, verrou, plan de coupe, mode, isolation ; préréglages. */
-export function PanneauCalques({ etat, perso, onEtat, onPerso, onFermer, disponibles }: {
+export function PanneauCalques({ etat, perso, onEtat, onPerso, onFermer, disponibles, onPrereglage }: {
+  /** Appelé quand un préréglage est appliqué (ancre d'URL). */
+  onPrereglage?: (id: string | null) => void
   etat: EtatCalques
   perso: Prereglage[]
   onEtat: (e: EtatCalques) => void
@@ -118,7 +120,7 @@ export function PanneauCalques({ etat, perso, onEtat, onPerso, onFermer, disponi
       </div>
       <div className="prereglages" title="Préréglages : un clic applique l'état complet des calques">
         {[...PREREGLAGES_LIVRES, ...perso].map((p) => (
-          <button key={p.id} className="btn" title={p.description} onClick={() => { const e = etatPrereglage(p.id, perso); if (e) onEtat(e) }}>{p.nom}</button>
+          <button key={p.id} className="btn" title={p.description} onClick={() => { const e = etatPrereglage(p.id, perso); if (e) { onEtat(e); onPrereglage?.(p.id) } }}>{p.nom}</button>
         ))}
       </div>
       <ul className="arbre-calques">{ARBRE_CALQUES.map((d) => ligne(d, 0))}</ul>

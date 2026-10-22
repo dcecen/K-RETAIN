@@ -158,7 +158,7 @@ export interface Resultats {
   avertissements: string[]
   conventions: Record<string, string>
   paroi: { tete: number; pied: number; type?: string; [k: string]: unknown }
-  couches: { nom: string; toit: number }[]
+  couches: { nom: string; toit: number; kah?: number | null; kph?: number | null; k0?: number | null; kh?: number | null }[]
   hydraulique?: Record<string, unknown> | null
   appuis: DefAppui[]
   phases: PhaseRes[]

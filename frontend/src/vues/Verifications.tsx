@@ -1,4 +1,5 @@
 import type { ProjetCoupes, Resultats, Verif } from '../lib/api'
+import { analyserSelection, verifsPour } from '../vue3d/navigation'
 import { pourcent } from '../lib/format'
 
 const LIBELLE: Record<Verif['etat'], string> = { ok: 'Vérifié', attention: 'Limite', non_ok: 'Non vérifié', non_verifiable: 'Prévu' }
@@ -22,8 +23,9 @@ function valeurs(v: Verif): [string, string] {
   return [premier, '']
 }
 
-export function Verifications({ res, projet }: { res: Resultats; projet?: ProjetCoupes | null }) {
-  const vs = res.verifications ?? []
+export function Verifications({ res, projet, filtre, onRetour }: { res: Resultats; projet?: ProjetCoupes | null; filtre?: string | null; onRetour?: () => void }) {
+  const sel = analyserSelection(filtre)
+  const vs = sel ? verifsPour(sel, res, res.maquette?.assemblages ?? {}) : res.verifications ?? []
   if (!vs.length) return <div className="vide-centre">Aucune vérification demandée.<span className="note">Ajoutez-les dans le bloc « Vérifications » de la navigation.</span></div>
   const groupes = new Map<string, Verif[]>()
   for (const v of vs) groupes.set(famille(v), [...(groupes.get(famille(v)) ?? []), v])
@@ -32,6 +34,8 @@ export function Verifications({ res, projet }: { res: Resultats; projet?: Projet
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="barre-outils">
+        {sel && onRetour && <button className="btn" onClick={onRetour} title="Revenir à la maquette 3D">← Maquette</button>}
+        {sel && <span className="doux">Filtré sur <b>{filtre}</b></span>}
         <span><b>{nOk}</b> / {vs.length - nPrevu} vérifications satisfaites</span>
         {nPrevu > 0 && <span className="doux">· {nPrevu} prévue(s), non vérifiables tant que les valeurs de norme manquent</span>}
         <span className="espace" />

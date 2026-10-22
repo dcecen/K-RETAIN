@@ -51,7 +51,7 @@ export function reglageCalque<T extends number | string | boolean>(c: EtatCalque
 
 /** État par défaut : tout est visible sauf les résultats ; le plan de coupe s'applique au terrain, à la fouille et à l'eau. */
 export const CALQUES_DEFAUT: EtatCalquesScene = {
-  visible: (id) => !id.startsWith('resultats') && !id.startsWith('coupes.diagrammes'),
+  visible: (id) => (!id.startsWith('resultats') || id === 'resultats.alertes') && !id.startsWith('coupes.diagrammes'),
   opacite: () => 1,
   verrouille: () => false,
   coupe: (id) => /^(terrain|fouille|eau)/.test(id),
@@ -150,6 +150,8 @@ export class SceneRetainWall {
   coupe: EtatCoupe = { actif: false, axe: 'x', t: 0.5 }
   /** Position de l'outil « Couper ici » (arête, abscisse locale), null si inactif. */
   coupeLocale: { k: number; sl: number } | null = null
+  /** Curseur de cote sur la paroi (survol d'une courbe du panneau de résultats). */
+  repereCote: { k: number; z: number } | null = null
   calques: EtatCalquesScene = CALQUES_DEFAUT
   orbite = { theta: -0.9, phi: 0.95, rayon: 60, cible: new THREE.Vector3() }
   cameraTouchee = false
@@ -360,6 +362,31 @@ export class SceneRetainWall {
   get valeurCoupe(): number {
     const [a, b] = this.bornesCoupe()
     return a + this.coupe.t * (b - a)
+  }
+
+  definirRepere(p: { k: number; z: number } | null) {
+    if (!p && !this.repereCote) return
+    this.repereCote = p
+    if (!this.d) return
+    const ctx = this.contexte()
+    for (const el of this.elements.values()) if (el.id === 'annotations.repere') this.majElement(el, ctx)
+    this.calculerEtiquettes(ctx)
+    this.demanderRendu()
+  }
+
+  /** Centre de la boîte englobante des objets d'une sélection (repère three), null si aucun. */
+  centreDe(selection: string): THREE.Vector3 | null {
+    const boite = new THREE.Box3()
+    let n = 0
+    for (const el of this.elementsDe(selection)) {
+      if (!el.objet.visible) continue
+      el.objet.updateMatrixWorld(true)
+      const b = new THREE.Box3().setFromObject(el.objet)
+      if (b.isEmpty()) continue
+      boite.union(b)
+      n++
+    }
+    return n ? boite.getCenter(new THREE.Vector3()) : null
   }
 
   definirCoupeLocale(p: { k: number; sl: number } | null) {

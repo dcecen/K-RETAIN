@@ -16,14 +16,19 @@ import { FABRIQUES_COUPE_LOCALE, positionDepuisPoint, type PositionCoupeLocale }
 import { PanneauCoupeLocale } from './PanneauCoupeLocale'
 import { entreeYamlCoupe, sourcePourProjet } from './sourceResultats'
 import { Contour } from './geometrie'
-import { IconeCiseaux } from '../lib/icones'
+import { IconeCiseaux, IconeTableau } from '../lib/icones'
+import type { Modele } from '../lib/scriptDoc'
+import { analyserSelection, filAriane } from './navigation'
+import { PanneauResultats, type Volet } from './PanneauResultats'
+import { FABRIQUES_REPERES } from './reperes'
+import { etatPrereglage } from './calques'
 
-const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS, ...FABRIQUES_COUPES, ...FABRIQUES_COUPE_LOCALE]
+const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS, ...FABRIQUES_COUPES, ...FABRIQUES_COUPE_LOCALE, ...FABRIQUES_REPERES]
 import type { EtatCoupe, SceneRetainWall } from './scene'
 import { Vue3D, type PoigneeVue3D } from './Vue3D'
 
 /** Onglet « Maquette 3D » : vue persistante, outils de vue, plan de coupe, calques, exports. */
-export function Onglet3D({ res, texte, phase, theme, selection, onSelection, projet, coupeActive = 0, onCoupe, cotes = {}, onEpingler }: {
+export function Onglet3D({ res, texte, phase, theme, selection, onSelection, projet, coupeActive = 0, onCoupe, cotes = {}, onEpingler, modele, onPhase, onOuvrir, prereglageInitial, onPrereglage }: {
   res: Resultats
   texte: string
   projet?: ProjetCoupes | null
@@ -32,6 +37,12 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   /** Noms des côtés (plan.cotes du script) et ajout d'une coupe épinglée au script. */
   cotes?: Record<string, number>
   onEpingler?: (entree: Record<string, unknown>) => void
+  modele?: Modele
+  onPhase?: (i: number) => void
+  onOuvrir?: (onglet: 'coupe' | 'efforts' | 'verifications') => void
+  /** Préréglage de calques demandé par l'ancre d'URL à l'ouverture. */
+  prereglageInitial?: string | null
+  onPrereglage?: (id: string | null) => void
   phase: number
   theme: Theme
   selection: string | null
@@ -41,7 +52,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   const [coupe, setCoupe] = useState<EtatCoupe>({ actif: false, axe: 'x', t: 0.5 })
   const [exportEnCours, setExportEnCours] = useState(false)
   const [stock] = useState(lireStockage)
-  const [calques, setCalques] = useState<EtatCalques>(stock.etat)
+  const [calques, setCalques] = useState<EtatCalques>(() => (prereglageInitial && etatPrereglage(prereglageInitial, stock.perso)) || stock.etat)
   const [perso, setPerso] = useState<Prereglage[]>(stock.perso)
   const [voirCalques, setVoirCalques] = useState(false)
   const [disponibles, setDisponibles] = useState<Set<string>>(new Set())
@@ -61,10 +72,36 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
     if (outilCoupe) setOutilCoupe(false)
     else { setOutilCoupe(true); if (!positionLocale) { const a = geo.aretes.reduce((m, x) => (x.L > m.L ? x : m), geo.aretes[0]); setPositionLocale({ k: a.k, sl: a.L / 2 }) } }
   }
+  const [voirResultats, setVoirResultats] = useState(false)
+  const [volet, setVolet] = useState<Volet>('courbes')
+  const [largeurPanneau, setLargeurPanneau] = useState(420)
+  const [curseurZ, setCurseurZ] = useState<number | null>(null)
+  const selRef = useRef(selection)
+  selRef.current = selection
   const choisir = (id: string | null, point?: THREE.Vector3) => {
     if (outilCoupe && point && id?.startsWith('paroi:')) { setPositionLocale(positionDepuisPoint(geo, point)); return }
     onSelection(id)
+    if (id) setVoirResultats(true)
   }
+  const survoler = useCallback((id: string | null, point?: THREE.Vector3) => {
+    const sc = poignee.current?.scene
+    if (id?.startsWith('paroi:') && point) {
+      const k = Number(id.slice(6)) || 0
+      setCurseurZ(point.y)
+      sc?.definirRepere({ k, z: point.y })
+    } else { setCurseurZ(null); sc?.definirRepere(null) }
+  }, [])
+  const survolCourbe = useCallback((z: number | null) => {
+    const sc = poignee.current?.scene
+    const sel = analyserSelection(selRef.current)
+    sc?.definirRepere(z === null ? null : { k: sel?.type === 'paroi' ? sel.k ?? 0 : geo.aretes.reduce((m, x) => (x.L > m.L ? x : m), geo.aretes[0]).k, z })
+  }, [geo])
+  const centrer = (id: string) => {
+    const sc = poignee.current?.scene
+    const c = sc?.centreDe(id)
+    if (sc && c) sc.centrerSur(c, Math.max(12, sc.orbite.rayon * 0.5))
+  }
+  const miettes = useMemo(() => filAriane(analyserSelection(selection), projet ?? null, coupeActive, res.maquette?.assemblages ?? {}), [selection, projet, coupeActive, res])
 
   const appliquer = useCallback((sc: SceneRetainWall) => {
     sc.appliquerCalques(versScene(calquesRef.current))
@@ -86,6 +123,8 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
       if (cible?.closest?.('input, textarea, select, .monaco-editor') || e.ctrlKey || e.metaKey || e.altKey) return
       if (e.key === 'l' || e.key === 'L') { e.preventDefault(); setVoirCalques((v) => !v) }
       if (e.key === 'c' || e.key === 'C') { e.preventDefault(); basculerOutil() }
+      if (e.key === 'r' || e.key === 'R') { e.preventDefault(); setVoirResultats((v) => !v) }
+      if (e.key === 'Escape') { onSelection(null); setOutilCoupe(false) }
       if (e.key === 'f' || e.key === 'F') { e.preventDefault(); poignee.current?.scene.recadrer() }
     }
     window.addEventListener('keydown', touche)
@@ -141,13 +180,23 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
           </label>
         )}
         <button className={`btn ${outilCoupe ? 'actif' : ''}`} title="Couper ici (C) : cliquer sur la paroi ou glisser la coupe locale" onClick={basculerOutil}><IconeCiseaux taille={14} /> Couper ici</button>
+        <button className={`btn ${voirResultats ? 'actif' : ''}`} title="Panneau de résultats (R)" onClick={() => setVoirResultats(!voirResultats)}><IconeTableau taille={14} /> Résultats</button>
         <button className={`btn ${voirCalques ? 'actif' : ''}`} title="Calques (L)" onClick={() => setVoirCalques(!voirCalques)}><IconeCalques taille={14} /> Calques</button>
         <button className="btn" disabled={exportEnCours} onClick={() => void exporterHtml()}>
           {exportEnCours ? 'Génération…' : 'Exporter le fichier HTML autonome'}
         </button>
       </div>
+      <nav className="fil-ariane" aria-label="Fil d'Ariane">
+        {miettes.map((m, i) => (
+          <span key={i}>
+            {i > 0 && <span className="sep">›</span>}
+            <button className="miette" onClick={() => onSelection(m.selection)}>{m.libelle}</button>
+          </span>
+        ))}
+        {!selection && <span className="doux" style={{ marginLeft: 8 }}>Cliquez un objet de la maquette pour ouvrir ses résultats.</span>}
+      </nav>
       <div className="onglet-3d-corps">
-        <Vue3D res={res} extra={extra} phase={phase} theme={theme} selection={selection} onSelection={choisir} onPret={pret} surCalques={appliquer} fabriques={FABRIQUES}
+        <Vue3D res={res} extra={extra} phase={phase} theme={theme} selection={selection} onSelection={choisir} onSurvol={survoler} onPret={pret} surCalques={appliquer} fabriques={FABRIQUES}
           enfants={<>
             <Legendes liste={liste} />
             <div className="vue3d-note">
@@ -156,13 +205,19 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
               <div>Déplacement positif vers la fouille ; moment positif quand la face côté fouille est tendue.</div>
             </div>
           </>} />
+        {voirResultats && (
+          <PanneauResultats res={res} projet={projet ?? null} coupeActive={coupeActive} phase={phase} selection={selection} modele={modele} theme={theme}
+            resultatsPour={extra.resultatsPour} largeur={largeurPanneau} curseurZ={curseurZ} volet={volet} onVolet={setVolet}
+            onSelection={(id) => onSelection(id)} onPhase={(i) => onPhase?.(i)} onOuvrir={(o) => onOuvrir?.(o)} onFermer={() => setVoirResultats(false)}
+            onCentrer={centrer} onSurvolZ={survolCourbe} onLargeur={setLargeurPanneau} />
+        )}
         {outilCoupe && positionLocale && (
           <PanneauCoupeLocale geo={geo} source={source} position={positionLocale} phase={phase} theme={theme} cotes={cotes}
             onPosition={placerCoupe} onFermer={() => setOutilCoupe(false)}
             onEpingler={(nom) => onEpingler?.(entreeYamlCoupe(nom, geo, positionLocale.k, positionLocale.sl, cotes))} />
         )}
         {voirCalques && (
-          <PanneauCalques etat={calques} perso={perso} onEtat={setCalques} onPerso={setPerso} onFermer={() => setVoirCalques(false)} disponibles={disponibles} />
+          <PanneauCalques etat={calques} perso={perso} onEtat={setCalques} onPerso={setPerso} onPrereglage={onPrereglage} onFermer={() => setVoirCalques(false)} disponibles={disponibles} />
         )}
       </div>
     </div>

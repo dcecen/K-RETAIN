@@ -200,10 +200,20 @@ function valeursA(ph: PhaseRes, z: number) {
   }
 }
 
-export function CoupeDiagrammes({ res, phase, theme }: { res: Resultats; phase: number; theme: Theme }) {
+export function CoupeDiagrammes({ res, phase, theme, curseurZ, onSurvolZ }: {
+  res: Resultats
+  phase: number
+  theme: Theme
+  /** Cote imposée au réticule (survol d'une cote dans la maquette 3D). */
+  curseurZ?: number | null
+  /** Cote survolée sur les courbes (repère dans la maquette 3D). */
+  onSurvolZ?: (z: number | null) => void
+}) {
   const hote = useRef<HTMLDivElement>(null)
   const infos = useRef<HTMLDivElement>(null)
   const phaseRef = useRef<PhaseRes>(res.phases[phase])
+  const survolRef = useRef(onSurvolZ)
+  survolRef.current = onSurvolZ
   const [enveloppe, setEnveloppe] = useState(false)
   const b = useMemo(() => bornes(res), [res])
   const ph = res.phases[Math.min(phase, res.phases.length - 1)]
@@ -219,6 +229,7 @@ export function CoupeDiagrammes({ res, phase, theme }: { res: Resultats; phase: 
       el.on('plotly_hover', (e: Obj) => {
         const z = e?.points?.[0]?.y
         if (typeof z !== 'number') return
+        survolRef.current?.(z)
         void Plotly.relayout(el, { 'shapes[0].y0': z, 'shapes[0].y1': z, 'shapes[0].visible': true })
         const v = valeursA(phaseRef.current, z)
         const boite = infos.current
@@ -230,6 +241,7 @@ export function CoupeDiagrammes({ res, phase, theme }: { res: Resultats; phase: 
             + l('Pression amont', v.pam, 'kPa') + l('Pression aval', v.pav, 'kPa') : ''}</table>`
       })
       el.on('plotly_unhover', () => {
+        survolRef.current?.(null)
         void Plotly.relayout(el, { 'shapes[0].visible': false })
         if (infos.current) infos.current.style.display = 'none'
       })
@@ -247,6 +259,14 @@ export function CoupeDiagrammes({ res, phase, theme }: { res: Resultats; phase: 
       }, { passive: false })
     })
   }, [res, ph, b, enveloppe, theme])
+
+  // réticule piloté depuis la maquette 3D
+  useEffect(() => {
+    const el = hote.current as Obj
+    if (!el || !el._fullLayout) return
+    if (curseurZ === null || curseurZ === undefined) void Plotly.relayout(el, { 'shapes[0].visible': false })
+    else void Plotly.relayout(el, { 'shapes[0].y0': curseurZ, 'shapes[0].y1': curseurZ, 'shapes[0].visible': true })
+  }, [curseurZ])
 
   useEffect(() => {
     enregistrerExport(() => {

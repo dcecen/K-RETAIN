@@ -94,6 +94,27 @@ def _complement_appui(da, effort: float, catalogue, normes) -> dict:
     return out
 
 
+def _couches(modele: Modele) -> list[dict]:
+    """Couches triées du haut vers le bas avec les coefficients utilisés par le calcul (Kah, Kph, K0, kh)."""
+    from .noyau.phasage import _coefficients_couche, _kh_couche
+
+    out = []
+    for c in sorted(modele.couches, key=lambda c: -c.toit):
+        d = {"nom": c.nom, "toit": c.toit, "kah": None, "kph": None, "k0": None, "kh": None}
+        try:
+            kah, kph, k0, _, _, _ = _coefficients_couche(c, modele.coefficients)
+            d.update({"kah": kah, "kph": kph, "k0": k0})
+        except Exception:   # coefficients refusés (butée hors domaine, tables absentes) : la vue affiche « — »
+            pass
+        try:
+            EI = float(np.asarray(modele.ecran.EI_en(np.array([c.toit - 0.5])))[0])
+            d["kh"] = _kh_couche(c, EI)
+        except Exception:
+            pass
+        out.append(d)
+    return out
+
+
 def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "", catalogue=None, normes=None) -> dict:
     phases = []
     for k, ph in enumerate(res.phases):
@@ -175,7 +196,7 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "", catalogue=
         "avertissements": res.avertissements,
         "conventions": CONVENTIONS,
         "paroi": {"tete": modele.ecran.tete, "pied": modele.ecran.pied, **modele.ecran.infos},
-        "couches": [{"nom": c.nom, "toit": c.toit} for c in sorted(modele.couches, key=lambda c: -c.toit)],
+        "couches": _couches(modele),
         "hydraulique": modele.hydraulique,
         "appuis": [{"nom": a.nom, "cote": a.cote, "type": a.type, "angle": a.infos.get("angle", 0.0),
                     "element": a.infos.get("element"), "espacement": a.infos.get("espacement", 1.0),
