@@ -147,3 +147,15 @@ def test_controles_des_coupes():
     assert "double" in str(e.value.erreurs[0])
     with pytest.raises(ScriptInvalide):
         lire_script(BASE + BLOC_PLAN + "coupes:\n  - { nom: X, zone: { paroi: 0 }, script: { plan: { contour: [] } } }\n")
+
+
+def test_entree_yaml_d_une_coupe_epinglee_est_valide():
+    """Même forme que l'entrée créée par « Épingler » dans la vue 3D (entreeYamlCoupe) : zone par nom de côté, trace."""
+    texte = (RACINE / "exemples" / "fouille_coupes.yaml").read_text(encoding="utf-8")
+    texte += "  - { nom: C4 — milieu du côté sud, zone: { paroi: long_sud }, trace: { de: [12.5, -8], a: [12.5, 8] } }" + chr(10)
+    texte += "  - { nom: C5, zone: { paroi: 3 }, trace: { de: [-5.4, 9], a: [5.4, 9] } }" + chr(10)
+    s = lire_script(texte)
+    assert [c.nom for c in s.coupes][-2:] == ["C4 — milieu du côté sud", "C5"]
+    p = preparer(texte, s)
+    assert p.coupes[-1].k == 3 and p.coupes[-2].trace == [[12.5, -8], [12.5, 8]]
+    assert p.orphelins == []            # C5 couvre désormais le côté ouest

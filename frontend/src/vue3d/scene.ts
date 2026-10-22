@@ -148,6 +148,8 @@ export class SceneRetainWall {
   readonly elements = new Map<string, Element>()
   readonly planCoupe = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 1e6)
   coupe: EtatCoupe = { actif: false, axe: 'x', t: 0.5 }
+  /** Position de l'outil « Couper ici » (arête, abscisse locale), null si inactif. */
+  coupeLocale: { k: number; sl: number } | null = null
   calques: EtatCalquesScene = CALQUES_DEFAUT
   orbite = { theta: -0.9, phi: 0.95, rayon: 60, cible: new THREE.Vector3() }
   cameraTouchee = false
@@ -358,6 +360,15 @@ export class SceneRetainWall {
   get valeurCoupe(): number {
     const [a, b] = this.bornesCoupe()
     return a + this.coupe.t * (b - a)
+  }
+
+  definirCoupeLocale(p: { k: number; sl: number } | null) {
+    this.coupeLocale = p
+    if (!this.d) return
+    const ctx = this.contexte()
+    for (const el of this.elements.values()) if (el.id === 'coupes.locale') this.majElement(el, ctx)
+    this.calculerEtiquettes(ctx)
+    this.demanderRendu()
   }
 
   definirCoupe(c: Partial<EtatCoupe>) {

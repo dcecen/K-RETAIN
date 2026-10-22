@@ -261,7 +261,7 @@ export default function App() {
         </nav>
         <div className="contenu-onglet">
           {onglet === 'coupe' && (res ? <CoupeDiagrammes res={res} phase={phase} theme={theme} /> : sansResultats)}
-          {onglet === '3d' && (res ? <Onglet3D res={res} texte={texteCalcule.current} phase={phase} theme={theme} projet={projet} coupeActive={coupeActive} onCoupe={changerCoupe}
+          {onglet === '3d' && (res ? <Onglet3D res={res} texte={texteCalcule.current} phase={phase} theme={theme} projet={projet} coupeActive={coupeActive} onCoupe={changerCoupe} cotes={modele?.plan?.cotes ?? {}} onEpingler={(e) => actions.ajouter(['coupes'], e)}
             selection={selection?.type === 'appui' ? `appui:${selection.nom}` : null}
             onSelection={(id) => setSelection(id?.startsWith('appui:') ? { type: 'appui', nom: id.slice(6) } : null)} /> : sansResultats)}
           {onglet === 'efforts' && (res ? <Efforts res={res} phase={phase} onPhase={setPhase} onAppui={(n) => { setSelection({ type: 'appui', nom: n }); setTiroirInsp(true) }} /> : sansResultats)}

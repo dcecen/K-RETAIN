@@ -57,11 +57,17 @@ export function fixer(texte: string, chemin: Chemin, valeur: unknown): string {
   })
 }
 
+/** Les sous-blocs d'un nouvel élément (ex. zone, trace) s'écrivent en ligne : { de: [1, 2], a: [3, 4] }. */
+function sousBlocsEnLigne(noeud: unknown) {
+  if (isMap(noeud)) for (const it of noeud.items) { const v = it.value; if (isMap(v) || isSeq(v)) { (v as { flow: boolean }).flow = true } }
+}
+
 /** Ajoute un élément à une liste (créée si absente), dans le style des éléments voisins. */
 export function ajouter(texte: string, chemin: Chemin, valeur: unknown): string {
   return modifier(texte, (doc) => {
     const seq = doc.getIn(chemin, true)
     const noeud = doc.createNode(valeur)
+    sousBlocsEnLigne(noeud)
     if (isSeq(seq)) {
       const voisin = seq.items[seq.items.length - 1]
       if (isMap(voisin) && voisin.flow && isMap(noeud)) noeud.flow = true

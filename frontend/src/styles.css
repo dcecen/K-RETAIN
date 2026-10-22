@@ -474,3 +474,16 @@ select.champ { padding: 0 2px; }
 .synthese-projet tr.etat-non_ok td { color: var(--rouge); }
 .synthese-projet tr.etat-attention td { color: var(--orange); }
 .etiquette-3d.coupe { font-weight: 600; border-color: var(--accent); }
+
+/* ---------------------------------------------------------------- coupe locale */
+.panneau-coupe-locale { width: 520px; flex-shrink: 0; border-left: 1px solid var(--filet); background: var(--panneau); display: flex; flex-direction: column; min-height: 0; }
+.panneau-coupe-locale .position { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 6px 10px; border-bottom: 1px solid var(--filet); font-size: 12.5px; }
+.panneau-coupe-locale .position label { display: inline-flex; align-items: center; gap: 5px; }
+.panneau-coupe-locale .position input[type=number] { width: 64px; border: 1px solid var(--filet-fort); border-radius: 3px; background: var(--panneau-2); padding: 2px 4px; }
+.panneau-coupe-locale .position input[type=range] { flex: 1; min-width: 120px; }
+.panneau-coupe-locale .position select { border: 1px solid var(--filet-fort); border-radius: 3px; background: var(--panneau-2); height: 24px; }
+.panneau-coupe-locale .origine { padding: 4px 10px; font-size: 11.5px; border-bottom: 1px solid var(--filet); }
+.panneau-coupe-locale .courbes { flex: 1; min-height: 0; }
+.panneau-coupe-locale .pied { display: flex; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--filet); }
+.panneau-coupe-locale .pied input { flex: 1; min-width: 0; border: 1px solid var(--filet-fort); border-radius: 3px; background: var(--panneau-2); padding: 3px 6px; font-size: 12px; }
+@media (max-width: 1400px) { .panneau-coupe-locale { width: 420px; } }
