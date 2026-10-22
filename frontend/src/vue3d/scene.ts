@@ -36,6 +36,17 @@ export interface EtatCalquesScene {
   opacite(id: string): number
   verrouille(id: string): boolean
   coupe(id: string): boolean
+  /** Mode d'affichage du calque (voir calques.ts) et réglages propres. */
+  mode?(id: string): string | undefined
+  reglage?<T extends number | string | boolean>(id: string, cle: string, defaut: T): T
+}
+
+/** Mode et réglage d'un calque avec repli sur la valeur par défaut. */
+export function modeCalque(c: EtatCalquesScene, id: string, defaut: string): string {
+  return c.mode?.(id) ?? defaut
+}
+export function reglageCalque<T extends number | string | boolean>(c: EtatCalquesScene, id: string, cle: string, defaut: T): T {
+  return c.reglage ? c.reglage(id, cle, defaut) : defaut
 }
 
 /** État par défaut : tout est visible sauf les résultats ; le plan de coupe s'applique au terrain, à la fouille et à l'eau. */
@@ -71,6 +82,8 @@ export interface Element {
   noeud: NomNoeud
   calque: string
   objet: THREE.Object3D
+  /** Calques supplémentaires : l'élément est visible si l'un d'eux (ou ) est visible. */
+  calques?: string[]
   /** Identifiant de sélection (clic) : « appui:B1 », « paroi:0 », « couche:1 »… */
   selection?: string
   /** Visibilité propre à la phase (indépendante des calques). */
@@ -260,7 +273,7 @@ export class SceneRetainWall {
   private sales = new Set<string>()
 
   private majElement(el: Element, ctx: Contexte) {
-    const vis = this.calques.visible(el.calque)
+    const vis = this.calques.visible(el.calque) || (el.calques?.some((c) => this.calques.visible(c)) ?? false)
     if (!vis) {
       el.objet.visible = false
       this.sales.add(el.id)

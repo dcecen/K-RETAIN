@@ -2,9 +2,9 @@ import { useMemo, useRef, useState } from 'react'
 import { IconeChevronB, IconeChevronD, IconeCiseaux, IconeFermer, IconeIsoler, IconeLoupe, IconeOeil, IconeOeilBarre, IconeVerrou, IconeVerrouOuvert } from '../lib/icones'
 import { telechargerTexte } from '../lib/exporter'
 import {
-  ARBRE_CALQUES, basculerIsolation, definirCoupe, definirMode, definirOpacite, definirVerrou, definirVisible, enregistrerPrereglage,
-  etatPrereglage, exporterJson, importerJson, PREREGLAGES_LIVRES, rechercher, visibiliteGroupe,
-  type DefCalque, type EtatCalques, type Prereglage,
+  ARBRE_CALQUES, basculerIsolation, definirCoupe, definirMode, definirOpacite, definirReglage, definirVerrou, definirVisible, enregistrerPrereglage,
+  etatPrereglage, exporterJson, importerJson, PREREGLAGES_LIVRES, rechercher, REGLAGES, visibiliteGroupe,
+  type DefCalque, type DefReglage, type EtatCalques, type Prereglage,
 } from './calques'
 
 /** Panneau « Calques » : arbre avec visibilité, opacité, verrou, plan de coupe, mode, isolation ; préréglages. */
@@ -34,6 +34,26 @@ export function PanneauCalques({ etat, perso, onEtat, onPerso, onFermer, disponi
       onEtat(r.etat)
       if (r.prereglages.length) onPerso([...perso.filter((p) => !r.prereglages.some((q) => q.id === p.id)), ...r.prereglages])
     } catch (e) { alert(String(e)) }
+  }
+
+  const reglage = (id: string, r: DefReglage, v: number | string | boolean | undefined) => {
+    const val = v ?? r.defaut
+    const fixer = (x: number | string | boolean) => onEtat(definirReglage(etat, id, r.cle, x))
+    if (r.type === 'bool') return <label key={r.cle}><input type="checkbox" checked={!!val} onChange={(e) => fixer(e.target.checked)} /> {r.nom}</label>
+    if (r.type === 'choix') return (
+      <label key={r.cle}>{r.nom}
+        <select value={String(val)} onChange={(e) => fixer(e.target.value)}>{r.options!.map((o) => <option key={o.id} value={o.id}>{o.nom}</option>)}</select>
+      </label>
+    )
+    const auto = r.auto && (val === 'auto' || val === 0)
+    return (
+      <label key={r.cle}>{r.nom}
+        {r.auto && <input type="checkbox" checked={!!auto} title="automatique" onChange={(e) => fixer(e.target.checked ? 'auto' : (r.min ?? 1) * 10)} />}
+        {r.auto && <span>auto</span>}
+        <input type="number" min={r.min} max={r.max} step={r.pas} value={auto ? '' : Number(val)} disabled={!!auto}
+          onChange={(e) => fixer(Math.min(Math.max(Number(e.target.value) || (r.min ?? 0), r.min ?? -Infinity), r.max ?? Infinity))} />
+      </label>
+    )
   }
 
   const ligne = (d: DefCalque, niveau: number) => {
@@ -72,6 +92,11 @@ export function PanneauCalques({ etat, perso, onEtat, onPerso, onFermer, disponi
               onClick={() => onEtat(basculerIsolation(etat, d.id))}><IconeIsoler taille={13} /></button>
           </span>
         </div>
+        {feuille?.visible && REGLAGES[d.id] && (
+          <div className="calque-reglages">
+            {REGLAGES[d.id].map((r) => reglage(d.id, r, feuille.reglages?.[r.cle]))}
+          </div>
+        )}
         {groupe && !replie && <ul>{d.enfants!.map((e) => ligne(e, niveau + 1))}</ul>}
       </li>
     )

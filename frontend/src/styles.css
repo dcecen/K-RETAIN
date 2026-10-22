@@ -414,7 +414,7 @@ select.champ { padding: 0 2px; }
 .etiquette-3d[data-selection] { pointer-events: auto; cursor: pointer; }
 .etiquette-3d.choisie { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .etiquette-3d.axe { background: transparent; border: none; font-family: var(--mono); color: var(--texte-doux); }
-.vue3d-note { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: var(--texte-doux); pointer-events: none;
+.vue3d-note { position: absolute; left: 10px; top: 8px; font-size: 11px; color: var(--texte-doux); pointer-events: none;
   background: color-mix(in srgb, var(--panneau) 75%, transparent); padding: 3px 6px; border-radius: 3px; }
 .vue3d-diag { position: absolute; left: 10px; top: 10px; font-size: 11.5px; background: var(--panneau); color: var(--texte);
   border: 1px solid var(--filet-fort); border-radius: 4px; padding: 6px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 5; }
@@ -447,3 +447,21 @@ select.champ { padding: 0 2px; }
 .calque:hover .outils, .calque.epingle .outils { display: inline-flex; }
 .panneau-calques .pied { display: flex; gap: 4px; padding: 6px 8px; border-top: 1px solid var(--filet); flex-wrap: wrap; }
 .panneau-calques .pied .btn { font-size: 11.5px; height: 24px; }
+
+/* ---------------------------------------------------------------- légendes 3D */
+.vue3d-legendes { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 6px; max-width: 300px; pointer-events: none; }
+.legende-3d { background: color-mix(in srgb, var(--panneau) 92%, transparent); border: 1px solid var(--filet); border-radius: 4px; padding: 6px 9px; font-size: 11.5px; color: var(--texte); }
+.legende-3d .titre { font-weight: 600; margin-bottom: 3px; }
+.legende-3d .degrade { height: 10px; border-radius: 2px; border: 1px solid var(--filet-fort); }
+.legende-3d .bornes { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; margin-top: 2px; }
+.legende-3d .bornes .unite { color: var(--texte-doux); }
+.legende-3d .classes { display: flex; flex-wrap: wrap; gap: 3px 10px; }
+.legende-3d .classes span { display: inline-flex; align-items: center; gap: 5px; }
+.legende-3d .classes i { width: 12px; height: 12px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.2); }
+.legende-3d .phase { color: var(--texte-doux); font-size: 10.5px; margin-top: 2px; }
+.etiquette-3d.valeur { font-family: var(--mono); background: color-mix(in srgb, var(--panneau) 95%, transparent); }
+.etiquette-3d.extreme { border-color: var(--accent); font-weight: 500; }
+.calque-reglages { display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 0 8px 4px 44px; font-size: 11.5px; color: var(--texte-doux); align-items: center; }
+.calque-reglages label { display: inline-flex; align-items: center; gap: 4px; }
+.calque-reglages input[type=number] { width: 58px; font-size: 11px; border: 1px solid var(--filet); border-radius: 3px; background: var(--panneau-2); padding: 1px 3px; }
+.calque-reglages select { font-size: 11px; border: 1px solid var(--filet); border-radius: 3px; background: var(--panneau-2); height: 20px; }

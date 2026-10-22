@@ -391,3 +391,51 @@ export function versScene(e: EtatCalques): EtatCalquesScene & { mode(id: string)
     reglage: <T extends number | string | boolean>(id: string, cle: string, defaut: T): T => (f(id)?.reglages?.[cle] as T | undefined) ?? defaut,
   }
 }
+
+// ------------------------------------------------------------------ réglages propres aux calques de résultats
+export interface DefReglage {
+  cle: string
+  nom: string
+  type: 'nombre' | 'choix' | 'bool'
+  defaut: number | string | boolean
+  min?: number
+  max?: number
+  pas?: number
+  options?: { id: string; nom: string }[]
+  /** « auto » accepté pour un nombre (valeur 0). */
+  auto?: boolean
+}
+
+const CHOIX_ECHELLE = [{ id: 'fixe', nom: 'fixe (toutes phases)' }, { id: 'phase', nom: 'par phase' }]
+const CHOIX_PALETTE = [{ id: 'divergente', nom: 'bleu → rouge' }, { id: 'sequentielle', nom: 'viridis' }, { id: 'signe', nom: 'signée' }]
+
+export const REGLAGES: Record<string, DefReglage[]> = {
+  'resultats.deformee': [
+    { cle: 'amplification', nom: 'amplification ×', type: 'nombre', defaut: 'auto', min: 1, max: 2000, pas: 1, auto: true },
+    { cle: 'fantome', nom: 'paroi initiale en fantôme', type: 'bool', defaut: true },
+  ],
+  'resultats.deplacement': [
+    { cle: 'echelle', nom: 'échelle', type: 'choix', defaut: 'fixe', options: CHOIX_ECHELLE },
+    { cle: 'palette', nom: 'palette', type: 'choix', defaut: 'divergente', options: CHOIX_PALETTE },
+  ],
+  'resultats.moment': [
+    { cle: 'echelle', nom: 'échelle', type: 'choix', defaut: 'fixe', options: CHOIX_ECHELLE },
+    { cle: 'echelle_ailettes', nom: 'taille des ailettes ×', type: 'nombre', defaut: 1, min: 0.1, max: 10, pas: 0.1 },
+  ],
+  'resultats.tranchant': [
+    { cle: 'echelle', nom: 'échelle', type: 'choix', defaut: 'fixe', options: CHOIX_ECHELLE },
+    { cle: 'echelle_ailettes', nom: 'taille des ailettes ×', type: 'nombre', defaut: 1, min: 0.1, max: 10, pas: 0.1 },
+  ],
+  'resultats.pressions': [{ cle: 'echelle_ailettes', nom: 'taille des ailettes ×', type: 'nombre', defaut: 1, min: 0.1, max: 10, pas: 0.1 }],
+  'resultats.efforts': [{ cle: 'etiquettes', nom: 'étiquettes', type: 'bool', defaut: true }],
+  'resultats.fleches': [
+    { cle: 'amplification', nom: 'amplification ×', type: 'nombre', defaut: 'auto', min: 1, max: 2000, pas: 1, auto: true },
+    { cle: 'etiquettes', nom: 'étiquettes', type: 'bool', defaut: true },
+    { cle: 'raccourcissement', nom: 'raccourcissement axial', type: 'bool', defaut: false },
+  ],
+  'resultats.taux': [
+    { cle: 'orange', nom: 'seuil orange', type: 'nombre', defaut: 0.9, min: 0.1, max: 2, pas: 0.05 },
+    { cle: 'rouge', nom: 'seuil rouge', type: 'nombre', defaut: 1.0, min: 0.1, max: 2, pas: 0.05 },
+  ],
+  'coupes.zones': [{ cle: 'lisser', nom: 'lisser aux jonctions (visuel)', type: 'bool', defaut: false }],
+}

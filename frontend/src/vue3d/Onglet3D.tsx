@@ -1,10 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, type Resultats } from '../lib/api'
 import { enregistrerExport, telecharger, telechargerTexte } from '../lib/exporter'
 import { IconeCalques } from '../lib/icones'
 import type { Theme } from '../lib/theme'
 import { ecrireStockage, lireStockage, versScene, type EtatCalques, type Prereglage } from './calques'
+import { FABRIQUES_CHANTIER } from './elements'
+import { Legendes } from './VueLegendes'
+import { legendes as calculerLegendes } from './legendes'
 import { PanneauCalques } from './PanneauCalques'
+import { FABRIQUES_RESULTATS_PAROI } from './resultats'
+
+const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI]
 import type { EtatCoupe, SceneRetainWall } from './scene'
 import { Vue3D, type PoigneeVue3D } from './Vue3D'
 
@@ -27,6 +33,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection }: {
   const [disponibles, setDisponibles] = useState<Set<string>>(new Set())
   const calquesRef = useRef(calques)
   calquesRef.current = calques
+  const liste = useMemo(() => calculerLegendes(res, versScene(calques), phase), [res, calques, phase])
 
   const appliquer = useCallback((sc: SceneRetainWall) => {
     sc.appliquerCalques(versScene(calquesRef.current))
@@ -99,14 +106,15 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection }: {
         </button>
       </div>
       <div className="onglet-3d-corps">
-        <Vue3D res={res} phase={phase} theme={theme} selection={selection} onSelection={onSelection} onPret={pret} surCalques={appliquer}
-          enfants={
+        <Vue3D res={res} phase={phase} theme={theme} selection={selection} onSelection={onSelection} onPret={pret} surCalques={appliquer} fabriques={FABRIQUES}
+          enfants={<>
+            <Legendes liste={liste} />
             <div className="vue3d-note">
               {res.maquette?.plan_defaut && <div>Plan par défaut (rectangle 20 × 12 m) : ajoutez un bloc « plan » au script.</div>}
               <div>Glisser : tourner · clic droit ou Maj+glisser : déplacer · molette : zoom.</div>
               <div>Déplacement positif vers la fouille ; moment positif quand la face côté fouille est tendue.</div>
             </div>
-          } />
+          </>} />
         {voirCalques && (
           <PanneauCalques etat={calques} perso={perso} onEtat={setCalques} onPerso={setPerso} onFermer={() => setVoirCalques(false)} disponibles={disponibles} />
         )}
