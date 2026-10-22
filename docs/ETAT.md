@@ -302,3 +302,68 @@ remplissage sur instruction explicite de l'utilisateur.
   de variante, suppression, formulaire de la phase sélectionnée), frise et flèches qui suivent
   la branche, inspecteur indiquant la phase de départ.
 - Tests : variante identique à un calcul linéaire tronqué, branche depuis une phase rompue.
+
+
+## Vue 3D persistante, calques, résultats en 3D, coupes, surcharges et terrain (22 octobre 2026)
+
+Prompt « Vue 3D persistante » intégré en 11 étapes, chacune testée et commitée. Le prompt visait une
+version mono-fichier (`engine.js`) : il a été adapté au dépôt (moteur Python, interface React), voir
+le plan de session. Le cas exemple cité par le prompt (13,8 mm, B2 = 540 kN/m, tube 711×16) n'existe
+pas ici : la non-régression porte sur `exemples/fouille_exemple.yaml` (valeurs figées dans
+`tests/unitaires/test_vue3d_donnees.py`).
+
+### Fait
+- **Scène persistante** (`frontend/src/vue3d/scene.ts`, `elements.ts`) : arbre fixe à identifiants
+  stables, objets à clé de géométrie (un recalcul ne reconstruit que ce qui change, ressources
+  libérées), changement de phase sans création d'objet (blocs de sol par échelle, appuis instanciés),
+  caméra / plan de coupe / sélection conservés, rendu à la demande, diagnostic `Ctrl+Maj+D`.
+  Le calcul renvoie la géométrie de la maquette (`resultats.maquette`) ; plus d'iframe.
+- **Calques** (`calques.ts`, `PanneauCalques.tsx`, touche `L`) : visibilité, opacité, verrou, plan de
+  coupe par calque, isolation réversible, recherche, préréglages livrés et personnels (stockage local,
+  JSON), réglages par calque de résultats.
+- **Résultats paroi** (`resultats.ts`, `legendes.ts`) : déformée amplifiée (auto = 2 m), couleurs
+  (déplacement, moment, tranchant, taux de travail), ailettes (moment, tranchant, pressions avec
+  limites), enveloppes, étiquettes d'extrêmes, légendes empilées ; champ pseudo-3D utilisé s'il existe.
+- **Appuis** (`appuis.ts`, `resultatsAppuis.ts`) : efforts service / ELU (× gamma_effets), flèches des
+  butons et liernes calculées par `verifs_struct/elements.py` (`fleche_barre`, `fleche_lierne`) et
+  exposées par phase, taux de travail (appuis, liernes, assemblages en cubes).
+- **Coupes de calcul** (`sout/script/coupes.py`, bloc `coupes`, `plan.cotes`) : héritage du script
+  principal, calcul par coupe en parallèle avec cache serveur par empreinte, phasage projet et
+  correspondance des phases, synthèse projet (pire coupe), plans nommés, zones d'application, tronçon
+  orphelin hachuré, diagrammes dans le plan de coupe, touches `1`–`9`. Exemple `fouille_coupes.yaml`.
+- **Coupe locale** (`sourceResultats.ts`, outil « Couper ici », touche `C`) : source abstraite
+  (2D : coupe du tronçon ; pseudo-3D : champ de la plaque), épinglage → entrée YAML.
+- **Panneau de résultats** (`PanneauResultats.tsx`, touche `R`, `navigation.ts`) : Courbes / Efforts /
+  Vérifications filtrés sur l'objet cliqué, fil d'Ariane, points d'attention, marqueurs d'alerte,
+  curseur de cote lié aux courbes dans les deux sens, plein écran avec retour, ancre d'URL
+  `#c1-p8-s_appui:B2-l_structure`.
+- **Surcharges étendues** (`sout/sol/terrain.py`, interface unique dans `MoteurPhases._sigma_v`) :
+  uniforme, bande (longueur finie, côtés), rectangulaire (Newmark), ponctuelle (Boussinesq), linéaire
+  (intégration), profondeur, phases d'application ; `coupe_calcul` injecté par coupe ; maquette
+  (volumes, bâtiment, grue, flèches, pression induite), outil « Ajouter une surcharge ».
+- **Terrain** : risbermes, talus, gradins côté fouille (surcharge équivalente par bandes de poids,
+  ou fond équivalent sur cote choisie), terrain en pente côté terre (Coulomb avec β, `ka_coulomb_talus`,
+  ou surcharge équivalente), remblai à une phase (couche ajoutée), action `terrasser_risberme` ;
+  butée limite sans l'objet (`pp_sans_terrain`) sur la coupe 2D et dans le panneau ; outils « Ajouter
+  une risberme » et « Mesurer ».
+- **Divers** : info-bulle, comparaison en fantôme d'une phase, lecture animée (visuelle, désactivée
+  si `prefers-reduced-motion`), exports PNG avec légendes (×1, ×2) et glTF.
+- Tests : pytest 175 (+6 ignorés), vitest 60 (`lancer_tests.ps1` lance les deux).
+
+### Limites et reste à faire
+- Export HTML autonome : toujours produit par `sout/maquette3d/gabarit.html` (ancienne vue), non
+  unifié avec la nouvelle scène.
+- Comparaison : superposition fantôme seulement (pas de deux vues côte à côte) ; coupes : pas de
+  superposition de courbes de deux coupes.
+- Objets de terrain : volumes extrudés sur toute la longueur des côtés concernés ; coupe unique
+  rapportée au milieu du côté le plus long pour les surcharges en plan (signalé).
+- La maquette de chantier (fond, nappes, appuis) suit la coupe active ; seuls les résultats de paroi
+  et les diagrammes sont lus par tronçon.
+
+### Questions ouvertes / TODO-NORME
+- Méthode du coin de rupture sous la risberme : publication à fournir (refusée au calcul).
+- Convois routiers (Bc, Bt) : charges et empreintes à fournir (type accepté, calcul refusé).
+- Méthode normative de diffusion des surcharges (NF P 94-282) : seule la diffusion élastique est
+  disponible et affichée. Tables de Kérisel-Absi avec talus : non fournies (Coulomb avec β seulement).
+- Si vous disposez du `cas.yaml` d'origine du prompt, l'ajouter dans `exemples/` pour en faire la
+  référence de non-régression.
