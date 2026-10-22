@@ -422,3 +422,28 @@ select.champ { padding: 0 2px; }
 .vue3d-diag td { padding: 1px 6px 1px 0; }
 .onglet-3d .barre-outils { flex-wrap: nowrap; white-space: nowrap; overflow-x: auto; }
 .onglet-3d .barre-outils label { white-space: nowrap; }
+
+/* ---------------------------------------------------------------- panneau des calques */
+.panneau-calques { width: 290px; flex-shrink: 0; border-left: 1px solid var(--filet); background: var(--panneau); display: flex; flex-direction: column; min-height: 0; }
+.panneau-calques .recherche { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--filet); }
+.panneau-calques .recherche input { flex: 1; min-width: 0; border: 1px solid var(--filet-fort); border-radius: 3px; padding: 3px 6px; background: var(--panneau-2); font-size: 12.5px; }
+.panneau-calques .prereglages { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--filet); }
+.panneau-calques .prereglages .btn { font-size: 11.5px; padding: 1px 7px; height: 22px; }
+.arbre-calques { list-style: none; margin: 0; padding: 4px 0; overflow: auto; flex: 1; min-height: 0; font-size: 12.5px; }
+.arbre-calques ul { list-style: none; margin: 0; padding: 0; }
+.calque { display: flex; align-items: center; gap: 4px; height: 26px; padding: 0 6px 0 8px; }
+.calque:hover { background: var(--survol); }
+.calque.groupe { font-weight: 500; }
+.calque.enfant { padding-left: 26px; }
+.calque .chevron { width: 14px; color: var(--texte-faible); cursor: pointer; flex-shrink: 0; display: inline-flex; }
+.calque input[type=checkbox] { margin: 0 2px 0 0; }
+.calque .libelle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+.calque .libelle.estompe { color: var(--texte-faible); }
+.calque select { font-size: 11px; max-width: 92px; border: 1px solid var(--filet); background: var(--panneau-2); border-radius: 3px; height: 20px; }
+.calque input[type=range] { width: 46px; height: 14px; }
+.calque .btn.icone { width: 22px; height: 22px; color: var(--texte-faible); }
+.calque .btn.icone.actif { color: var(--accent); background: var(--selection); border-color: transparent; }
+.calque .outils { display: none; align-items: center; gap: 2px; }
+.calque:hover .outils, .calque.epingle .outils { display: inline-flex; }
+.panneau-calques .pied { display: flex; gap: 4px; padding: 6px 8px; border-top: 1px solid var(--filet); flex-wrap: wrap; }
+.panneau-calques .pied .btn { font-size: 11.5px; height: 24px; }

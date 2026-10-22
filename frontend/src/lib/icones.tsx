@@ -58,3 +58,11 @@ export const IconeDepose = (p: P) => <Svg {...p}><path d="M2 3v10M14 3v10" /><pa
 export const IconeRadier = (p: P) => <Svg {...p}><path d="M2 3v10M14 3v10" /><rect x="2" y="10" width="12" height="2.5" /></Svg>
 export const IconeRemblai = (p: P) => <Svg {...p}><path d="M2 12h12" /><path d="M3 12l3-4 2 2 3-5 2 7" /></Svg>
 export const IconeInitial = (p: P) => <Svg {...p}><path d="M2 6h12" /><path d="M2 9h12M2 12h12" strokeDasharray="1.5 1.5" /></Svg>
+export const IconeOeil = (p: P) => <Svg {...p}><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" /><circle cx="8" cy="8" r="2" /></Svg>
+export const IconeOeilBarre = (p: P) => <Svg {...p}><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" /><path d="M3 13L13 3" /></Svg>
+export const IconeVerrou = (p: P) => <Svg {...p}><rect x="3.5" y="7" width="9" height="7" rx="1" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></Svg>
+export const IconeVerrouOuvert = (p: P) => <Svg {...p}><rect x="3.5" y="7" width="9" height="7" rx="1" /><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1" /></Svg>
+export const IconeIsoler = (p: P) => <Svg {...p}><circle cx="8" cy="8" r="2.5" /><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2" /></Svg>
+export const IconeCalques = (p: P) => <Svg {...p}><path d="M8 2.5l6 3-6 3-6-3z" /><path d="M2 8.5l6 3 6-3M2 11l6 3 6-3" /></Svg>
+export const IconeLoupe = (p: P) => <Svg {...p}><circle cx="7" cy="7" r="4.5" /><path d="M10.5 10.5L14 14" /></Svg>
+export const IconeCiseaux = (p: P) => <Svg {...p}><circle cx="4" cy="4" r="2" /><circle cx="4" cy="12" r="2" /><path d="M5.5 5.5L14 12M5.5 10.5L14 4" /></Svg>
