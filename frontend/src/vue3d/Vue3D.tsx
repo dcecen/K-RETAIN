@@ -4,6 +4,7 @@ import type { Resultats } from '../lib/api'
 import type { Theme } from '../lib/theme'
 import { FABRIQUES_CHANTIER } from './elements'
 import { SceneRetainWall, type Diagnostic, type DonneesScene, type FabriqueSpecs } from './scene'
+import { transition, type Transition } from './animation'
 
 export interface PoigneeVue3D {
   scene: SceneRetainWall
@@ -12,7 +13,7 @@ export interface PoigneeVue3D {
 }
 
 /** Vue 3D persistante : la scène est créée une fois au montage, puis mise à jour (phase, recalcul, thème). */
-export function Vue3D({ res, extra, phase, theme, selection, fabriques = FABRIQUES_CHANTIER, onSelection, onSurvol, onPret, enfants, surCalques }: {
+export function Vue3D({ res, extra, phase, theme, selection, fabriques = FABRIQUES_CHANTIER, onSelection, onSurvol, onPret, enfants, surCalques, animationMs = 0 }: {
   res: Resultats
   /** Données complémentaires de la scène (projet à coupes, résolution par tronçon). */
   extra?: Partial<DonneesScene>
@@ -21,7 +22,9 @@ export function Vue3D({ res, extra, phase, theme, selection, fabriques = FABRIQU
   selection: string | null
   fabriques?: FabriqueSpecs[]
   onSelection: (id: string | null, point?: THREE.Vector3) => void
-  onSurvol?: (id: string | null, point?: THREE.Vector3) => void
+  onSurvol?: (id: string | null, point?: THREE.Vector3, ecran?: { x: number; y: number }) => void
+  /** Durée de la transition animée entre phases (ms) ; 0 = aucune. */
+  animationMs?: number
   onPret?: (p: PoigneeVue3D | null) => void
   enfants?: ReactNode
   /** Appelé quand la scène est prête et à chaque recalcul : application des calques par le parent. */
@@ -123,10 +126,11 @@ export function Vue3D({ res, extra, phase, theme, selection, fabriques = FABRIQU
       if (!rappels.current.onSurvol || survolPlanifie) return
       survolPlanifie = true
       const [nx, ny] = ndc(e)
+      const ecran = { x: e.clientX - rendu.domElement.getBoundingClientRect().left, y: e.clientY - rendu.domElement.getBoundingClientRect().top }
       requestAnimationFrame(() => {
         survolPlanifie = false
         const t = sc.viser(nx, ny)
-        rappels.current.onSurvol?.(t?.selection ?? null, t?.point)
+        rappels.current.onSurvol?.(t?.selection ?? null, t?.point, ecran)
       })
     }
     const haut = (e: PointerEvent) => {
@@ -188,7 +192,21 @@ export function Vue3D({ res, extra, phase, theme, selection, fabriques = FABRIQU
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [res, extra])
 
-  useEffect(() => { poignee.current?.scene.phase(phase) }, [phase])
+  const transitionRef = useRef<Transition | null>(null)
+  useEffect(() => {
+    const sc = poignee.current?.scene
+    if (!sc) return
+    transitionRef.current?.annuler()
+    transitionRef.current = null
+    const reduit = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const tr = !reduit && animationMs > 0 ? transition(sc, phase, animationMs) : null
+    if (!tr) { sc.phase(phase); return }
+    transitionRef.current = tr
+    const t0 = performance.now()
+    const pas = () => { if (transitionRef.current !== tr) return; if (!tr.avancer(performance.now() - t0)) requestAnimationFrame(pas); else transitionRef.current = null }
+    requestAnimationFrame(pas)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
   useEffect(() => { poignee.current?.scene.appliquerTheme(theme === 'sombre') }, [theme])
   useEffect(() => { poignee.current?.scene.selectionner(selection) }, [selection])
 

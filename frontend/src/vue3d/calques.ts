@@ -72,6 +72,7 @@ export const ARBRE_CALQUES: DefCalque[] = [
     { id: 'resultats.taux', nom: 'Taux de travail', visible: false, exclusif: 'couleur-paroi' },
     { id: 'resultats.enveloppes', nom: 'Enveloppes (toutes phases)', visible: false, modes: [{ id: 'deformee', nom: 'Déformée' }, { id: 'moment', nom: 'Moment' }] },
     { id: 'resultats.extremes', nom: 'Étiquettes d\'extrêmes', visible: false },
+    { id: 'resultats.comparaison', nom: 'Comparaison : fantôme d\'une phase de référence', visible: false },
     { id: 'resultats.alertes', nom: 'Alertes (taux ≥ 90 %)' },
   ] },
   { id: 'coupes', nom: 'Coupes de calcul', enfants: [
@@ -433,6 +434,7 @@ export const REGLAGES: Record<string, DefReglage[]> = {
     { cle: 'etiquettes', nom: 'étiquettes', type: 'bool', defaut: true },
     { cle: 'raccourcissement', nom: 'raccourcissement axial', type: 'bool', defaut: false },
   ],
+  'resultats.comparaison': [{ cle: 'phase', nom: 'phase de référence (0 = aucune)', type: 'nombre', defaut: 0, min: 0, max: 99, pas: 1 }],
   'resultats.taux': [
     { cle: 'orange', nom: 'seuil orange', type: 'nombre', defaut: 0.9, min: 0.1, max: 2, pas: 0.05 },
     { cle: 'rouge', nom: 'seuil rouge', type: 'nombre', defaut: 1.0, min: 0.1, max: 2, pas: 0.05 },

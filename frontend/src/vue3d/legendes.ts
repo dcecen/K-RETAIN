@@ -32,7 +32,7 @@ export type Legende = LegendeContinue | LegendeDiscrete
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`
 
 /** Légendes à afficher pour l'état des calques et la phase active. */
-export function legendes(res: Resultats, c: EtatCalquesScene, phase: number): Legende[] {
+export function legendes(res: Resultats, c: EtatCalquesScene, phase: number, animation = false): Legende[] {
   const out: Legende[] = []
   const nomPhase = res.phases[phase]?.nom ?? ''
   const vis = (id: string) => c.visible(id)
@@ -88,6 +88,11 @@ export function legendes(res: Resultats, c: EtatCalquesScene, phase: number): Le
     out.push({ type: 'discrete', id: 'surcharges', titre: `Surcharges : 1 m de hauteur = ${nb(reglageCalque(c, 'surcharges.volumes', 'echelle', 20), 0)} kPa`, phase: nomPhase, classes: [],
       note: 'présentes de leur phase d\'application à leur retrait ; survol : pression induite' })
   }
+  if (vis('resultats.comparaison')) {
+    const r = Number(reglageCalque<number | string>(c, 'resultats.comparaison', 'phase', 0))
+    if (r > 0 && res.phases[r - 1]) out.push({ type: 'discrete', id: 'comparaison', titre: `Comparaison : fantôme de la phase ${r} (${res.phases[r - 1].nom})`, phase: nomPhase, classes: [{ couleur: '#6c3fa0', texte: 'déformée de référence (filaire)' }] })
+  }
+  if (animation) out.push({ type: 'discrete', id: 'animation', titre: 'Lecture animée', phase: nomPhase, classes: [], note: 'interpolation purement visuelle entre deux phases, pas un résultat' })
   if (vis('resultats.enveloppes')) {
     out.push({ type: 'discrete', id: 'enveloppes', titre: `Enveloppe ${modeCalque(c, 'resultats.enveloppes', 'deformee') === 'moment' ? 'des moments' : 'de la déformée'} (toutes phases, fantôme)`, phase: 'toutes phases', classes: [] })
   }

@@ -517,3 +517,8 @@ select.champ { padding: 0 2px; }
 .etiquette-3d.alerte.rouge { background: var(--rouge-doux); color: var(--rouge); border-color: var(--rouge); }
 .etiquette-3d.alerte.orange { background: var(--orange-doux); color: var(--orange); border-color: var(--orange); }
 .barre-retour { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--filet); background: var(--accent-doux); font-size: 12.5px; }
+
+/* ---------------------------------------------------------------- info-bulle 3D */
+.vue3d-infobulle { position: absolute; pointer-events: none; z-index: 4; font-size: 11.5px; background: var(--panneau); color: var(--texte); border: 1px solid var(--filet-fort); border-radius: 4px; padding: 4px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); white-space: nowrap; }
+.vue3d-infobulle .titre { font-weight: 600; }
+.onglet-3d .barre-outils select.btn { height: 26px; }

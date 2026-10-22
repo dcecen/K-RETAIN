@@ -24,11 +24,16 @@ import { PanneauResultats, type Volet } from './PanneauResultats'
 import { FABRIQUES_REPERES } from './reperes'
 import { entreeYamlSurcharge, FABRIQUES_SURCHARGES } from './surcharges'
 import { entreeYamlRisberme, FABRIQUES_TERRAIN } from './terrain'
+import { FABRIQUES_COMPARAISON } from './comparaison'
+import { exporterGltf, imagePng } from './exports'
+import { profilValeur, sourcePour } from './resultats'
+import { analyserSelection as analyserSel } from './navigation'
+import { definirReglage, definirVisible } from './calques'
 import { IconeRemblai, IconeCoupe } from '../lib/icones'
 import { IconeSurcharge } from '../lib/icones'
 import { etatPrereglage } from './calques'
 
-const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS, ...FABRIQUES_COUPES, ...FABRIQUES_COUPE_LOCALE, ...FABRIQUES_REPERES, ...FABRIQUES_SURCHARGES, ...FABRIQUES_TERRAIN]
+const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS, ...FABRIQUES_COUPES, ...FABRIQUES_COUPE_LOCALE, ...FABRIQUES_REPERES, ...FABRIQUES_SURCHARGES, ...FABRIQUES_TERRAIN, ...FABRIQUES_COMPARAISON]
 import type { EtatCoupe, SceneRetainWall } from './scene'
 import { Vue3D, type PoigneeVue3D } from './Vue3D'
 
@@ -67,7 +72,10 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   const [disponibles, setDisponibles] = useState<Set<string>>(new Set())
   const calquesRef = useRef(calques)
   calquesRef.current = calques
-  const liste = useMemo(() => calculerLegendes(res, versScene(calques), phase), [res, calques, phase])
+  const [animation, setAnimation] = useState(() => { try { return localStorage.getItem('retainwall.3d.animation') !== '0' } catch { return true } })
+  useEffect(() => { try { localStorage.setItem('retainwall.3d.animation', animation ? '1' : '0') } catch { /* stockage indisponible */ } }, [animation])
+  const liste = useMemo(() => calculerLegendes(res, versScene(calques), phase, animation), [res, calques, phase, animation])
+  const [infobulle, setInfobulle] = useState<{ x: number; y: number; lignes: string[] } | null>(null)
   const premiers = useMemo(() => (projet && !projet.unique ? projet.coupes[0].resultats ?? res : res), [projet, res])
   const extra = useMemo(() => ({ cotes, ...(projet ? { projet, resultatsPour: resolveur(projet, premiers, coupeActive) } : {}) }), [projet, premiers, coupeActive, cotes])
   const plusieurs = !!projet && !projet.unique && projet.coupes.length > 1
@@ -124,14 +132,49 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
     onSelection(id)
     if (id) setVoirResultats(true)
   }
-  const survoler = useCallback((id: string | null, point?: THREE.Vector3) => {
+  const survoler = useCallback((id: string | null, point?: THREE.Vector3, ecran?: { x: number; y: number }) => {
     const sc = poignee.current?.scene
     if (id?.startsWith('paroi:') && point) {
       const k = Number(id.slice(6)) || 0
       setCurseurZ(point.y)
       sc?.definirRepere({ k, z: point.y })
     } else { setCurseurZ(null); sc?.definirRepere(null) }
+    if (!id || !ecran || !sc?.d) { setInfobulle(null); return }
+    const sel = analyserSel(id)
+    const lignes: string[] = []
+    if (sel?.type === 'paroi' && point) {
+      const ctx = { scene: sc, d: sc.d, phase: sc.phaseActive, ph: sc.d.res.phases[sc.phaseActive], fab: sc.fab, plan: sc.planCoupe }
+      const sl = sc.d.geo.projeter(point.x, -point.z).sl
+      const src = sourcePour(ctx, sel.k ?? 0, sl)
+      const fy = profilValeur(src.res, src.phase, 'y', sc.d.geo.aretes[sel.k ?? 0].s0 + sl)
+      const fM = profilValeur(src.res, src.phase, 'M', sc.d.geo.aretes[sel.k ?? 0].s0 + sl)
+      lignes.push(`Paroi · côté ${sel.k ?? 0}${src.coupe ? ` · ${src.coupe.split(' — ')[0]}` : ''} · z = ${nb(point.y, 2)} m`)
+      if (fy) lignes.push(`déplacement y = ${nb(fy(point.y), 1)} mm`)
+      if (fM) lignes.push(`moment M = ${nb(fM(point.y), 0)} kN·m/m`)
+    } else if (sel?.type === 'appui' || sel?.type === 'lierne') {
+      const a = sc.d.res.phases[sc.phaseActive]?.appuis?.find((x) => x.nom === sel.nom)
+      lignes.push(`${sel.type === 'lierne' ? 'Lierne de ' : ''}${sel.nom}`)
+      if (a) lignes.push(`effort ${nb(a.effort_kN_m, 1)} kN/m · ${nb(a.effort_axial_kN, 0)} kN${a.fleche_mm != null ? ` · flèche ${nb(a.fleche_mm, 1)} mm` : ''}`)
+    } else lignes.push(id.replace(':', ' : '))
+    setInfobulle({ x: ecran.x + 14, y: ecran.y + 14, lignes })
   }, [])
+  const exporterImage = (facteur: 1 | 2) => {
+    const p = poignee.current
+    if (!p) return
+    telecharger(imagePng(p.rendu, p.scene.scene, p.scene.camera, liste, facteur, theme === 'sombre'), `maquette_phase${phase + 1}${facteur === 2 ? '_x2' : ''}.png`)
+  }
+  const exporterScene = async () => {
+    const p = poignee.current
+    if (!p) return
+    const blob = await exporterGltf(p.scene.scene)
+    telecharger(URL.createObjectURL(blob), `maquette_phase${phase + 1}.glb`)
+  }
+  const comparer = (ref: number) => {
+    let e = definirVisible(calquesRef.current, 'resultats.comparaison', ref > 0)
+    e = definirReglage(e, 'resultats.comparaison', 'phase', ref)
+    if (ref > 0) e = definirVisible(e, 'resultats.deformee', true)
+    setCalques(e)
+  }
   const survolCourbe = useCallback((z: number | null) => {
     const sc = poignee.current?.scene
     const sel = analyserSelection(selRef.current)
@@ -174,14 +217,10 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   }, [outilCoupe, positionLocale, geo])
 
   useEffect(() => {
-    enregistrerExport(() => {
-      const p = poignee.current
-      if (!p) return
-      p.scene.rendreMaintenant()
-      telecharger(p.canvas.toDataURL('image/png'), `maquette_phase${phase + 1}.png`)
-    })
+    enregistrerExport(() => exporterImage(1))
     return () => enregistrerExport(null)
-  }, [phase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, liste, theme])
 
   const exporterHtml = async () => {
     setExportEnCours(true)
@@ -212,6 +251,13 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
         </select>
         <input type="range" min={0} max={1000} value={Math.round(coupe.t * 1000)} disabled={!coupe.actif} aria-label="Position du plan de coupe"
           onChange={(e) => setCoupe({ ...coupe, t: Number(e.target.value) / 1000 })} style={{ width: 140 }} />
+        <label title="Interpolation visuelle entre deux phases pendant la lecture et les changements de phase (désactivée si le système demande moins d'animations)"><input type="checkbox" checked={animation} onChange={(e) => setAnimation(e.target.checked)} /> animation</label>
+        <label title="Superpose en fantôme la déformée d'une phase de référence">Comparer :
+          <select value={Number(calques.feuilles['resultats.comparaison']?.reglages?.phase ?? 0)} onChange={(e) => comparer(Number(e.target.value))} aria-label="Phase de référence">
+            <option value={0}>—</option>
+            {res.phases.map((p, i) => <option key={i} value={i + 1}>{i + 1}. {p.nom}</option>)}
+          </select>
+        </label>
         <span className="espace" />
         {plusieurs && (
           <label title="Coupe de calcul affichée (touches 1 à 9)">Coupe :
@@ -226,9 +272,13 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
         <button className={`btn ${outilSurcharge ? 'actif' : ''}`} title="Ajouter une surcharge : cliquer deux coins de l'emprise sur le terrain, puis saisir la valeur" onClick={() => setOutilSurcharge(outilSurcharge ? null : { p1: null })}><IconeSurcharge taille={14} /> {outilSurcharge ? (outilSurcharge.p1 ? 'Second coin…' : 'Premier coin…') : 'Ajouter une surcharge'}</button>
         <button className={`btn ${voirResultats ? 'actif' : ''}`} title="Panneau de résultats (R)" onClick={() => setVoirResultats(!voirResultats)}><IconeTableau taille={14} /> Résultats</button>
         <button className={`btn ${voirCalques ? 'actif' : ''}`} title="Calques (L)" onClick={() => setVoirCalques(!voirCalques)}><IconeCalques taille={14} /> Calques</button>
-        <button className="btn" disabled={exportEnCours} onClick={() => void exporterHtml()}>
-          {exportEnCours ? 'Génération…' : 'Exporter le fichier HTML autonome'}
-        </button>
+        <select className="btn" value="" aria-label="Exporter" onChange={(e) => { const v = e.target.value; e.target.value = ''; if (v === 'png') exporterImage(1); else if (v === 'png2') exporterImage(2); else if (v === 'glb') void exporterScene(); else if (v === 'html') void exporterHtml() }}>
+          <option value="">{exportEnCours ? 'Génération…' : 'Exporter…'}</option>
+          <option value="png">Image PNG avec légendes (×1)</option>
+          <option value="png2">Image PNG avec légendes (×2)</option>
+          <option value="glb">Scène glTF (.glb), phase active</option>
+          <option value="html">Fichier HTML autonome</option>
+        </select>
       </div>
       <nav className="fil-ariane" aria-label="Fil d'Ariane">
         {miettes.map((m, i) => (
@@ -240,9 +290,10 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
         {!selection && <span className="doux" style={{ marginLeft: 8 }}>Cliquez un objet de la maquette pour ouvrir ses résultats.</span>}
       </nav>
       <div className="onglet-3d-corps">
-        <Vue3D res={res} extra={extra} phase={phase} theme={theme} selection={selection} onSelection={choisir} onSurvol={survoler} onPret={pret} surCalques={appliquer} fabriques={FABRIQUES}
+        <Vue3D res={res} extra={extra} phase={phase} theme={theme} selection={selection} onSelection={choisir} onSurvol={survoler} onPret={pret} animationMs={animation ? 350 : 0} surCalques={appliquer} fabriques={FABRIQUES}
           enfants={<>
             <Legendes liste={liste} />
+            {infobulle && <div className="vue3d-infobulle" style={{ left: infobulle.x, top: infobulle.y }}>{infobulle.lignes.map((l, i) => <div key={i} className={i === 0 ? 'titre' : ''}>{l}</div>)}</div>}
             <div className="vue3d-note">
               {res.maquette?.plan_defaut && <div>Plan par défaut (rectangle 20 × 12 m) : ajoutez un bloc « plan » au script.</div>}
               <div>Glisser : tourner · clic droit ou Maj+glisser : déplacer · molette : zoom.</div>
