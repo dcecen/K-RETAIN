@@ -1,12 +1,14 @@
 """Script validé -> modèle de calcul (sout.noyau.modele.Modele)."""
 from __future__ import annotations
 
+import math
+
 from ..appuis.construction import ErreurAppui, construire_appui
 from ..noyau.modele import Modele, Phase
 from ..parois import ErreurParoi, construire_ecran
 from ..sol.couches import Couche
 from ..sol.surcharges import Surcharge
-from ..sol.terrain import SurchargePlan
+from ..sol.terrain import ErreurTerrain, ObjetTerrain, SurchargePlan, bandes_equivalentes, profil_gradins, profil_risberme
 from .schema import Script
 
 
@@ -56,6 +58,13 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
         raise ErreurConversion(str(e).strip("'\"")) from None
 
     couches = [Couche(**c.model_dump()) for c in s.sol]
+    noms_phases_tmp = [p.nom for p in s.phases]
+    remblai_phase = None
+    if s.terrain.remblai is not None:
+        # remblai côté terre : couche ajoutée (propriétés d'une couche existante) et remontée du terrain à la phase
+        src = next((c for c in s.sol if c.nom == s.terrain.remblai.materiau), s.sol[0])
+        couches.insert(0, Couche(**{**src.model_dump(), "nom": f"Remblai ({src.nom})", "toit": s.terrain.remblai.cote}))
+        remblai_phase = _indice_phase(s.terrain.remblai.phase, noms_phases_tmp)
     jeu = jeu or s.calcul.jeu_eau or (next(iter(s.eau)) if s.eau else None)
     eau0 = s.eau[jeu] if jeu else None
 
@@ -81,6 +90,87 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
             ajouts_par_phase.setdefault(debut, []).append(obj)
         if fin is not None and fin + 1 <= len(s.phases):
             retraits_par_phase.setdefault(fin + 1, []).append(obj.nom)
+    # objets de terrain (risbermes, talus, gradins côté fouille ; profil côté terre) → bandes équivalentes phasées
+    objets: list[ObjetTerrain] = []
+    terrassements: dict[str, int] = {}
+    for k_ph, ph in enumerate(s.phases, start=1):
+        tr = ph.terrasser_risberme
+        for nom in ([tr] if isinstance(tr, str) else tr or []):
+            terrassements[nom] = k_ph
+    sol_trie = sorted(couches, key=lambda c: -c.toit)
+
+    def _gamma_a(z: float) -> float:
+        for c in sol_trie:
+            if z <= c.toit + 1e-9:
+                return c.gamma
+        return sol_trie[-1].gamma
+
+    def _cotes(cp):
+        return None if cp is None or cp == "toutes" else tuple(f"#{c}" if isinstance(c, int) else str(c) for c in ([cp] if isinstance(cp, (str, int)) else cp))
+
+    def _fond_a_la_phase(k: int) -> float:
+        fond = s.terrain.aval if s.terrain.aval is not None else (s.terrain.amont if s.terrain.amont is not None else s.sol[0].toit)
+        for p in s.phases[:k]:
+            if p.excaver is not None:
+                fond = p.excaver
+            if p.remblayer and p.remblayer.aval is not None:
+                fond = p.remblayer.aval
+        return fond
+
+    try:
+        for famille, liste in (("risberme", s.fouille.risbermes), ("talus", s.fouille.talus), ("gradins", s.fouille.gradins)):
+            for i, o in enumerate(liste):
+                nom = o.nom or f"{famille.capitalize()}{i + 1}"
+                debut, fin = _indice_phase(o.phases[0], noms_phases_tmp), _indice_phase(o.phases[1], noms_phases_tmp)
+                if nom in terrassements:
+                    fin = min(fin, terrassements[nom] - 1)
+                if famille == "gradins":
+                    pied = o.cote_pied if o.cote_pied is not None else _fond_a_la_phase(debut)
+                    profil = profil_gradins([tuple(m) for m in o.marches], pied)
+                    crete = max(m[0] for m in o.marches)
+                else:
+                    largeur = o.largeur_banquette if (famille == "talus" and o.largeur_banquette is not None) else o.largeur_crete
+                    profil = profil_risberme(o.cote_crete, largeur, o.pente, o.cote_pied)
+                    pied, crete = o.cote_pied, o.cote_crete
+                if _fond_a_la_phase(debut) > pied + 1e-6:
+                    raise ErreurConversion(f"{famille} « {nom} » : le fond de fouille à la phase {debut} ({_fond_a_la_phase(debut)} m) "
+                                           f"est au-dessus du pied {pied} m (excavez d'abord au fond général)")
+                objets.append(ObjetTerrain(nom=nom, type=famille, face="aval", profil=profil, base=pied, gamma=_gamma_a(0.5 * (pied + crete)),
+                                           methode=o.methode, phase_debut=debut, phase_fin=fin, cotes_paroi=_cotes(o.cote_paroi),
+                                           cote_equivalente=getattr(o, "cote_equivalente", None)))
+        t = s.terrain
+        z_amont = t.amont if t.amont is not None else s.sol[0].toit
+        if t.profil is not None and t.methode_pente == "surcharge_equivalente":
+            pts = tuple((float(d), float(z)) for d, z in t.profil)
+            if any(z > z_amont + 1e-6 for _, z in pts):
+                objets.append(ObjetTerrain(nom="Terrain en pente", type="pente", face="amont", profil=pts, base=z_amont,
+                                           gamma=_gamma_a(z_amont), methode="surcharge_equivalente", cotes_paroi=_cotes(t.cote_paroi)))
+    except ErreurTerrain as e:
+        raise ErreurConversion(str(e)) from None
+    beta = None
+    if t.pente_beta is not None or (t.profil is not None and t.methode_pente == "coulomb_beta"):
+        if t.pente_beta is not None:
+            beta = t.pente_beta
+        else:
+            (d0, z0), (d1, z1) = t.profil[0], t.profil[-1]
+            beta = math.degrees(math.atan2(z1 - z0, d1 - d0))
+    cc = s.coupe_calcul
+    for o in objets:
+        # objet rattaché à certains côtés : ignoré par les coupes des autres côtés
+        if o.cotes_paroi is not None and cc is not None and not (cc.cote in o.cotes_paroi or f"#{cc.k}" in o.cotes_paroi):
+            continue
+        if o.methode == "coin_de_rupture":
+            raise ErreurConversion(f"{o.type} « {o.nom} » : méthode du coin de rupture non disponible — TODO-NORME : "
+                                   "publication à fournir dans docs/normes (surcharges_et_terrain.risberme_coin_de_rupture)")
+        if o.methode == "fond_equivalent":
+            continue
+        bandes = bandes_equivalentes(o)
+        if o.phase_debut is None:
+            surcharges += bandes
+        else:
+            ajouts_par_phase.setdefault(o.phase_debut, []).extend(bandes)
+            if o.phase_fin is not None and o.phase_fin + 1 <= len(s.phases):
+                retraits_par_phase.setdefault(o.phase_fin + 1, []).extend(b.nom for b in bandes)
     phases = []
     for k_ph, ph in enumerate(s.phases, start=1):
         ajout = list(ajouts_par_phase.get(k_ph, []))
@@ -91,9 +181,18 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
         if ph.eau is not None:
             for cle in ph.eau.model_fields_set:
                 eau[cle] = getattr(ph.eau, cle)
+        excaver = ph.excaver
+        for o in objets:   # méthode du fond équivalent : fond relevé à la cote choisie pendant la vie de l'objet
+            if o.methode == "fond_equivalent" and o.phase_debut == k_ph and o.cote_equivalente is not None:
+                excaver = o.cote_equivalente
+            if o.methode == "fond_equivalent" and o.phase_fin is not None and o.phase_fin + 1 == k_ph and (excaver is None or excaver > o.base):
+                excaver = o.base
+        remblai_amont = ph.remblayer.amont if ph.remblayer else None
+        if remblai_phase == k_ph and s.terrain.remblai is not None:
+            remblai_amont = s.terrain.remblai.cote
         phases.append(Phase(
-            nom=ph.nom, excaver=ph.excaver,
-            remblayer_amont=ph.remblayer.amont if ph.remblayer else None,
+            nom=ph.nom, excaver=excaver,
+            remblayer_amont=remblai_amont,
             remblayer_aval=ph.remblayer.aval if ph.remblayer else None,
             poser=_liste(ph.poser), deposer=_liste(ph.deposer), eau=eau,
             ajouter_surcharges=ajout, retirer_surcharges=list(ph.retirer_surcharges or []) + retraits_par_phase.get(k_ph, []),
@@ -101,10 +200,12 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
         ))
     return Modele(
         ecran=ecran, couches=couches, phases=phases, appuis=appuis,
-        terrain_amont=s.terrain.amont, terrain_aval=s.terrain.aval,
+        terrain_amont=s.terrain.amont if s.terrain.amont is not None else (s.sol[0].toit if remblai_phase is not None else None),
+        terrain_aval=s.terrain.aval,
         eau_amont=eau0.amont if eau0 else None, eau_aval=eau0.aval if eau0 else None,
         surcharges=surcharges, gamma_w=s.calcul.gamma_w, coefficients=s.calcul.coefficients,
         pas=s.calcul.pas,
         hydraulique=s.hydraulique.model_dump() if s.hydraulique is not None else None,
         coupe=s.coupe_calcul.model_dump() if s.coupe_calcul is not None else None,
+        beta_amont=beta, terrain_objets=objets,
     )

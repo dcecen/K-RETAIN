@@ -123,9 +123,49 @@ class AssemblageScript(_Base):
     parametres: dict[str, float | str] = Field(default_factory=dict, description="paramètres géométriques du type (mm, kN, °)")
 
 
+class RemblaiTerrain(_Base):
+    cote: float = Field(description="cote du terrain amont après remblai (m)")
+    materiau: str | None = Field(None, description="nom d'une couche du bloc sol dont le remblai prend les propriétés (défaut : 1re couche)")
+    phase: int | str = Field(description="phase de mise en place (numéro à partir de 1, ou nom)")
+
+
 class Terrain(_Base):
     amont: float | None = Field(None, description="cote initiale du terrain amont (m) ; défaut : toit de la 1re couche")
     aval: float | None = Field(None, description="cote initiale du terrain aval (m) ; défaut : terrain amont")
+    pente_beta: float | None = Field(None, gt=-80, lt=80, description="terrain en pente uniforme côté terre : angle β sur l'horizontale (°), poussée de Coulomb avec talus")
+    profil: list[list[float]] | None = Field(None, description="côté terre : ligne [distance à la paroi, cote] (m) ; le sol au-dessus de la cote amont est pris en surcharge équivalente")
+    methode_pente: Literal["coulomb_beta", "surcharge_equivalente"] = Field("surcharge_equivalente", description="prise en compte du profil : coefficients avec β (pente uniforme) ou surcharge équivalente")
+    cote_paroi: str | int | list[str | int] | None = Field(None, description="côté(s) concerné(s) par le profil (défaut : tous)")
+    remblai: RemblaiTerrain | None = Field(None, description="remblai côté terre mis en place à une phase (couche ajoutée)")
+
+
+class RisbermeScript(_Base):
+    nom: str | None = Field(None, description="nom (pour la terrasser dans une phase)")
+    cote_paroi: str | int | list[str | int] | None = Field(None, description="côté(s) de paroi concerné(s)")
+    phases: list[int | str] = Field(min_length=2, max_length=2, description="[première, dernière] phase d'existence")
+    cote_crete: float = Field(description="cote du sommet contre la paroi (m)")
+    largeur_crete: float = Field(0.0, ge=0, description="largeur horizontale du sommet (m)")
+    pente: float = Field(1.5, gt=0, description="pente du talus, horizontal / vertical")
+    cote_pied: float = Field(description="cote du fond général au pied du talus (m)")
+    largeur_banquette: float | None = Field(None, ge=0, description="talus : largeur de la banquette contre la paroi (m) = largeur_crete")
+    methode: Literal["surcharge_equivalente", "fond_equivalent", "coin_de_rupture"] = Field(
+        "surcharge_equivalente", description="prise en compte : surcharge équivalente (bandes de poids), fond équivalent (cote_equivalente à donner), coin de rupture (à fournir)")
+    cote_equivalente: float | None = Field(None, description="méthode fond_equivalent : cote de fond de fouille équivalente choisie (m)")
+
+
+class GradinsScript(_Base):
+    nom: str | None = Field(None, description="nom")
+    cote_paroi: str | int | list[str | int] | None = Field(None, description="côté(s) de paroi concerné(s)")
+    phases: list[int | str] = Field(min_length=2, max_length=2, description="[première, dernière] phase d'existence")
+    marches: list[list[float]] = Field(min_length=1, description="marches [cote, largeur] depuis la paroi (m)")
+    cote_pied: float | None = Field(None, description="cote du fond général (m) ; défaut : fond de fouille à la première phase")
+    methode: Literal["surcharge_equivalente", "coin_de_rupture"] = Field("surcharge_equivalente", description="prise en compte")
+
+
+class Fouille(_Base):
+    risbermes: list[RisbermeScript] = Field(default_factory=list, description="risbermes contre la paroi (côté fouille)")
+    talus: list[RisbermeScript] = Field(default_factory=list, description="talus provisoires côté fouille (banquette puis pente)")
+    gradins: list[GradinsScript] = Field(default_factory=list, description="fond de fouille en gradins")
 
 
 class NiveauxEau(_Base):
@@ -202,6 +242,7 @@ class Phase(_Base):
     ajouter_surcharges: list[Surcharge] | None = Field(None, description="surcharges ajoutées")
     retirer_surcharges: list[str] | None = Field(None, description="noms des surcharges retirées")
     depuis: str | None = Field(None, description="phase de départ : nom d'une phase antérieure ou « État initial » ; vide = la phase précédente ; permet des branches (variantes)")
+    terrasser_risberme: str | list[str] | None = Field(None, description="risberme(s), talus ou gradins terrassés dans cette phase (noms)")
 
 
 class Criteres(_Base):
@@ -280,6 +321,7 @@ class Script(_Base):
     paroi: Paroi
     sol: list[Couche] = Field(min_length=1)
     terrain: Terrain = Field(default_factory=Terrain)
+    fouille: Fouille = Field(default_factory=Fouille, description="risbermes, talus et gradins côté fouille")
     eau: dict[str, NiveauxEau] = Field(default_factory=dict, description="jeux de niveaux d'eau (service, exceptionnel…)")
     surcharges: list[Surcharge] = Field(default_factory=list)
     appuis: dict[str, Appui] = Field(default_factory=dict)

@@ -229,6 +229,50 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
     for j, ph in enumerate(s.phases):
         toutes += [(("phases", j, "ajouter_surcharges", i), sc) for i, sc in enumerate(ph.ajouter_surcharges or [])]
     noms_phases = [p.nom for p in s.phases]
+    def _num(ref):
+        return noms_phases.index(ref) + 1 if isinstance(ref, str) and ref in noms_phases else (ref if isinstance(ref, int) else None)
+    objets = ([(("fouille", "risbermes", i), o) for i, o in enumerate(s.fouille.risbermes)]
+              + [(("fouille", "talus", i), o) for i, o in enumerate(s.fouille.talus)]
+              + [(("fouille", "gradins", i), o) for i, o in enumerate(s.fouille.gradins)])
+    noms_objets = []
+    for chemin, o in objets:
+        nom = o.nom or f"{chemin[1][:-1].capitalize()}{chemin[2] + 1}"
+        if nom in noms_objets:
+            e.append((chemin + ("nom",), f"nom « {nom} » en double"))
+        noms_objets.append(nom)
+        a, b = (_num(o.phases[0]), _num(o.phases[1]))
+        for ref, k in zip(o.phases, (a, b)):
+            if k is None or not 1 <= k <= len(s.phases):
+                e.append((chemin + ("phases",), f"phase « {ref} » inconnue"))
+        if a is not None and b is not None and b < a:
+            e.append((chemin + ("phases",), "la dernière phase doit suivre la première"))
+        if hasattr(o, "cote_crete") and o.cote_pied > o.cote_crete:
+            e.append((chemin + ("cote_pied",), "le pied doit être sous la crête"))
+        if getattr(o, "methode", "") == "fond_equivalent" and getattr(o, "cote_equivalente", None) is None:
+            e.append((chemin + ("cote_equivalente",), "méthode fond_equivalent : cote_equivalente obligatoire (choix de l'ingénieur)"))
+        cp = o.cote_paroi
+        for c in ([cp] if isinstance(cp, (str, int)) else cp or []):
+            if isinstance(c, str) and c != "toutes" and c not in cotes:
+                e.append((chemin + ("cote_paroi",), f"côté « {c} » inconnu : déclarez-le dans plan.cotes"))
+    for j, ph in enumerate(s.phases):
+        tr = ph.terrasser_risberme
+        for nom in ([tr] if isinstance(tr, str) else tr or []):
+            if nom not in noms_objets:
+                e.append((("phases", j, "terrasser_risberme"), f"risberme « {nom} » inconnue"))
+    t = s.terrain
+    if t.pente_beta is not None and s.sol and abs(t.pente_beta) > min(c.phi for c in s.sol) + 1e-9:
+        e.append((("terrain", "pente_beta"), f"β = {t.pente_beta}° dépasse le φ' le plus faible des couches : pas d'équilibre de Coulomb"))
+    if t.profil is not None:
+        if any(len(p) != 2 for p in t.profil) or any(t.profil[i + 1][0] <= t.profil[i][0] for i in range(len(t.profil) - 1)):
+            e.append((("terrain", "profil"), "profil : points [distance, cote] à distances strictement croissantes"))
+        elif t.methode_pente == "coulomb_beta" and len(t.profil) > 2 and t.pente_beta is None:
+            e.append((("terrain", "methode_pente"), "coulomb_beta demande une pente uniforme : donnez pente_beta ou un profil à deux points"))
+    if t.remblai is not None:
+        k = _num(t.remblai.phase)
+        if k is None or not 1 <= k <= len(s.phases):
+            e.append((("terrain", "remblai", "phase"), f"phase « {t.remblai.phase} » inconnue"))
+        if t.remblai.materiau is not None and t.remblai.materiau not in [c.nom for c in s.sol]:
+            e.append((("terrain", "remblai", "materiau"), f"couche « {t.remblai.materiau} » inconnue dans le bloc sol"))
     for chemin, sc in toutes:
         if sc.type == "bande" and not sc.largeur:
             e.append((chemin + ("largeur",), "surcharge en bande : largeur obligatoire"))

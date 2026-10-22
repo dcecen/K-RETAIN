@@ -31,6 +31,10 @@ surcharges:
 appuis:
   B1: { type: buton, element: modulaire_A, cote: -1.5, espacement: 6.0, longueur: 18.0, precharge: 50 }
 
+fouille:
+  risbermes:                                        # risberme contre le côté sud pendant la phase 3 (surcharge équivalente)
+    - { nom: R1, cote_paroi: long_sud, phases: [3, 3], cote_crete: -4.0, largeur_crete: 2.0, pente: 1.5, cote_pied: -6.5 }
+
 plan:
   contour: [[0, 0], [30, 0], [30, 18], [0, 18]]
   cotes: { long_sud: 0, court_est: 1, long_nord: 2, court_ouest: 3 }   # noms des côtés (numéro d'arête du contour)
@@ -57,6 +61,7 @@ coupes:
   - nom: C3 — petit côté est, fouille moins profonde
     zone: { paroi: court_est }
     script:
+      fouille: { risbermes: [] }                    # pas de risberme sur ce côté
       phases:
         - { nom: "Terrassement à -2,0", excaver: -2.0 }
         - { nom: Pose du buton B1, poser: B1 }

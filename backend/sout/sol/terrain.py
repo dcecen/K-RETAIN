@@ -265,3 +265,117 @@ def profil_pour_affichage(s, z_terrain: float, z_pied: float, coupe: CoupeCalcul
         v = np.zeros_like(z)
         note = str(e)
     return {"z": [round(float(x), 3) for x in z], "dsv": [round(float(x), 4) for x in v], "methode": note}
+
+
+# ---------------------------------------------------------------------------
+# géométrie du terrain : risbermes, talus, gradins côté fouille ; terrain en pente côté terre
+# ---------------------------------------------------------------------------
+METHODES_RISBERME = ("surcharge_equivalente", "fond_equivalent", "coin_de_rupture")
+PREFIXE_TERRAIN = "~terrain:"
+
+
+@dataclass(frozen=True)
+class ObjetTerrain:
+    """Volume de sol décrit par une ligne (distance à la paroi → cote), sur une face de l'écran,
+    présent entre deux phases. Côté fouille : risberme, talus, gradins (volume au-dessus de `base`,
+    la cote du fond général). Côté terre : terrain en pente ou remblai localisé (volume au-dessus de
+    la cote du terrain amont)."""
+    nom: str
+    type: str                                   # risberme, talus, gradins, pente
+    face: str                                   # "aval" (fouille) ou "amont" (terre)
+    profil: tuple[tuple[float, float], ...]     # ((d, z), ...) distances croissantes depuis la paroi
+    base: float                                 # cote de référence (fond général ou terrain amont)
+    gamma: float                                # kN/m³ du sol du volume (hors nappe)
+    methode: str = "surcharge_equivalente"
+    phase_debut: int | None = None              # 1 = première phase ; None = dès l'état initial
+    phase_fin: int | None = None
+    cotes_paroi: tuple[str, ...] | None = None
+    cote_equivalente: float | None = None       # méthode fond_equivalent (valeur choisie par l'ingénieur)
+    pas: float = 0.5                            # largeur des bandes équivalentes (m)
+
+    def hauteur(self, d: float) -> float:
+        """Épaisseur du volume au-dessus de la base à la distance d (interpolation sur la ligne)."""
+        pts = self.profil
+        if d <= pts[0][0]:
+            z = pts[0][1]
+        elif d >= pts[-1][0]:
+            z = pts[-1][1]
+        else:
+            z = pts[-1][1]
+            for (d0, z0), (d1, z1) in zip(pts, pts[1:]):
+                if d0 <= d <= d1:
+                    z = z0 if d1 == d0 else z0 + (z1 - z0) * (d - d0) / (d1 - d0)
+                    break
+        return max(0.0, z - self.base)
+
+    @property
+    def etendue(self) -> float:
+        return self.profil[-1][0]
+
+
+def profil_risberme(cote_crete: float, largeur_crete: float, pente: float, cote_pied: float) -> tuple[tuple[float, float], ...]:
+    """Ligne d'une risberme ou d'un talus : crête horizontale contre la paroi puis descente à la pente
+    donnée (horizontal / vertical) jusqu'au fond général."""
+    if cote_pied > cote_crete:
+        raise ErreurTerrain("risberme : la cote du pied doit être sous la cote de la crête")
+    if pente <= 0:
+        raise ErreurTerrain("risberme : la pente (horizontal/vertical) doit être > 0")
+    d_fin = largeur_crete + pente * (cote_crete - cote_pied)
+    return ((0.0, cote_crete), (largeur_crete, cote_crete), (d_fin, cote_pied), (d_fin + 1.0, cote_pied))
+
+
+def profil_gradins(marches, cote_pied: float) -> tuple[tuple[float, float], ...]:
+    """Ligne de gradins : marches [cote, largeur] depuis la paroi, puis le fond général."""
+    pts: list[tuple[float, float]] = []
+    d = 0.0
+    for cote, largeur in marches:
+        if cote < cote_pied - 1e-9:
+            raise ErreurTerrain(f"gradins : marche à {cote} m sous le fond général {cote_pied} m")
+        pts += [(d, cote), (d + largeur, cote)]
+        d += largeur
+    pts += [(d, cote_pied), (d + 1.0, cote_pied)]
+    return tuple(pts)
+
+
+def bandes_equivalentes(o: ObjetTerrain) -> list[Surcharge]:
+    """Méthode de la surcharge équivalente : le volume de sol est remplacé par son poids, appliqué
+    à la cote de base sous forme de bandes verticales (largeur `pas`) diffusées par Boussinesq
+    (`sol.surcharges.delta_sigma_v`, bande). Choix de modélisation RetainWall : les bandes
+    conservent la forme du volume ; une surcharge uniforme unique serait plus grossière.
+    Le poids volumique est pris hors nappe (volume supposé émergé)."""
+    out = []
+    n = max(1, int(math.ceil(o.etendue / o.pas)))
+    w = o.etendue / n
+    for i in range(n):
+        d0 = i * w
+        h = o.hauteur(d0 + w / 2)
+        if h <= 1e-6:
+            continue
+        out.append(Surcharge(nom=f"{PREFIXE_TERRAIN}{o.nom}:{i}", type="bande", q=o.gamma * h, distance=d0, largeur=w,
+                             cote=o.base, cote_ecran=o.face))
+    return out
+
+
+def surcharges_terrain(objets, coupe: CoupeCalcul | None) -> list[tuple[ObjetTerrain, list[Surcharge]]]:
+    """Bandes équivalentes des objets concernant la coupe (les autres méthodes n'en produisent pas)."""
+    out = []
+    for o in objets:
+        if o.cotes_paroi is not None and coupe is not None and not (coupe.cote in o.cotes_paroi or f"#{coupe.k}" in o.cotes_paroi):
+            continue
+        if o.methode == "coin_de_rupture":
+            raise ErreurTerrain(f"{o.type} « {o.nom} » : méthode du coin de rupture non disponible — "
+                                "TODO-NORME : publication à fournir dans docs/normes (surcharges_et_terrain.risberme_coin_de_rupture)")
+        if o.methode == "fond_equivalent":
+            out.append((o, []))
+            continue
+        out.append((o, bandes_equivalentes(o)))
+    return out
+
+
+def effet_butee(objets_actifs, kph_z: np.ndarray, z: np.ndarray, z_fond: float, coupe: CoupeCalcul | None) -> np.ndarray:
+    """Supplément de butée limite dû aux bandes équivalentes des objets côté fouille : Kph(z) × Δσv(z).
+    (Même relation que le moteur : pp = Kph·σ'v + terme de cohésion ; la cohésion ne change pas.)"""
+    bandes = [b for o, bs in surcharges_terrain(objets_actifs, coupe) for b in bs if o.face == "aval"]
+    if not bandes:
+        return np.zeros_like(np.asarray(z, float))
+    return np.asarray(kph_z, float) * delta_sigma_v_surcharges(bandes, "aval", z, z_fond, coupe)

@@ -228,6 +228,45 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
         </div>
       )
     }
+    if (sel.type === 'terrain') {
+      const o = res.maquette?.terrain?.objets.find((x) => x.nom === sel.nom)
+      const t = res.maquette?.terrain
+      if (!o) {
+        return (
+          <div className="insp-section">
+            <div className="insp-titre">{sel.nom}</div>
+            {t?.pente_beta ? <div className="note">Terrain en pente côté terre : β = {nb(t.pente_beta, 1)}°, poussée de Coulomb avec talus (sol/coefficients.py, Ka(β) &gt; Ka horizontal). Kah des couches : voir une couche.</div> : <div className="note">Objet de terrain introuvable.</div>}
+          </div>
+        )
+      }
+      const zCrete = Math.max(...o.profil.map((p) => p[1]))
+      const methode = o.methode === 'surcharge_equivalente' ? 'surcharge équivalente : le volume est remplacé par son poids (bandes de γ·h appliquées à la cote de base, diffusées par Boussinesq)'
+        : o.methode === 'fond_equivalent' ? `fond de fouille équivalent à ${nb(o.cote_equivalente ?? 0, 2)} m (valeur choisie)` : o.methode === 'coulomb_beta' ? 'coefficients de poussée de Coulomb avec talus' : o.methode
+      const ppSans = ph.pp_sans_terrain
+      return (
+        <div className="insp-section">
+          <div className="insp-titre">{o.nom} <span className="doux">· {o.type} · {o.face === 'aval' ? 'côté fouille' : 'côté terre'}</span></div>
+          <dl className="lignes-cle">
+            <dt>Crête</dt><dd>{nb(zCrete, 2)} m</dd>
+            <dt>Base</dt><dd>{nb(o.base, 2)} m</dd>
+            <dt>Étendue</dt><dd>{nb(o.profil[o.profil.length - 1][0], 1)} m</dd>
+            <dt>γ retenu</dt><dd>{nb(o.gamma, 1)} kN/m³</dd>
+            <dt>Phases</dt><dd>{o.phase_debut} à {Math.min(o.phase_fin, res.phases.length - 1)}</dd>
+            {o.cotes_paroi && <><dt>Côtés</dt><dd>{o.cotes_paroi.join(', ')}</dd></>}
+          </dl>
+          <div className="note">Méthode : {methode}.</div>
+          {o.face === 'aval' && ph.pressions && (
+            <>
+              <div className="insp-titre" style={{ marginTop: 8 }}>Butée limite — {ph.nom}</div>
+              {ppSans ? <Mini theme={theme} traces={[{ x: ppSans, y: ph.pressions.aval.z, name: 'sans la risberme', type: 'scatter', mode: 'lines', line: { color: couleurs().doux, dash: 'dash' } },
+                { x: ph.pressions.aval.pp, y: ph.pressions.aval.z, name: 'avec (calcul)', type: 'scatter', mode: 'lines', line: { color: couleurs().vert } }]}
+                layout={{ xaxis: { title: { text: 'kPa', font: { size: 10 } } }, yaxis: { title: { text: 'cote (m)', font: { size: 10 } } } }} />
+                : <div className="note">L'objet n'agit pas à cette phase (ou méthode sans effet sur la butée limite).</div>}
+            </>
+          )}
+        </div>
+      )
+    }
     return <div className="note" style={{ padding: 10 }}>Pas de courbe pour cet objet.</div>
   }
 

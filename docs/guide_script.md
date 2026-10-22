@@ -262,6 +262,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `paroi` | bloc | oui |  |  |
 | `sol` | liste de bloc | oui |  |  |
 | `terrain` | bloc |  |  |  |
+| `fouille` | bloc |  |  | risbermes, talus et gradins côté fouille |
 | `eau` | blocs nommés de bloc |  |  | jeux de niveaux d'eau (service, exceptionnel…) |
 | `surcharges` | liste de bloc |  |  |  |
 | `appuis` | blocs nommés de bloc |  |  |  |
@@ -355,6 +356,11 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | --- | --- | --- | --- | --- |
 | `amont` | nombre |  |  | cote initiale du terrain amont (m) ; défaut : toit de la 1re couche |
 | `aval` | nombre |  |  | cote initiale du terrain aval (m) ; défaut : terrain amont |
+| `pente_beta` | nombre |  |  | terrain en pente uniforme côté terre : angle β sur l'horizontale (°), poussée de Coulomb avec talus (> -80, < 80) |
+| `profil` | liste de liste de nombre |  |  | côté terre : ligne [distance à la paroi, cote] (m) ; le sol au-dessus de la cote amont est pris en surcharge équivalente |
+| `methode_pente` | coulomb_beta / surcharge_equivalente |  | surcharge_equivalente | prise en compte du profil : coefficients avec β (pente uniforme) ou surcharge équivalente |
+| `cote_paroi` | texte ou entier ou liste de texte ou entier |  |  | côté(s) concerné(s) par le profil (défaut : tous) |
+| `remblai` | bloc |  |  | remblai côté terre mis en place à une phase (couche ajoutée) |
 
 ### eau (chaque jeu de niveaux)
 
@@ -425,6 +431,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `ajouter_surcharges` | liste de bloc |  |  | surcharges ajoutées |
 | `retirer_surcharges` | liste de texte |  |  | noms des surcharges retirées |
 | `depuis` | texte |  |  | phase de départ : nom d'une phase antérieure ou « État initial » ; vide = la phase précédente ; permet des branches (variantes) |
+| `terrasser_risberme` | texte ou liste de texte |  |  | risberme(s), talus ou gradins terrassés dans cette phase (noms) |
 
 ### phases.remblayer
 

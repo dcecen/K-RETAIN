@@ -83,6 +83,8 @@ export interface PhaseRes {
   M?: number[]
   V?: number[]
   pressions?: { amont: Pressions; aval: Pressions }
+  /** Butée limite aval sans l'effet des risbermes/talus/gradins (présent seulement quand un objet agit). */
+  pp_sans_terrain?: number[]
   eau?: { z: number[]; u_amont: number[]; u_aval: number[] }
   appuis?: AppuiPhase[]
   actions: { type: string; texte: string }[]
@@ -159,6 +161,29 @@ export interface SurchargeMaquette {
   profil?: { z: number[]; dsv: number[]; methode: string }
 }
 
+export interface ObjetTerrainMaquette {
+  nom: string
+  type: string                 // risberme, talus, gradins, pente, remblai
+  face: 'amont' | 'aval'
+  profil: number[][]           // [distance à la paroi, cote]
+  base: number
+  gamma: number
+  methode: string
+  phase_debut: number
+  phase_fin: number
+  cotes_paroi: string[] | null
+  cote_equivalente: number | null
+}
+
+export interface TerrainMaquette {
+  profil: number[][] | null
+  pente_beta: number | null
+  methode_pente: string
+  cote_paroi: string | number | (string | number)[] | null
+  remblai: { cote: number; materiau: string | null; phase: number | string } | null
+  objets: ObjetTerrainMaquette[]
+}
+
 export interface Maquette {
   projet: string
   paroi: { type: string; tete: number; pied: number; epaisseur: number; diametre: number; entraxe: number
@@ -172,6 +197,7 @@ export interface Maquette {
   i_critique: (number | null)[]
   assemblages: Record<string, { type: string; appui: string | null }>
   surcharges?: SurchargeMaquette[]
+  terrain?: TerrainMaquette
   coupe_calcul?: { x: number; y: number; ni: number[]; t: number[]; k: number; s: number; cote: string | null; nom: string | null } | null
 }
 

@@ -131,8 +131,24 @@ def geometrie(ex) -> dict:
         "appuis": appuis, "plan_appuis": plan_appuis, "i_critique": i_crit,
         "assemblages": {nom: {"type": a.type, "appui": a.appui} for nom, a in s.assemblages.items()},
         "surcharges": surcharges_maquette(ex),
+        "terrain": terrain_maquette(ex),
         "coupe_calcul": s.coupe_calcul.model_dump() if s.coupe_calcul is not None else None,
     }
+
+
+def terrain_maquette(ex) -> dict:
+    """Géométrie du terrain pour la maquette : profil côté terre, pente, remblai, objets phasés (risbermes,
+    talus, gradins) avec leur ligne, leur méthode et leur fenêtre de phases."""
+    s, m = ex.script, ex.modele
+    t = s.terrain
+    objets = []
+    for o in m.terrain_objets:
+        objets.append({"nom": o.nom, "type": o.type, "face": o.face, "profil": [list(p) for p in o.profil], "base": o.base,
+                       "gamma": o.gamma, "methode": o.methode, "phase_debut": o.phase_debut or 0,
+                       "phase_fin": o.phase_fin if o.phase_fin is not None else len(m.phases),
+                       "cotes_paroi": list(o.cotes_paroi) if o.cotes_paroi else None, "cote_equivalente": o.cote_equivalente})
+    return {"profil": t.profil, "pente_beta": m.beta_amont, "methode_pente": t.methode_pente, "cote_paroi": t.cote_paroi,
+            "remblai": t.remblai.model_dump() if t.remblai else None, "objets": objets}
 
 
 def surcharges_maquette(ex) -> list[dict]:
@@ -155,6 +171,8 @@ def surcharges_maquette(ex) -> list[dict]:
             if nom in vus:
                 vus[nom]["fin"] = k - 1
     for nom, d in vus.items():
+        if nom.startswith("~terrain:"):
+            continue
         sc = d["obj"]
         base = {"nom": nom, "type": sc.type, "q": sc.q, "cote_ecran": sc.cote_ecran, "phase_debut": d["debut"], "phase_fin": d["fin"],
                 "distance": getattr(sc, "distance", 0.0), "largeur": getattr(sc, "largeur", None), "cote": getattr(sc, "cote", None)}

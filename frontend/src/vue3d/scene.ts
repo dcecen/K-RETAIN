@@ -154,6 +154,8 @@ export class SceneRetainWall {
   coupeLocale: { k: number; sl: number } | null = null
   /** Curseur de cote sur la paroi (survol d'une courbe du panneau de résultats). */
   repereCote: { k: number; z: number } | null = null
+  /** Outil « Mesurer » : deux points (repère three). */
+  mesure: { a: THREE.Vector3; b: THREE.Vector3 | null } | null = null
   calques: EtatCalquesScene = CALQUES_DEFAUT
   orbite = { theta: -0.9, phi: 0.95, rayon: 60, cible: new THREE.Vector3() }
   cameraTouchee = false
@@ -364,6 +366,15 @@ export class SceneRetainWall {
   get valeurCoupe(): number {
     const [a, b] = this.bornesCoupe()
     return a + this.coupe.t * (b - a)
+  }
+
+  definirMesure(m: { a: THREE.Vector3; b: THREE.Vector3 | null } | null) {
+    this.mesure = m
+    if (!this.d) return
+    const ctx = this.contexte()
+    for (const el of this.elements.values()) if (el.id === 'outils.mesure') this.majElement(el, ctx)
+    this.calculerEtiquettes(ctx)
+    this.demanderRendu()
   }
 
   definirRepere(p: { k: number; z: number } | null) {

@@ -45,7 +45,7 @@ function extreme(xs: number[], zs: number[], quoi: 'max' | 'min' | 'abs') {
   return { x: xs[k], z: zs[k] }
 }
 
-function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enveloppe: boolean) {
+function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enveloppe: boolean, indexPhase: number) {
   const c = couleurs()
   const H = res.paroi.tete - res.paroi.pied
   const zBas = res.paroi.pied - 0.08 * H
@@ -96,6 +96,24 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
     })
     annotations.push({ text: `i sortie max ${nb(hy.gradient_sortie_max, 2)}`, xref: 'x', yref: 'y', x: L * 0.97, y: ph.terrain_aval + 0.2 * H, xanchor: 'right', showarrow: false, font: { size: 10, color: hy.gradient_sortie_max >= 0.9 * ic ? c.rouge : c.doux } })
   }
+  // géométrie du terrain : objets phasés (risbermes, talus, gradins côté fouille ; pente côté terre) et profil amont
+  const terr = res.maquette?.terrain
+  if (terr) {
+    for (const o of terr.objets) {
+      if (indexPhase < o.phase_debut || indexPhase > o.phase_fin) continue
+      const sens = o.face === 'aval' ? 1 : -1
+      const pts = [[0, o.base], ...o.profil.map(([d, z]) => [sens * d, Math.max(z, o.base)]), [sens * o.profil[o.profil.length - 1][0], o.base]]
+      const chemin = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ') + ' Z'
+      formes.push({ type: 'path', xref: 'x', yref: 'y', path: chemin, fillcolor: COULEURS_SOL[0], opacity: 0.75, line: { color: c.texte, width: 1 }, layer: 'below' })
+      annotations.push({ text: `${o.nom} (${o.methode === 'surcharge_equivalente' ? 'surcharge équivalente' : o.methode === 'fond_equivalent' ? `fond équivalent ${nb(o.cote_equivalente ?? 0, 2)} m` : o.methode})`, xref: 'x', yref: 'y', x: sens * o.profil[0][0] + sens * 1, y: Math.max(...o.profil.map((p) => p[1])) + 0.35, xanchor: sens > 0 ? 'left' : 'right', showarrow: false, font: { size: 10, color: c.texte } })
+    }
+    if (terr.profil) {
+      traces.push({ x: terr.profil.map(([d]) => -d), y: terr.profil.map(([, z]) => z), xaxis: 'x', yaxis: 'y', mode: 'lines', line: { color: c.texte, width: 2 }, hoverinfo: 'none' })
+    } else if (terr.pente_beta) {
+      traces.push({ x: [0, -L], y: [ph.terrain_amont, ph.terrain_amont + L * Math.tan((terr.pente_beta * Math.PI) / 180)], xaxis: 'x', yaxis: 'y', mode: 'lines', line: { color: c.texte, width: 2 }, hoverinfo: 'none' })
+      annotations.push({ text: `β = ${nb(terr.pente_beta, 1)}°`, xref: 'x', yref: 'y', x: -L * 0.5, y: ph.terrain_amont + 0.5 * L * Math.tan((terr.pente_beta * Math.PI) / 180) + 0.4, showarrow: false, font: { size: 10, color: c.texte } })
+    }
+  }
   if (ph.eau_aval !== null && ph.eau_aval > ph.terrain_aval) {
     formes.push({ type: 'rect', xref: 'x', yref: 'y', x0: 0, x1: L, y0: ph.terrain_aval, y1: ph.eau_aval, line: { width: 0 }, fillcolor: c.accent, opacity: 0.15, layer: 'below' })
   }
@@ -140,6 +158,10 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
     traces.push({ x: ph.M, y: ph.z_diag, xaxis: 'x3', yaxis: 'y', mode: 'lines', line: { color: c.accent, width: 1.5 }, fill: 'tozerox', fillcolor: 'rgba(80,130,190,0.18)', hoverinfo: 'none' })
     traces.push({ x: ph.V, y: ph.z_diag, xaxis: 'x4', yaxis: 'y', mode: 'lines', line: { color: '#8a6bb8', width: 1.5 }, fill: 'tozerox', fillcolor: 'rgba(138,107,184,0.16)', hoverinfo: 'none' })
     traces.push({ x: neg(p.amont.pa), y: p.amont.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: c.orange, width: 1, dash: 'dot' }, hoverinfo: 'none' })
+    if (ph.pp_sans_terrain) {   // butée limite sans la risberme / le talus (méthode de la surcharge équivalente)
+      traces.push({ x: ph.pp_sans_terrain, y: p.aval.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: c.doux, width: 1, dash: 'dot' }, hoverinfo: 'none' })
+      annotations.push({ text: 'butée limite sans risberme (pointillé gris)', xref: 'paper', yref: 'paper', x: DOM[4][1], y: 0.02, xanchor: 'right', showarrow: false, font: { size: 9, color: c.doux } })
+    }
     traces.push({ x: p.aval.pp, y: p.aval.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: c.vert, width: 1, dash: 'dash' }, hoverinfo: 'none' })
     traces.push({ x: neg(ph.eau!.u_amont), y: ph.eau!.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: c.accent, width: 1, dash: 'dashdot' }, hoverinfo: 'none' })
     traces.push({ x: ph.eau!.u_aval, y: ph.eau!.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: c.accent, width: 1, dash: 'dashdot' }, hoverinfo: 'none' })
@@ -222,7 +244,7 @@ export function CoupeDiagrammes({ res, phase, theme, curseurZ, onSurvolZ }: {
   useEffect(() => {
     const el = hote.current as Obj
     if (!el) return
-    const { traces, layout } = figure(res, ph, b, enveloppe)
+    const { traces, layout } = figure(res, ph, b, enveloppe, Math.min(phase, res.phases.length - 1))
     void Plotly.react(el, traces, layout, { responsive: true, displayModeBar: false, doubleClick: 'reset', locale: 'fr' }).then(() => {
       if (el.__retainwall) return
       el.__retainwall = true
@@ -258,7 +280,7 @@ export function CoupeDiagrammes({ res, phase, theme, curseurZ, onSurvolZ }: {
         void Plotly.relayout(el, { 'yaxis.range': [zc - (zc - a) * f, zc + (bb - zc) * f] })
       }, { passive: false })
     })
-  }, [res, ph, b, enveloppe, theme])
+  }, [res, ph, b, enveloppe, theme, phase])
 
   // réticule piloté depuis la maquette 3D
   useEffect(() => {

@@ -75,3 +75,5 @@ class Modele:
     y_rupture: float = 5.0               # m
     hydraulique: dict | None = None      # bloc hydraulique du script (régime, substratum, bouchon...)
     coupe: dict | None = None            # position de la coupe en plan (surcharges et terrain rapportés à la coupe)
+    beta_amont: float | None = None      # terrain en pente côté terre (°), poussée de Coulomb avec talus
+    terrain_objets: list = field(default_factory=list)   # ObjetTerrain (risbermes, talus, gradins, pente) pour l'affichage

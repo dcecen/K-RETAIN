@@ -38,10 +38,18 @@ def actions_phase(ph_modele, modele: Modele) -> list[dict]:
         a.append({"type": "depose", "texte": f"dépose de {nom}"})
     for cote, z in ph_modele.eau.items():
         a.append({"type": "eau", "texte": f"nappe {cote} : {'aucune' if z is None else f'{z:.2f} m'}"})
+    terrain_ajout = sorted({sc.nom.split(":")[1] for sc in ph_modele.ajouter_surcharges if sc.nom.startswith("~terrain:")})
+    terrain_retrait = sorted({n.split(":")[1] for n in ph_modele.retirer_surcharges if n.startswith("~terrain:")})
     for sc in ph_modele.ajouter_surcharges:
-        a.append({"type": "surcharge", "texte": f"ajout de la surcharge {sc.nom}"})
+        if not sc.nom.startswith("~terrain:"):
+            a.append({"type": "surcharge", "texte": f"ajout de la surcharge {sc.nom}"})
     for nom in ph_modele.retirer_surcharges:
-        a.append({"type": "surcharge", "texte": f"retrait de la surcharge {nom}"})
+        if not nom.startswith("~terrain:"):
+            a.append({"type": "surcharge", "texte": f"retrait de la surcharge {nom}"})
+    for nom in terrain_ajout:
+        a.append({"type": "remblai", "texte": f"mise en place de {nom} (surcharge équivalente)"})
+    for nom in terrain_retrait:
+        a.append({"type": "excavation", "texte": f"terrassement de {nom}"})
     return a
 
 
@@ -94,6 +102,42 @@ def _complement_appui(da, effort: float, catalogue, normes) -> dict:
     return out
 
 
+def _pp_sans_terrain(modele: Modele, res: ResultatCalcul) -> list:
+    """Butée limite aval sans l'effet des risbermes/talus/gradins (méthode de la surcharge équivalente),
+    par phase : pp − Kph(z) × Δσv des bandes équivalentes actives. None si aucun objet côté fouille."""
+    from .noyau.phasage import _coefficients_couche
+    from .sol.couches import indice_couche, trier
+    from .sol.terrain import CoupeCalcul, PREFIXE_TERRAIN, effet_butee
+
+    coupe = CoupeCalcul.depuis_dict(modele.coupe)
+    concerne = lambda o: o.cotes_paroi is None or coupe is None or (coupe.cote in o.cotes_paroi or f"#{coupe.k}" in o.cotes_paroi)
+    objets = [o for o in modele.terrain_objets if o.face == "aval" and o.methode == "surcharge_equivalente" and concerne(o)]
+    if not objets:
+        return [None] * len(res.phases)
+    couches = trier(modele.couches)
+    kph = [_coefficients_couche(c, modele.coefficients)[1] for c in couches]
+    out = []
+    for k, ph in enumerate(res.phases):
+        if not ph.ok:
+            out.append(None)
+            continue
+        # objets actifs à la phase k (k = 0 : état initial, k ≥ 1 : phases[k-1])
+        actifs = [o for o in objets if (o.phase_debut or 0) <= k <= (o.phase_fin if o.phase_fin is not None else len(res.phases))]
+        if not actifs:
+            out.append(None)
+            continue
+        z = np.asarray(ph.pressions["aval"]["z"], float)
+        kph_z = np.array([kph[indice_couche(couches, zz)] for zz in z])
+        try:
+            sup = effet_butee(actifs, kph_z, z, ph.terrain_aval, coupe)
+        except Exception:
+            out.append(None)
+            continue
+        out.append(_l(np.asarray(ph.pressions["aval"]["pp"], float) - sup))
+    _ = PREFIXE_TERRAIN
+    return out
+
+
 def _couches(modele: Modele) -> list[dict]:
     """Couches triées du haut vers le bas avec les coefficients utilisés par le calcul (Kah, Kph, K0, kh)."""
     from .noyau.phasage import _coefficients_couche, _kh_couche
@@ -116,6 +160,7 @@ def _couches(modele: Modele) -> list[dict]:
 
 
 def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "", catalogue=None, normes=None) -> dict:
+    pp_sans = _pp_sans_terrain(modele, res)
     phases = []
     for k, ph in enumerate(res.phases):
         d = {
@@ -135,6 +180,7 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "", catalogue=
                 "z": _l(ph.z), "y_mm": _l(y_mm), "z_diag": _l(ph.z_diag), "M": _l(ph.M), "V": _l(ph.V),
                 "pressions": {c: {k: _l(v) for k, v in ph.pressions[c].items() if k in ("z", "p", "pa", "pp", "p0")}
                               for c in ("amont", "aval")},
+                **({"pp_sans_terrain": pp_sans[k]} if pp_sans[k] is not None else {}),
                 "eau": {k: _l(v) for k, v in ph.eau.items()},
                 "hydro": ph.hydro,
                 "appuis": [],

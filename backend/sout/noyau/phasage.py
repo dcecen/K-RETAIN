@@ -161,6 +161,17 @@ class MoteurPhases:
         idx = np.array([indice_couche(self.couches, zm) for zm in self.d_zm])
         tab = np.array(props)[idx]
         self.d_kah, self.d_kph, self.d_k0, self.d_ca, self.d_cp, self.d_kd = tab.T
+        # terrain en pente côté terre : Ka de Coulomb avec talus (sol.coefficients.kah_talus), face amont seulement
+        self.d_kah_amont = self.d_kah
+        if modele.beta_amont:
+            if modele.coefficients != "coulomb":
+                raise ErreurModele("terrain en pente (pente_beta) : seule la poussée de Coulomb avec talus est disponible "
+                                   "(tables de Kérisel-Absi avec β non fournies — TODO-NORME)")
+            try:
+                kah_b = [coef.kah_talus(c.phi, c.delta_a_sur_phi * c.phi, modele.beta_amont) for c in self.couches]
+            except ValueError as e:
+                raise ErreurModele(str(e)) from None
+            self.d_kah_amont = np.array(kah_b)[idx]
         EI_noeud = ec.EI_en(z)
         self.d_kh = np.array([_kh_couche(self.couches[i], EI_noeud[noeud[j]]) for j, i in enumerate(idx)])
         self.d_couche = idx
@@ -278,7 +289,7 @@ class MoteurPhases:
         sv_av, _ = self._sigma_v(AVAL, terrain[AVAL], eau[AVAL], liste_s, ecoulement)
         sv = np.concatenate([sv_am, sv_av])
         present = np.concatenate([self.d_zh <= terrain[AMONT] + 1e-9, self.d_zh <= terrain[AVAL] + 1e-9])
-        pa = np.maximum(np.tile(self.d_kah, 2) * sv - np.tile(self.d_ca, 2), 0.0)
+        pa = np.maximum(np.concatenate([self.d_kah_amont, self.d_kah]) * sv - np.tile(self.d_ca, 2), 0.0)
         pp = np.tile(self.d_kph, 2) * sv + np.tile(self.d_cp, 2)
         p0 = np.clip(np.tile(self.d_k0, 2) * sv, pa, pp)
         fl = np.ones(2 * self.nd)

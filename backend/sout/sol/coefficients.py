@@ -61,6 +61,29 @@ def kp_coulomb(phi: float, delta: float = 0.0) -> float:
     return math.cos(p) ** 2 / (math.cos(d) * (1.0 - racine) ** 2)
 
 
+def ka_coulomb_talus(phi: float, delta: float = 0.0, beta: float = 0.0) -> float:
+    """Coefficient de poussée de Coulomb pour un écran vertical et un terre-plein incliné de β
+    sur l'horizontale (β > 0 : terrain montant derrière l'écran), poussée inclinée de δ :
+
+    Ka = cos²φ / ( cos δ · [1 + √( sin(φ+δ)·sin(φ−β) / (cos δ · cos β) )]² )
+
+    Source : Coulomb (1776), forme générale de Müller-Breslau (1906) telle que reproduite par
+    Das, *Principles of Geotechnical Engineering*, « Coulomb's active earth pressure » (écran
+    vertical, θ = 0). Domaine : |β| ≤ φ (sinon pas d'équilibre du coin). β = 0 redonne `ka_coulomb`.
+    """
+    p, d = _verifier(phi, delta)
+    b = math.radians(beta)
+    if abs(beta) > phi + 1e-9:
+        raise ValueError(f"terrain en pente β = {beta}° supérieur à φ' = {phi}° : pas d'équilibre du coin de Coulomb")
+    racine = math.sqrt(math.sin(p + d) * math.sin(p - b) / (math.cos(d) * math.cos(b)))
+    return math.cos(p) ** 2 / (math.cos(d) * (1.0 + racine) ** 2)
+
+
+def kah_talus(phi: float, delta: float = 0.0, beta: float = 0.0) -> float:
+    """Composante horizontale de la poussée avec terrain en pente : Kah = Ka(β) · cos δ."""
+    return ka_coulomb_talus(phi, delta, beta) * math.cos(math.radians(delta))
+
+
 def kah(phi: float, delta: float = 0.0) -> float:
     """Composante horizontale de la poussée : Kah = Ka · cos δ."""
     return ka_coulomb(phi, delta) * math.cos(math.radians(delta))
