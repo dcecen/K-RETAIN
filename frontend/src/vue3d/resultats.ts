@@ -7,6 +7,7 @@ import * as THREE from 'three'
 import type { Pressions, Resultats, Verif } from '../lib/api'
 import { nb } from '../lib/format'
 import { demiEpaisseur, lambert } from './elements'
+export { tauxAppui } from './appuis'
 import { attenuationAngle, hacher, interpBorne, versThree, type Arete } from './geometrie'
 import { classeTaux, COULEURS_TAUX, couleurValeur, type NomPalette, type Seuils, SEUILS_DEFAUT } from './palettes'
 import { modeCalque, reglageCalque, type Contexte, type Element, type Spec } from './scene'
@@ -93,14 +94,6 @@ export function tauxParoi(verifs: Verif[] | undefined): { courant: number | null
   const c = pire(v)
   const f = pire([...v, ...butee])
   return { courant: c, fiche: f, verifiable: v.some((x) => x.etat !== 'non_verifiable') }
-}
-
-/** Taux de travail le plus défavorable d'un appui (élément nommé) et de ses assemblages. */
-export function tauxAppui(verifs: Verif[] | undefined, nom: string, assemblages: Record<string, { appui: string | null }> = {}): number | null {
-  const noms = new Set([nom, ...Object.entries(assemblages).filter(([, a]) => a.appui === nom).map(([k]) => k)])
-  const t = (verifs ?? []).filter((v) => noms.has(v.element.split(' ')[0]) || v.element === nom)
-    .map((v) => v.taux).filter((x): x is number => x !== null && Number.isFinite(x))
-  return t.length ? Math.max(...t) : null
 }
 
 function seuils(ctx: Contexte): Seuils {

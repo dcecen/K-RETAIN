@@ -538,3 +538,50 @@ def executer(s, ex, catalogue, normes) -> tuple[list[Verif], list[dict]]:
         verifs += verifier_paroi(s, m, r, catalogue, normes, cle, suffixe)
         verifs += verifier_appuis(s, m, r, catalogue, normes, cle, suffixe)
     return verifs, suggestions(s, ex, catalogue, normes)
+
+
+# ---------------------------------------------------------------------------
+# Flèches des butons et des liernes (affichage 3D et contrôle de service)
+# ---------------------------------------------------------------------------
+def fleche_barre(sec: dict, N_kN: float, L: float, angle: float = 0.0, avec_compression: bool = True) -> dict:
+    """Flèche à mi-portée d'un buton ou bracon sous son poids propre (m), en poutre sur
+    deux appuis : f = 5·g·L⁴ / (384·E·I), avec g le poids propre par mètre projeté
+    perpendiculairement à la barre (q·cos θ). Résistance des matériaux (Timoshenko,
+    *Strength of Materials*, poutre simplement appuyée sous charge uniforme).
+
+    Avec `avec_compression`, la flèche est majorée par l'effet du second ordre de la
+    compression N : 1 / (1 − N/Ncr) (Timoshenko & Gere, *Theory of Elastic Stability*,
+    1961 — même amplification que dans `_barre`). Ncr = charge critique d'Euler.
+
+    Renvoie aussi le raccourcissement axial élastique N·L / (E·A) (m). Unités : N en kN
+    (caractéristique, non pondéré), L en m, section en cm², cm⁴, E en MPa, masse en kg/m.
+    """
+    E_kPa = sec["E"] * 1e3
+    I_m4 = sec["I_cm4"] * 1e-8
+    A_m2 = sec["A_cm2"] * 1e-4
+    g = sec["masse_kg_m"] * G / 1000 * math.cos(math.radians(angle))   # kN/m perpendiculaire à la barre
+    f0 = 5.0 * g * L**4 / (384.0 * E_kPa * I_m4)
+    N_cr = ec3.n_cr(sec["E"], sec["I_cm4"], L)
+    amp = ec3.amplification(max(N_kN, 0.0), N_cr) if avec_compression else 1.0
+    return {
+        "fleche_poids_propre_m": f0,
+        "fleche_m": f0 * amp if math.isfinite(amp) else math.inf,
+        "amplification": amp,
+        "N_cr_kN": N_cr,
+        "raccourcissement_m": N_kN * L / (E_kPa * A_m2),
+        "g_kN_m": g,
+    }
+
+
+def fleche_lierne(profil: dict, q_kN_m: float, e: float) -> dict:
+    """Flèche d'une lierne entre deux appuis (m) sous la réaction de la paroi q (kN/m),
+    valeur approchée : poutre continue à travées égales assimilée à une travée
+    bi-encastrée sous charge uniforme, f = q·e⁴ / (384·E·I) (Résistance des matériaux ;
+    la travée isostatique donnerait 5 fois plus). Signalée comme approchée.
+
+    Flexion autour de l'axe fort (Iy, l'âme est horizontale : voir choix du module
+    assemblages). E en MPa, I en cm⁴.
+    """
+    E_kPa = (profil.get("E_MPa") or 210000.0) * 1e3
+    I_m4 = profil["Iy_cm4"] * 1e-8
+    return {"fleche_m": q_kN_m * e**4 / (384.0 * E_kPa * I_m4), "approchee": True}

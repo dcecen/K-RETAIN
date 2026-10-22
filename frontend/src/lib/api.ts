@@ -21,6 +21,15 @@ export interface AppuiPhase {
   effort_kN_m: number
   effort_axial_kN: number
   actif: boolean
+  /** Effort de calcul (× gamma_effets ELU fondamental) ; null si le coefficient de norme manque. */
+  effort_elu_kN?: number | null
+  effort_elu_kN_m?: number | null
+  /** Flèches issues du module de vérification (mm) ; null si l'élément n'est pas dans la base ou s'il est instable. */
+  fleche_mm?: number | null
+  fleche_poids_propre_mm?: number | null
+  raccourcissement_mm?: number | null
+  N_cr_kN?: number | null
+  fleche_lierne_mm?: number | null
 }
 
 export interface DefAppui {

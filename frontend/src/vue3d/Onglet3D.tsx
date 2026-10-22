@@ -9,8 +9,9 @@ import { Legendes } from './VueLegendes'
 import { legendes as calculerLegendes } from './legendes'
 import { PanneauCalques } from './PanneauCalques'
 import { FABRIQUES_RESULTATS_PAROI } from './resultats'
+import { FABRIQUES_RESULTATS_APPUIS } from './resultatsAppuis'
 
-const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI]
+const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS]
 import type { EtatCoupe, SceneRetainWall } from './scene'
 import { Vue3D, type PoigneeVue3D } from './Vue3D'
 

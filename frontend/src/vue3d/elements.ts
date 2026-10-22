@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { AppuiMaquette, PhaseRes } from '../lib/api'
 import { nb } from '../lib/format'
+import { couleurAppui, etiquetteEffort, etiquetteTaux, FILTRE_BARRE, FILTRE_LIERNE } from './appuis'
 import type { Fabrique } from './fabrique'
 import { hacher, versThree, type Contour, type Point2 } from './geometrie'
 import type { Contexte, Element, Etiquette, NomNoeud, Spec } from './scene'
@@ -349,16 +350,24 @@ function specsAppuis(ctx: Contexte): Spec[] {
           const noeud: NomNoeud = a.type === 'tirant' ? 'appuis.tirants' : 'appuis.butons'
           const el = base(id, cle, noeud, a.type === 'tirant' ? 'appuis.tirants' : 'appuis.butons', groupe, `appui:${nom}`)
           let fondPlace = ctx.ph.terrain_aval
+          el.calques = ['resultats.efforts', 'resultats.taux']
           el.appliquerPhase = (k) => {
-            el.visiblePhase = phaseActif(k.ph, nom)
+            const ap = k.ph.appuis?.find((x) => x.nom === nom)
+            const deformee = k.scene.calques.visible('resultats.fleches') && (ap?.fleche_mm != null || ap?.fleche_poids_propre_mm != null)
+            el.visiblePhase = phaseActif(k.ph, nom) && k.scene.calques.visible(el.calque) && !deformee
             if (a.type === 'bracon' && a.pied_bracon === null && k.ph.terrain_aval !== fondPlace) {
               fondPlace = k.ph.terrain_aval
               placer(fondPlace)
             }
+            mat.color.setHex(couleurAppui(k, nom, couleur, FILTRE_BARRE))
           }
           el.etiquettes = (k, o) => {
             const e = extremitesAppui(a, pos[0], k.ph.terrain_aval)
             o.push({ id: `nom.${nom}`, pos: e.de.clone().lerp(e.fin, 0.5), texte: `${nom}${a.element ? ` — ${a.element}` : ''}`, calque: 'annotations.noms', selection: `appui:${nom}` })
+            const eff = etiquetteEffort(k, nom)
+            if (eff) o.push({ id: `effort.${nom}`, pos: e.de.clone().lerp(e.fin, 0.35), texte: eff, calque: 'resultats.efforts', classe: 'valeur', selection: `appui:${nom}` })
+            const tx = etiquetteTaux(k, nom, FILTRE_BARRE)
+            if (tx) o.push({ id: `taux.${nom}`, pos: e.de.clone().lerp(e.fin, 0.65), texte: tx, calque: 'resultats.taux', classe: 'valeur', selection: `appui:${nom}` })
           }
           el.surligner = (actif) => { mat.emissive.setHex(actif ? 0x664400 : 0x000000) }
           return el
@@ -375,8 +384,18 @@ function specsAppuis(ctx: Contexte): Spec[] {
           const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.points), mat))
           caler(mesh, a.cote - ep / 2, a.cote + ep / 2)
           const el = base(id, cle, 'appuis.dalles', 'appuis.dalles', mesh, `appui:${nom}`)
-          el.appliquerPhase = (k) => { el.visiblePhase = phaseActif(k.ph, nom) }
-          el.etiquettes = (_k, o) => o.push({ id: `nom.${nom}`, pos: versThree((geo.xmin + geo.xmax) / 2, (geo.ymin + geo.ymax) / 2, a.cote + 0.3), texte: `${nom} (dalle)`, calque: 'annotations.noms', selection: `appui:${nom}` })
+          el.calques = ['resultats.efforts', 'resultats.taux']
+          el.appliquerPhase = (k) => {
+            el.visiblePhase = phaseActif(k.ph, nom) && k.scene.calques.visible(el.calque)
+            mat.color.setHex(couleurAppui(k, nom, 0xbdbdbd))
+          }
+          el.etiquettes = (k, o) => {
+            const cx = (geo.xmin + geo.xmax) / 2
+            const cy = (geo.ymin + geo.ymax) / 2
+            o.push({ id: `nom.${nom}`, pos: versThree(cx, cy, a.cote + 0.3), texte: `${nom} (dalle)`, calque: 'annotations.noms', selection: `appui:${nom}` })
+            const eff = etiquetteEffort(k, nom)
+            if (eff) o.push({ id: `effort.${nom}`, pos: versThree(cx, cy, a.cote + 0.9), texte: eff, calque: 'resultats.efforts', classe: 'valeur', selection: `appui:${nom}` })
+          }
           el.surligner = (actif) => { mat.emissive.setHex(actif ? 0x664400 : 0x000000) }
           return el
         },
@@ -398,8 +417,18 @@ function specsAppuis(ctx: Contexte): Spec[] {
           })
           im.computeBoundingSphere()
           const el = base(id, cle, 'appuis.butons', 'appuis.liernes', im, `lierne:${nom}`)
-          el.appliquerPhase = (k) => { el.visiblePhase = phaseActif(k.ph, nom) }
-          el.etiquettes = (_k, out2) => out2.push({ id: `nom.lierne.${nom}`, pos: versThree(geo.points[0][0], geo.points[0][1], a.cote + 0.4), texte: `lierne ${a.lierne}`, calque: 'annotations.noms', selection: `lierne:${nom}` })
+          el.calques = ['resultats.taux']
+          el.appliquerPhase = (k) => {
+            const c = k.scene.calques
+            const deformee = c.visible('resultats.fleches') && k.ph.appuis?.find((x) => x.nom === nom)?.fleche_lierne_mm != null
+            el.visiblePhase = phaseActif(k.ph, nom) && c.visible(el.calque) && !deformee
+            mat.color.setHex(couleurAppui(k, nom, 0x34495e, FILTRE_LIERNE))
+          }
+          el.etiquettes = (k, out2) => {
+            out2.push({ id: `nom.lierne.${nom}`, pos: versThree(geo.points[0][0], geo.points[0][1], a.cote + 0.4), texte: `lierne ${a.lierne}`, calque: 'annotations.noms', selection: `lierne:${nom}` })
+            const tx = etiquetteTaux(k, nom, FILTRE_LIERNE)
+            if (tx) out2.push({ id: `taux.lierne.${nom}`, pos: versThree(geo.points[0][0], geo.points[0][1], a.cote - 0.5), texte: `lierne ${tx}`, calque: 'resultats.taux', classe: 'valeur', selection: `lierne:${nom}` })
+          }
           el.surligner = (actif) => { mat.emissive.setHex(actif ? 0x664400 : 0x000000) }
           return el
         },

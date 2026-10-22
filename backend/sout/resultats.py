@@ -54,7 +54,47 @@ def _butee_mobilisee(ph) -> float | None:
     return float(np.sum(av["L"] * av["p"])) / Bt if Bt > 0 else None
 
 
-def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "") -> dict:
+def _complement_appui(da, effort: float, catalogue, normes) -> dict:
+    """Effort de calcul (ELU) et flèches d'un appui à une phase, d'après le module de vérification
+    (`verifs_struct.elements`) : rien n'est calculé dans la vue 3D. Valeurs absentes si l'élément
+    n'est pas dans la base ou si le coefficient de norme manque."""
+    from .verifs import Lecteur
+    from .verifs_struct.elements import fleche_barre, fleche_lierne, section_element
+
+    inf = da.infos
+    esp = inf.get("espacement", 1.0)
+    ang = inf.get("angle", 0.0)
+    N = effort_axial(effort, esp, ang)
+    out: dict = {"effort_elu_kN": None, "effort_elu_kN_m": None, "fleche_mm": None, "fleche_poids_propre_mm": None,
+                 "raccourcissement_mm": None, "N_cr_kN": None, "fleche_lierne_mm": None}
+    if normes is not None:
+        g = Lecteur(normes).v("nf_p94_282", "combinaisons.ELU_fondamental.gamma_effets")
+        if g is not None:
+            out["effort_elu_kN"] = g * N
+            out["effort_elu_kN_m"] = g * effort
+    if catalogue is None:
+        return out
+    if da.type in ("buton", "bracon") and inf.get("element") and inf.get("longueur"):
+        try:
+            sec = section_element(inf["element"], inf.get("acier"), catalogue)
+            if sec.get("I_cm4") and sec.get("A_cm2"):
+                f = fleche_barre(sec, N, inf["longueur"], ang)
+                out.update({"fleche_mm": f["fleche_m"] * 1e3 if math.isfinite(f["fleche_m"]) else None,
+                            "fleche_poids_propre_mm": f["fleche_poids_propre_m"] * 1e3,
+                            "raccourcissement_mm": f["raccourcissement_m"] * 1e3, "N_cr_kN": f["N_cr_kN"]})
+        except KeyError:
+            pass
+    if inf.get("lierne") and da.type != "dalle":
+        try:
+            pr = catalogue.profil(inf["lierne"])
+            if pr.get("Iy_cm4"):
+                out["fleche_lierne_mm"] = fleche_lierne(pr, effort, esp)["fleche_m"] * 1e3
+        except KeyError:
+            pass
+    return out
+
+
+def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "", catalogue=None, normes=None) -> dict:
     phases = []
     for k, ph in enumerate(res.phases):
         d = {
@@ -90,7 +130,8 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "") -> dict:
                 esp = da.infos.get("espacement", 1.0)
                 ang = da.infos.get("angle", 0.0)
                 d["appuis"].append({**a, "effort_kN_m": a["effort"],
-                                    "effort_axial_kN": effort_axial(a["effort"], esp, ang)})
+                                    "effort_axial_kN": effort_axial(a["effort"], esp, ang),
+                                    **_complement_appui(da, a["effort"], catalogue, normes)})
         phases.append(d)
 
     ok = [p for p in res.phases if p.ok and p.nom != "État initial"] or [p for p in res.phases if p.ok]

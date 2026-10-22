@@ -37,6 +37,18 @@ def test_non_regression_cas_exemple(exemple):
     assert b1["effort_axial_kN"] == pytest.approx(846.91, rel=1e-3)
 
 
+def test_complement_appuis_fleches_et_elu(exemple):
+    """Chaque appui porte, par phase, son effort ELU et ses flèches issues du module de vérification."""
+    ph = next(p for p in exemple["phases"] if p["nom"] == "Terrassement final et pompage")
+    b1 = next(a for a in ph["appuis"] if a["nom"] == "B1")
+    assert b1["effort_elu_kN"] == pytest.approx(1.35 * 846.91, rel=1e-3)
+    assert b1["fleche_mm"] is not None and 0 < b1["fleche_mm"] < 200
+    assert b1["fleche_mm"] > b1["fleche_poids_propre_mm"]
+    assert b1["N_cr_kN"] > b1["effort_axial_kN"]
+    assert b1["raccourcissement_mm"] > 0
+    assert b1["fleche_lierne_mm"] is None          # B1 n'a pas de lierne dans l'exemple
+
+
 def test_geometrie_maquette_renvoyee_avec_le_calcul(exemple):
     g = exemple["maquette"]
     assert g["contour"] and g["plan_defaut"] is True

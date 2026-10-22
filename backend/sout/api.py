@@ -106,7 +106,7 @@ def calcul(t: Texte) -> dict:
         return {"ok": False, "erreurs": [x.vers_dict() for x in e.erreurs]}
     except (ErreurConversion, ErreurModele) as e:
         return {"ok": False, "erreurs": [{"ligne": None, "chemin": "", "message": str(e)}]}
-    r = serialiser(ex.resultat, ex.modele, ex.script.projet)
+    r = serialiser(ex.resultat, ex.modele, ex.script.projet, _catalogue(), normes.charger())
     r["verifications"] = [v.vers_dict() for v in ex.verifications]
     r["suggestions"] = ex.suggestions
     r["jeux_eau"] = {j: {"complet": res.complet} for j, (_, res) in ex.jeux.items() if j is not None}

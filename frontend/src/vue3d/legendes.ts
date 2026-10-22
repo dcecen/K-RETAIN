@@ -2,7 +2,9 @@
 import type { Resultats } from '../lib/api'
 import { nb } from '../lib/format'
 import { reglageCalque, type EtatCalquesScene } from './scene'
+import { maxEfforts, type ModeEffort } from './appuis'
 import { amplificationAuto, bornes } from './resultats'
+import { maxFleche } from './resultatsAppuis'
 import { COULEURS_TAUX, degradeCss, SEUILS_DEFAUT, type NomPalette } from './palettes'
 import { modeCalque } from './scene'
 
@@ -69,6 +71,18 @@ export function legendes(res: Resultats, c: EtatCalquesScene, phase: number): Le
     out.push({ type: 'discrete', id: 'pressions', titre: 'Pressions (kPa)', phase: nomPhase, classes: [
       { couleur: '#8b6b3e', texte: 'terres mobilisées, face terre' }, { couleur: '#2e7d4f', texte: 'terres mobilisées, face fouille' },
       { couleur: '#3b8fd9', texte: 'eau' }, { couleur: '#9a7b4f', texte: 'limite de poussée (pointillé)' }, { couleur: '#4f7b9a', texte: 'limite de butée (pointillé)' }] })
+  }
+  if (vis('resultats.efforts')) {
+    const mode = modeCalque(c, 'resultats.efforts', 'service') as ModeEffort
+    out.push({ type: 'continue', id: 'efforts', titre: `Efforts dans les appuis (${mode === 'elu' ? 'ELU, × γ' : 'service'})`, unite: 'kN/m', min: 0, max: maxEfforts(res, mode),
+      degrade: degradeCss('sequentielle'), phase: 'toutes phases' })
+  }
+  if (vis('resultats.fleches')) {
+    const r = reglageCalque<number | string>(c, 'resultats.fleches', 'amplification', 'auto')
+    const m = maxFleche(res)
+    const amp = r === 'auto' || r === 0 ? (m > 1e-6 ? 1500 / m : 1) : Number(r)
+    out.push({ type: 'discrete', id: 'fleches', titre: `Flèche des butons et liernes × ${nb(amp, 0)}${r === 'auto' || r === 0 ? ' (auto : 1,5 m à l\'écran)' : ''}`, classes: [], phase: nomPhase,
+      note: modeCalque(c, 'resultats.fleches', 'compression') === 'compression' ? 'poids propre amplifié par 1/(1 − N/Ncr) ; liernes : valeur approchée' : 'poids propre seul ; liernes : valeur approchée' })
   }
   if (vis('resultats.enveloppes')) {
     out.push({ type: 'discrete', id: 'enveloppes', titre: `Enveloppe ${modeCalque(c, 'resultats.enveloppes', 'deformee') === 'moment' ? 'des moments' : 'de la déformée'} (toutes phases, fantôme)`, phase: 'toutes phases', classes: [] })
