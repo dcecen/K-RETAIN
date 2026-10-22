@@ -50,6 +50,27 @@ class Texte(BaseModel):
     texte: str
 
 
+class DemandeCalcul(BaseModel):
+    texte: str
+    coupe: str | None = None     # nom d'une coupe de calcul : calcule cette coupe seule
+
+
+# Cache des calculs par coupe : empreinte du script fusionné -> résultats sérialisés.
+# Une coupe dont le script n'a pas changé n'est pas recalculée.
+_CACHE_COUPES: dict[str, dict] = {}
+_CACHE_MAX = 48
+_STATS = {"calculs": 0, "cache": 0}
+
+
+def statistiques_cache() -> dict:
+    return dict(_STATS)
+
+
+def vider_cache_coupes() -> None:
+    _CACHE_COUPES.clear()
+    _STATS["calculs"] = _STATS["cache"] = 0
+
+
 def _catalogue():
     """Base matériaux (None si indisponible)."""
     try:
@@ -98,14 +119,16 @@ def executer_texte(texte: str):
     return executer(lire_script(texte), _catalogue(), normes.charger())
 
 
-@app.post("/api/calcul")
-def calcul(t: Texte) -> dict:
-    try:
-        ex = executer_texte(t.texte)
-    except ScriptInvalide as e:
-        return {"ok": False, "erreurs": [x.vers_dict() for x in e.erreurs]}
-    except (ErreurConversion, ErreurModele) as e:
-        return {"ok": False, "erreurs": [{"ligne": None, "chemin": "", "message": str(e)}]}
+def _resultats_script(texte: str) -> dict:
+    """Résultats sérialisés d'un script complet (une coupe), avec cache par empreinte."""
+    from sout.script.coupes import empreinte
+
+    cle = empreinte(texte)
+    if cle in _CACHE_COUPES:
+        _STATS["cache"] += 1
+        return _CACHE_COUPES[cle]
+    ex = executer_texte(texte)
+    _STATS["calculs"] += 1
     r = serialiser(ex.resultat, ex.modele, ex.script.projet, _catalogue(), normes.charger())
     r["verifications"] = [v.vers_dict() for v in ex.verifications]
     r["suggestions"] = ex.suggestions
@@ -120,7 +143,84 @@ def calcul(t: Texte) -> dict:
             r["pseudo3d"] = serialiser_p3d(depuis_script(ex), ex.resultat)
         except ErreurModele as e:
             r["avertissements"].append(f"Pseudo-3D non calculé : {e}")
-    return {"ok": True, "erreurs": [], "resultats": r}
+    if len(_CACHE_COUPES) >= _CACHE_MAX:
+        del _CACHE_COUPES[next(iter(_CACHE_COUPES))]
+    _CACHE_COUPES[cle] = r
+    return r
+
+
+def _erreur(e) -> dict:
+    if isinstance(e, ScriptInvalide):
+        return {"ok": False, "erreurs": [x.vers_dict() for x in e.erreurs]}
+    return {"ok": False, "erreurs": [{"ligne": None, "chemin": "", "message": str(e)}]}
+
+
+def _projet(texte: str):
+    from sout.script.coupes import ErreurCoupe, preparer
+
+    s = lire_script(texte)
+    try:
+        return s, preparer(texte, s)
+    except ErreurCoupe as e:
+        raise ErreurConversion(str(e)) from None
+
+
+@app.post("/api/coupes/preparer")
+def coupes_preparer(t: Texte) -> dict:
+    """Coupes du projet (textes fusionnés non renvoyés) : nom, tronçon, trace, héritage, cache."""
+    try:
+        _, p = _projet(t.texte)
+    except (ScriptInvalide, ErreurConversion) as e:
+        return _erreur(e)
+    return {"ok": True, "erreurs": [], "unique": p.unique, "contour": p.contour, "orphelins": p.orphelins,
+            "avertissements": p.avertissements,
+            "coupes": [{**c.vers_dict(), "en_cache": c.empreinte in _CACHE_COUPES} for c in p.coupes]}
+
+
+def _assembler(p, resultats: dict[str, dict]) -> dict:
+    from sout.script.coupes import chiffres_cles, phasage_projet, synthese_projet
+
+    noms = [c.nom for c in p.coupes]
+    projet, corr = phasage_projet([[ph["nom"] for ph in resultats[n]["phases"]] for n in noms])
+    return {
+        "unique": p.unique, "contour": p.contour, "orphelins": p.orphelins, "avertissements": p.avertissements,
+        "coupes": [{**c.vers_dict(), "correspondance": corr[i], **({} if i == 0 else {"resultats": resultats[c.nom]})}
+                   for i, c in enumerate(p.coupes)],
+        "phasage_projet": projet,
+        "synthese": {"verifications": synthese_projet({n: resultats[n].get("verifications", []) for n in noms}),
+                     "chiffres": chiffres_cles({n: resultats[n] for n in noms})},
+    }
+
+
+@app.post("/api/coupes/synthese")
+def coupes_synthese(t: Texte) -> dict:
+    """Phasage projet, correspondance des phases et synthèse (pire coupe par vérification) ; calcule les coupes manquantes."""
+    try:
+        _, p = _projet(t.texte)
+        resultats = {c.nom: _resultats_script(c.texte) for c in p.coupes}
+    except (ScriptInvalide, ErreurConversion, ErreurModele) as e:
+        return _erreur(e)
+    a = _assembler(p, resultats)
+    a["coupes"] = [{k: v for k, v in c.items() if k != "resultats"} for c in a["coupes"]]
+    return {"ok": True, "erreurs": [], "projet": a}
+
+
+@app.post("/api/calcul")
+def calcul(t: DemandeCalcul) -> dict:
+    """Calcul complet. Avec `coupe`, calcule cette coupe seule ; sinon toutes les coupes du projet
+    (cache par coupe) et la synthèse. `resultats` = première coupe (compatibilité)."""
+    try:
+        s, p = _projet(t.texte)
+        if t.coupe is not None:
+            c = next((x for x in p.coupes if x.nom == t.coupe), None)
+            if c is None:
+                return {"ok": False, "erreurs": [{"ligne": None, "chemin": "coupes", "message": f"coupe « {t.coupe} » inconnue"}]}
+            return {"ok": True, "erreurs": [], "resultats": _resultats_script(c.texte), "coupe": c.vers_dict()}
+        resultats = {c.nom: _resultats_script(c.texte) for c in p.coupes}
+    except (ScriptInvalide, ErreurConversion, ErreurModele) as e:
+        return _erreur(e)
+    premiere = resultats[p.coupes[0].nom]
+    return {"ok": True, "erreurs": [], "resultats": premiere, "projet": _assembler(p, resultats)}
 
 
 @app.get("/api/materiaux")

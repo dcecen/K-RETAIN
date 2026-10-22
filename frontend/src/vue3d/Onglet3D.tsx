@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api, type Resultats } from '../lib/api'
+import { api, type ProjetCoupes, type Resultats } from '../lib/api'
 import { enregistrerExport, telecharger, telechargerTexte } from '../lib/exporter'
 import { IconeCalques } from '../lib/icones'
 import type { Theme } from '../lib/theme'
@@ -10,15 +10,19 @@ import { legendes as calculerLegendes } from './legendes'
 import { PanneauCalques } from './PanneauCalques'
 import { FABRIQUES_RESULTATS_PAROI } from './resultats'
 import { FABRIQUES_RESULTATS_APPUIS } from './resultatsAppuis'
+import { FABRIQUES_COUPES, resolveur } from './coupes'
 
-const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS]
+const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS, ...FABRIQUES_COUPES]
 import type { EtatCoupe, SceneRetainWall } from './scene'
 import { Vue3D, type PoigneeVue3D } from './Vue3D'
 
 /** Onglet « Maquette 3D » : vue persistante, outils de vue, plan de coupe, calques, exports. */
-export function Onglet3D({ res, texte, phase, theme, selection, onSelection }: {
+export function Onglet3D({ res, texte, phase, theme, selection, onSelection, projet, coupeActive = 0, onCoupe }: {
   res: Resultats
   texte: string
+  projet?: ProjetCoupes | null
+  coupeActive?: number
+  onCoupe?: (i: number) => void
   phase: number
   theme: Theme
   selection: string | null
@@ -35,6 +39,9 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection }: {
   const calquesRef = useRef(calques)
   calquesRef.current = calques
   const liste = useMemo(() => calculerLegendes(res, versScene(calques), phase), [res, calques, phase])
+  const premiers = useMemo(() => (projet && !projet.unique ? projet.coupes[0].resultats ?? res : res), [projet, res])
+  const extra = useMemo(() => (projet ? { projet, resultatsPour: resolveur(projet, premiers, coupeActive) } : {}), [projet, premiers, coupeActive])
+  const plusieurs = !!projet && !projet.unique && projet.coupes.length > 1
 
   const appliquer = useCallback((sc: SceneRetainWall) => {
     sc.appliquerCalques(versScene(calquesRef.current))
@@ -101,13 +108,20 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection }: {
         <input type="range" min={0} max={1000} value={Math.round(coupe.t * 1000)} disabled={!coupe.actif} aria-label="Position du plan de coupe"
           onChange={(e) => setCoupe({ ...coupe, t: Number(e.target.value) / 1000 })} style={{ width: 140 }} />
         <span className="espace" />
+        {plusieurs && (
+          <label title="Coupe de calcul affichée (touches 1 à 9)">Coupe :
+            <select value={coupeActive} onChange={(e) => onCoupe?.(Number(e.target.value))} aria-label="Coupe de calcul active">
+              {projet!.coupes.map((c, i) => <option key={c.nom} value={i}>{i + 1}. {c.nom}</option>)}
+            </select>
+          </label>
+        )}
         <button className={`btn ${voirCalques ? 'actif' : ''}`} title="Calques (L)" onClick={() => setVoirCalques(!voirCalques)}><IconeCalques taille={14} /> Calques</button>
         <button className="btn" disabled={exportEnCours} onClick={() => void exporterHtml()}>
           {exportEnCours ? 'Génération…' : 'Exporter le fichier HTML autonome'}
         </button>
       </div>
       <div className="onglet-3d-corps">
-        <Vue3D res={res} phase={phase} theme={theme} selection={selection} onSelection={onSelection} onPret={pret} surCalques={appliquer} fabriques={FABRIQUES}
+        <Vue3D res={res} extra={extra} phase={phase} theme={theme} selection={selection} onSelection={onSelection} onPret={pret} surCalques={appliquer} fabriques={FABRIQUES}
           enfants={<>
             <Legendes liste={liste} />
             <div className="vue3d-note">

@@ -3,8 +3,8 @@
     cd backend
     .venv/Scripts/python.exe -m outils.fixtures_vue3d
 
-Écrit frontend/src/vue3d/__tests__/donnees/<exemple>.json : la réponse complète de
-/api/calcul pour chaque exemple listé. Le test
+Écrit frontend/src/vue3d/__tests__/donnees/<exemple>.json : la réponse de /api/calcul
+(resultats + projet) pour chaque exemple listé. Le test
 tests/unitaires/test_vue3d_donnees.py vérifie que ces fichiers restent à jour.
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[2]
 SORTIE = RACINE / "frontend" / "src" / "vue3d" / "__tests__" / "donnees"
-EXEMPLES = ["fouille_exemple", "fouille_ecoulement", "pseudo3d_angle", "berlinoise_tirants"]
+EXEMPLES = ["fouille_exemple", "fouille_ecoulement", "pseudo3d_angle", "berlinoise_tirants", "fouille_coupes"]
 
 
 def resultats(nom: str) -> dict:
@@ -26,7 +26,7 @@ def resultats(nom: str) -> dict:
     r = TestClient(app).post("/api/calcul", json={"texte": texte}).json()
     if not r["ok"]:
         raise RuntimeError(f"{nom} : {r['erreurs']}")
-    return r["resultats"]
+    return {"resultats": r["resultats"], "projet": r["projet"]}
 
 
 def _arrondi(v):

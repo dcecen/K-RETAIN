@@ -196,10 +196,46 @@ export interface Resultats {
   }
 }
 
+/** Coupe de calcul d'un projet 2D (voir backend/sout/script/coupes.py). */
+export interface CoupeRes {
+  nom: string
+  zone: { k: number; de: number; a: number }      // arête du contour et tronçon (abscisses locales, m) ; k = −1 : coupe unique
+  trace: number[][]
+  empreinte: string
+  herite: string[]
+  local: string[]
+  correspondance: number[]                        // indice projet de chaque phase de la coupe
+  resultats?: Resultats                           // absent pour la première coupe (= resultats de la réponse)
+  en_cache?: boolean
+}
+
+export interface SyntheseVerif {
+  nom: string
+  element: string
+  categorie: string | null
+  coupe: string
+  taux: number | null
+  etat: Verif['etat']
+  phase: string | null
+  detail: string
+}
+
+export interface ProjetCoupes {
+  unique: boolean
+  contour: number[][]
+  orphelins: { k: number; de: number; a: number }[]
+  avertissements: string[]
+  coupes: CoupeRes[]
+  phasage_projet: string[]
+  synthese: { verifications: SyntheseVerif[]; chiffres: Record<string, unknown> }
+}
+
 export interface ReponseCalcul {
   ok: boolean
   erreurs: ErreurScript[]
   resultats?: Resultats
+  projet?: ProjetCoupes
+  coupe?: CoupeRes
 }
 
 async function post<T>(url: string, corps: unknown): Promise<T> {
@@ -213,7 +249,9 @@ async function post<T>(url: string, corps: unknown): Promise<T> {
 }
 
 export const api = {
-  calcul: (texte: string) => post<ReponseCalcul>('/api/calcul', { texte }),
+  calcul: (texte: string, coupe?: string) => post<ReponseCalcul>('/api/calcul', coupe === undefined ? { texte } : { texte, coupe }),
+  coupesPreparer: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[]; unique: boolean; coupes: CoupeRes[]; avertissements: string[] }>('/api/coupes/preparer', { texte }),
+  coupesSynthese: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[]; projet: ProjetCoupes }>('/api/coupes/synthese', { texte }),
   valider: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[] }>('/api/valider', { texte }),
   schema: () => fetch('/api/schema').then((r) => r.json()),
   exemples: () => fetch('/api/exemples').then((r) => r.json() as Promise<{ nom: string; texte: string }[]>),

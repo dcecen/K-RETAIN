@@ -9,7 +9,7 @@
 // Conventions affichées : déplacement positif vers la fouille ; moment positif quand la face
 // côté fouille est tendue.
 import * as THREE from 'three'
-import type { Maquette, PhaseRes, Resultats } from '../lib/api'
+import type { Maquette, PhaseRes, ProjetCoupes, Resultats } from '../lib/api'
 import { Fabrique } from './fabrique'
 import { Contour } from './geometrie'
 
@@ -62,6 +62,8 @@ export interface DonneesScene {
   res: Resultats
   m: Maquette
   geo: Contour
+  /** Projet à coupes de calcul (plans, zones, diagrammes). */
+  projet?: ProjetCoupes | null
   /** Résultats et phase à afficher pour un point de paroi (arête k, abscisse locale sl) — coupes de calcul. */
   resultatsPour?: (k: number, sl: number, phase: number) => { res: Resultats; phase: number; coupe: string | null }
 }
@@ -212,7 +214,7 @@ export class SceneRetainWall {
     const ctx = this.contexte()
     const specs = this.fabriques.flatMap((f) => f(ctx))
     this.reconcilier(specs, ctx)
-    const cle = `${geo.cle()}|${res.maquette.paroi.tete}|${res.maquette.paroi.pied}`
+    const cle = `${geo.cle()}|${res.maquette.paroi.tete}|${res.maquette.paroi.pied}|${(extra.projet?.coupes ?? []).map((c) => c.nom).join(',')}`
     if (cle !== this.cleCadrage) {
       if (!this.cleCadrage || !this.cameraTouchee) this.recadrer()
       this.cleCadrage = cle

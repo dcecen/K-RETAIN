@@ -1,4 +1,4 @@
-import type { Resultats, Verif } from '../lib/api'
+import type { ProjetCoupes, Resultats, Verif } from '../lib/api'
 import { pourcent } from '../lib/format'
 
 const LIBELLE: Record<Verif['etat'], string> = { ok: 'Vérifié', attention: 'Limite', non_ok: 'Non vérifié', non_verifiable: 'Prévu' }
@@ -22,7 +22,7 @@ function valeurs(v: Verif): [string, string] {
   return [premier, '']
 }
 
-export function Verifications({ res }: { res: Resultats }) {
+export function Verifications({ res, projet }: { res: Resultats; projet?: ProjetCoupes | null }) {
   const vs = res.verifications ?? []
   if (!vs.length) return <div className="vide-centre">Aucune vérification demandée.<span className="note">Ajoutez-les dans le bloc « Vérifications » de la navigation.</span></div>
   const groupes = new Map<string, Verif[]>()
@@ -38,6 +38,23 @@ export function Verifications({ res }: { res: Resultats }) {
         <span className="legende-signes">Vert ≤ 90 % · orange 90 à 100 % · rouge &gt; 100 % · « À confirmer » : hypothèse à valider avec la norme</span>
       </div>
       <div style={{ flex: 1, overflow: 'auto' }}>
+        {projet && !projet.unique && projet.coupes.length > 1 && (
+          <section className="synthese-projet">
+            <h3>Synthèse projet — pire coupe par vérification ({projet.coupes.length} coupes)</h3>
+            <table className="tableau">
+              <thead><tr><th>Vérification</th><th>Élément</th><th>Coupe la plus défavorable</th><th className="num">Taux</th><th>État</th></tr></thead>
+              <tbody>
+                {projet.synthese.verifications.map((v, i) => (
+                  <tr key={i} className={`etat-${v.etat}`}>
+                    <td>{v.nom}</td><td>{v.element}</td><td>{v.coupe}</td>
+                    <td className="num">{v.taux === null ? '—' : pourcent(v.taux)}</td><td>{LIBELLE[v.etat]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {projet.avertissements.length > 0 && <ul className="doux" style={{ margin: '6px 0 0', paddingLeft: 18 }}>{projet.avertissements.map((a, i) => <li key={i}>{a}</li>)}</ul>}
+          </section>
+        )}
         <table className="tableau">
           <thead>
             <tr><th>Vérification</th><th>Élément</th><th>Phase</th><th>Valeur de calcul</th><th>Valeur limite</th><th className="num">Taux</th><th>Statut</th><th>Source</th></tr>

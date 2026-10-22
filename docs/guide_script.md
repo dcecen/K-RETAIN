@@ -272,6 +272,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `pseudo3d` | bloc |  |  |  |
 | `hydraulique` | bloc |  |  |  |
 | `assemblages` | blocs nommés de bloc |  |  | assemblages à vérifier et à dessiner |
+| `coupes` | liste de bloc |  |  | coupes de calcul 2D placées en plan (vide = une coupe unique sur toute la paroi) |
 
 ### calcul
 
@@ -436,6 +437,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `contour` | liste de liste de nombre | oui |  | polygone de la fouille [[x, y], ...] (m) |
 | `appuis` | liste de bloc |  |  | positions des appuis en plan |
 | `cote_terrain` | nombre |  |  | cote du terrain autour de la fouille (m) |
+| `cotes` | blocs nommés de entier |  |  | noms des côtés de la fouille → numéro d'arête du contour (0 = premier segment) |
 
 ### plan.appuis (chaque position)
 

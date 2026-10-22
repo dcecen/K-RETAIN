@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { api, type ErreurScript, type Resultats } from './lib/api'
+import { api, type ErreurScript, type ProjetCoupes, type ReponseCalcul, type Resultats } from './lib/api'
 import type { EtatCalcul, Onglet, Section, Selection } from './lib/etat'
 import { exporterImage, imprimerNote, telechargerTexte } from './lib/exporter'
 import { IconeAppui, IconeBase, IconeCoupe, IconeCube, IconePlaque, IconeProjet, IconeScript, IconeTableau, IconeVerif } from './lib/icones'
@@ -27,6 +27,9 @@ export default function App() {
   const [texte, setTexteBrut] = useState<string>(() => lireBrouillon() ?? '')
   const [erreurs, setErreurs] = useState<ErreurScript[]>([])
   const [res, setRes] = useState<Resultats | null>(null)
+  const [resBase, setResBase] = useState<Resultats | null>(null)       // résultats de la première coupe
+  const [projet, setProjet] = useState<ProjetCoupes | null>(null)      // coupes de calcul du projet
+  const [coupeActive, setCoupeActive] = useState(0)
   const [phase, setPhase] = useState(0)
   const [onglet, setOnglet] = useState<Onglet>('coupe')
   const [section, setSection] = useState<Section | null>(null)
@@ -88,12 +91,35 @@ export default function App() {
     setEnCours(true)
     const t0 = performance.now()
     try {
-      const r = await api.calcul(texte)
+      let r: ReponseCalcul
+      const prep = await api.coupesPreparer(texte)
+      if (prep.ok && !prep.unique && prep.coupes.length > 1) {
+        // une requête par coupe, lancées en parallèle (cache serveur par coupe), puis la synthèse
+        const faites = new Set<string>()
+        const avancement = () => setEtat({ genre: 'calcul', texte: `Calcul des coupes ${faites.size}/${prep.coupes.length} · ${prep.coupes.map((c) => `${faites.has(c.nom) ? '✓' : '…'} ${c.nom.split(' — ')[0]}`).join(' · ')}` })
+        avancement()
+        const reps = await Promise.all(prep.coupes.map(async (c) => { const rc = await api.calcul(texte, c.nom); faites.add(c.nom); avancement(); return rc }))
+        const echec = reps.find((x) => !x.ok || !x.resultats)
+        if (echec) r = echec
+        else {
+          const syn = await api.coupesSynthese(texte)
+          if (!syn.ok) r = { ok: false, erreurs: syn.erreurs }
+          else {
+            const coupes = syn.projet.coupes.map((c, i) => (i === 0 ? c : { ...c, resultats: reps[i].resultats }))
+            r = { ok: true, erreurs: [], resultats: reps[0].resultats, projet: { ...syn.projet, coupes } }
+          }
+        }
+      } else r = await api.calcul(texte)
       const ms = Math.round(performance.now() - t0)
       setErreurs(r.erreurs)
       if (r.ok && r.resultats) {
+        // chaque coupe porte ses résultats (la première = ceux de la réponse)
+        if (r.projet) r.projet = { ...r.projet, coupes: r.projet.coupes.map((c, i) => (i === 0 ? { ...c, resultats: r.resultats } : c)) }
         texteCalcule.current = texte
         setRes(r.resultats)
+        setResBase(r.resultats)
+        setProjet(r.projet ?? null)
+        setCoupeActive(0)
         setPhase(r.resultats.phases.length - 1)
         setEtat(r.resultats.complet
           ? { genre: 'ok', texte: `Calculé · ${r.resultats.phases.length} phases · ${ms} ms` }
@@ -119,10 +145,28 @@ export default function App() {
       if (!res) return
       if (e.key === 'ArrowLeft') setPhase((p) => res.phases[p]?.parent ?? Math.max(0, p - 1))
       if (e.key === 'ArrowRight') setPhase((p) => res.phases[p]?.enfants?.[0] ?? Math.min(res.phases.length - 1, p + 1))
+      if (/^[1-9]$/.test(e.key) && projet && !projet.unique && Number(e.key) <= projet.coupes.length) changerCoupe(Number(e.key) - 1)
     }
     window.addEventListener('keydown', touche)
     return () => window.removeEventListener('keydown', touche)
-  }, [calculer, res])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calculer, res, projet, coupeActive, phase])
+
+  /** Change de coupe de calcul affichée en conservant la phase (même nom, sinon dernière phase projet précédente). */
+  const changerCoupe = (i: number) => {
+    if (!projet || !resBase || !res || i === coupeActive || i < 0 || i >= projet.coupes.length) return
+    const cible = projet.coupes[i].resultats ?? resBase
+    const nom = res.phases[phase]?.nom
+    let j = cible.phases.findIndex((p) => p.nom === nom)
+    if (j < 0) {
+      const ip = projet.coupes[coupeActive].correspondance[phase] ?? phase
+      j = 0
+      projet.coupes[i].correspondance.forEach((c, k) => { if (c <= ip) j = k })
+    }
+    setRes(cible)
+    setCoupeActive(i)
+    setPhase(j)
+  }
 
   const changerPhase = useCallback((i: number) => {
     if (i < 0) setPhase((p) => (res ? (res.phases[p]?.enfants?.[0] ?? Math.min(res.phases.length - 1, p + 1)) : p))
@@ -187,7 +231,7 @@ export default function App() {
     <div className={classes}>
       <BarreTitre projet={modele?.projet ? String(modele.projet) : ''} etat={etat} enCours={enCours} exemples={exemples} theme={theme}
         imagePossible={!!res && (onglet === 'coupe' || onglet === '3d')} resultatsDisponibles={!!res}
-        onRecalculer={() => void calculer()} onExemple={(t) => { setTexteBrut(t); setRes(null); setEtat({ genre: 'aucun', texte: 'Exemple chargé — à calculer' }) }}
+        onRecalculer={() => void calculer()} onExemple={(t) => { setTexteBrut(t); setRes(null); setProjet(null); setEtat({ genre: 'aucun', texte: 'Exemple chargé — à calculer' }) }}
         onOuvrir={(f) => void f.text().then((t) => { setTexteBrut(t); setRes(null) })} onEnregistrer={enregistrer} onRido={(f) => void importerRido(f)}
         onMateriaux={() => setOnglet('materiaux')} onImage={exporterImage} onNote={() => res && imprimerNote(res)} onMaquette={() => void exporterMaquette()}
         onTheme={() => setTheme(theme === 'sombre' ? 'clair' : 'sombre')} onAllerErreur={allerErreur}
@@ -206,15 +250,22 @@ export default function App() {
             </button>
           ))}
           <span className="espace" />
+          {projet && !projet.unique && projet.coupes.length > 1 && (
+            <label className="doux selecteur-coupe" title="Coupe de calcul affichée (touches 1 à 9)">Coupe
+              <select value={coupeActive} onChange={(e) => changerCoupe(Number(e.target.value))} aria-label="Coupe de calcul affichée">
+                {projet.coupes.map((c, i) => <option key={c.nom} value={i}>{i + 1}. {c.nom}</option>)}
+              </select>
+            </label>
+          )}
           <span className="doux" style={{ alignSelf: 'center', paddingRight: 10, fontSize: 11 }}>{serveur}</span>
         </nav>
         <div className="contenu-onglet">
           {onglet === 'coupe' && (res ? <CoupeDiagrammes res={res} phase={phase} theme={theme} /> : sansResultats)}
-          {onglet === '3d' && (res ? <Onglet3D res={res} texte={texteCalcule.current} phase={phase} theme={theme}
+          {onglet === '3d' && (res ? <Onglet3D res={res} texte={texteCalcule.current} phase={phase} theme={theme} projet={projet} coupeActive={coupeActive} onCoupe={changerCoupe}
             selection={selection?.type === 'appui' ? `appui:${selection.nom}` : null}
             onSelection={(id) => setSelection(id?.startsWith('appui:') ? { type: 'appui', nom: id.slice(6) } : null)} /> : sansResultats)}
           {onglet === 'efforts' && (res ? <Efforts res={res} phase={phase} onPhase={setPhase} onAppui={(n) => { setSelection({ type: 'appui', nom: n }); setTiroirInsp(true) }} /> : sansResultats)}
-          {onglet === 'verifications' && (res ? <Verifications res={res} /> : sansResultats)}
+          {onglet === 'verifications' && (res ? <Verifications res={res} projet={projet} /> : sansResultats)}
           {onglet === 'pseudo3d' && res?.pseudo3d && <Pseudo3D res={res} phase={phase} />}
           {onglet === 'assemblages' && (
             <Assemblages res={res} modele={erreurYaml ? null : modele} references={references} theme={theme}

@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import type { Resultats } from '../lib/api'
 import type { Theme } from '../lib/theme'
 import { FABRIQUES_CHANTIER } from './elements'
-import { SceneRetainWall, type Diagnostic, type FabriqueSpecs } from './scene'
+import { SceneRetainWall, type Diagnostic, type DonneesScene, type FabriqueSpecs } from './scene'
 
 export interface PoigneeVue3D {
   scene: SceneRetainWall
@@ -12,8 +12,10 @@ export interface PoigneeVue3D {
 }
 
 /** Vue 3D persistante : la scène est créée une fois au montage, puis mise à jour (phase, recalcul, thème). */
-export function Vue3D({ res, phase, theme, selection, fabriques = FABRIQUES_CHANTIER, onSelection, onSurvol, onPret, enfants, surCalques }: {
+export function Vue3D({ res, extra, phase, theme, selection, fabriques = FABRIQUES_CHANTIER, onSelection, onSurvol, onPret, enfants, surCalques }: {
   res: Resultats
+  /** Données complémentaires de la scène (projet à coupes, résolution par tronçon). */
+  extra?: Partial<DonneesScene>
   phase: number
   theme: Theme
   selection: string | null
@@ -181,10 +183,10 @@ export function Vue3D({ res, phase, theme, selection, fabriques = FABRIQUES_CHAN
     const p = poignee.current
     if (!p) return
     p.scene.phaseActive = phase
-    p.scene.charger(res)
+    p.scene.charger(res, extra)
     rappels.current.surCalques?.(p.scene)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [res])
+  }, [res, extra])
 
   useEffect(() => { poignee.current?.scene.phase(phase) }, [phase])
   useEffect(() => { poignee.current?.scene.appliquerTheme(theme === 'sombre') }, [theme])

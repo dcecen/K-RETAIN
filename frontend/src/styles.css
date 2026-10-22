@@ -465,3 +465,12 @@ select.champ { padding: 0 2px; }
 .calque-reglages label { display: inline-flex; align-items: center; gap: 4px; }
 .calque-reglages input[type=number] { width: 58px; font-size: 11px; border: 1px solid var(--filet); border-radius: 3px; background: var(--panneau-2); padding: 1px 3px; }
 .calque-reglages select { font-size: 11px; border: 1px solid var(--filet); border-radius: 3px; background: var(--panneau-2); height: 20px; }
+
+/* ---------------------------------------------------------------- coupes de calcul */
+.selecteur-coupe { display: inline-flex; align-items: center; gap: 6px; align-self: center; padding-right: 10px; font-size: 12px; }
+.selecteur-coupe select, .onglet-3d .barre-outils select { font-size: 12px; border: 1px solid var(--filet-fort); border-radius: 3px; background: var(--panneau-2); height: 24px; max-width: 260px; }
+.synthese-projet { padding: 10px 12px; border-bottom: 1px solid var(--filet); background: var(--panneau-2); }
+.synthese-projet h3 { margin: 0 0 6px; font-size: 13px; }
+.synthese-projet tr.etat-non_ok td { color: var(--rouge); }
+.synthese-projet tr.etat-attention td { color: var(--orange); }
+.etiquette-3d.coupe { font-weight: 600; border-color: var(--accent); }

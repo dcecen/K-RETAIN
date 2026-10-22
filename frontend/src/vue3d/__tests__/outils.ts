@@ -1,19 +1,25 @@
 // Outils communs des tests de la vue 3D (sans WebGL).
 import * as THREE from 'three'
-import type { Resultats } from '../../lib/api'
+import type { ProjetCoupes, Resultats } from '../../lib/api'
 import { FABRIQUES_CHANTIER } from '../elements'
 import { SceneRetainWall, type FabriqueSpecs } from '../scene'
 import berlinoise from './donnees/berlinoise_tirants.json'
 import ecoulement from './donnees/fouille_ecoulement.json'
 import exemple from './donnees/fouille_exemple.json'
 import p3d from './donnees/pseudo3d_angle.json'
+import coupes from './donnees/fouille_coupes.json'
 
-const JEUX: Record<string, unknown> = { exemple, ecoulement, p3d, berlinoise }
-export type NomJeu = 'exemple' | 'ecoulement' | 'p3d' | 'berlinoise'
+const JEUX: Record<string, unknown> = { exemple, ecoulement, p3d, berlinoise, coupes }
+export type NomJeu = 'exemple' | 'ecoulement' | 'p3d' | 'berlinoise' | 'coupes'
 
 /** Copie profonde d'un jeu de résultats figé (chaque recalcul produit un nouvel objet). */
 export function jeu(nom: NomJeu): Resultats {
-  return structuredClone(JEUX[nom]) as Resultats
+  return structuredClone((JEUX[nom] as { resultats: Resultats }).resultats)
+}
+
+/** Réponse complète du calcul (résultats de la première coupe + projet à coupes). */
+export function jeuProjet(nom: NomJeu): { resultats: Resultats; projet: ProjetCoupes } {
+  return structuredClone(JEUX[nom] as { resultats: Resultats; projet: ProjetCoupes })
 }
 
 export function nouvelleScene(fabriques: FabriqueSpecs[] = FABRIQUES_CHANTIER) {

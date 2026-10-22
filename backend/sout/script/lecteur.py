@@ -223,6 +223,27 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
         for j, ap in enumerate(s.plan.appuis):
             if ap.appui not in s.appuis:
                 e.append((("plan", "appuis", j, "appui"), f"appui « {ap.appui} » non défini"))
+    n_aretes = len(s.plan.contour) if s.plan else 4
+    cotes = s.plan.cotes if s.plan else {}
+    for nom, k in cotes.items():
+        if not 0 <= k < n_aretes:
+            e.append((("plan", "cotes", nom), f"côté « {nom} » : numéro d'arête {k} hors du contour (0 à {n_aretes - 1})"))
+    noms_coupes = set()
+    for j, c in enumerate(s.coupes):
+        if c.nom in noms_coupes:
+            e.append((("coupes", j, "nom"), f"nom de coupe « {c.nom} » en double"))
+        noms_coupes.add(c.nom)
+        p = c.zone.paroi
+        if isinstance(p, str) and p not in cotes:
+            e.append((("coupes", j, "zone", "paroi"), f"côté « {p} » inconnu : déclarez-le dans plan.cotes"))
+        elif isinstance(p, int) and not 0 <= p < n_aretes:
+            e.append((("coupes", j, "zone", "paroi"), f"numéro d'arête {p} hors du contour (0 à {n_aretes - 1})"))
+        if isinstance(c.script, dict):
+            for cle in ("coupes", "plan"):
+                if cle in c.script:
+                    e.append((("coupes", j, "script", cle), f"le bloc « {cle} » ne peut pas être redéfini dans une coupe"))
+            if "projet" in c.script and not isinstance(c.script["projet"], str):
+                e.append((("coupes", j, "script", "projet"), "projet : texte attendu"))
     return e
 
 

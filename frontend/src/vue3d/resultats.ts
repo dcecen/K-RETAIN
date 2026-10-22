@@ -150,9 +150,16 @@ function grilleArete(a: Arete, pied: number, tete: number): Grille {
 
 const _c = new THREE.Color()
 
+/** Résultats et phase à utiliser pour un point de paroi (coupe du tronçon en projet à coupes, sinon résultats affichés). */
+export function sourcePour(ctx: Contexte, k: number, sl: number): { res: Resultats; phase: number; coupe: string | null } {
+  return ctx.d.resultatsPour?.(k, sl, ctx.phase) ?? { res: ctx.d.res, phase: ctx.phase, coupe: null }
+}
+
 /** Décalage de la déformée (m) en chaque nœud de la grille pour une phase : y(z) × amplification × atténuation aux angles. */
 function decalages(ctx: Contexte, a: Arete, g: Grille, phase: number, amp: number, enveloppe: 'max' | 'min' | null = null): Float32Array | null {
-  const res = ctx.d.res
+  const src = sourcePour(ctx, a.k, g.sl[Math.floor(g.ns / 2)])
+  const res = src.res
+  if (!enveloppe) phase = src.phase
   const out = new Float32Array(g.ns * g.nz)
   const p3 = !!res.pseudo3d
   const la = Math.min(0.25 * a.L, ctx.d.m.paroi.tete - ctx.d.m.paroi.pied)
@@ -172,9 +179,11 @@ function decalages(ctx: Contexte, a: Arete, g: Grille, phase: number, amp: numbe
   return out
 }
 
-function couleursGrille(ctx: Contexte, g: Grille, mode: ModeCouleur, ech: EchelleCouleur | null): Float32Array {
+function couleursGrille(ctx: Contexte, a: Arete, g: Grille, mode: ModeCouleur, ech: EchelleCouleur | null): Float32Array {
   const out = new Float32Array(3 * g.ns * g.nz)
-  const res = ctx.d.res
+  const src = sourcePour(ctx, a.k, g.sl[Math.floor(g.ns / 2)])
+  const res = src.res
+  const phase = src.phase
   if (mode === 'taux') {
     const t = tauxParoi(res.verifications)
     const s = seuils(ctx)
@@ -194,7 +203,7 @@ function couleursGrille(ctx: Contexte, g: Grille, mode: ModeCouleur, ech: Echell
   }
   const quoi = ech.quoi === 'yabs' ? 'y' : ech.quoi
   for (let i = 0; i < g.ns; i++) {
-    const f = profilValeur(res, ctx.phase, quoi, g.s[i])
+    const f = profilValeur(res, phase, quoi, g.s[i])
     for (let j = 0; j < g.nz; j++) {
       let v = f ? f(g.z[j]) : 0
       if (ech.quoi === 'yabs') v = Math.abs(v)
@@ -259,7 +268,8 @@ function specsSurface(ctx: Contexte): Spec[] {
           const c = k.scene.calques
           const deformee = c.visible('resultats.deformee')
           const amp = deformee ? amplification(k) : 0
-          const cleD = `${k.phase}|${amp}`
+          const srcK = sourcePour(k, a.k, a.L / 2)
+          const cleD = `${k.phase}|${amp}|${srcK.coupe ?? ''}|${srcK.phase}`
           if (!cacheDec.has(cleD)) cacheDec.set(cleD, deformee ? decalages(k, a, g, k.phase, amp) : null)
           const dec = cacheDec.get(cleD) ?? null
           const pa = bg.attributes.position as THREE.BufferAttribute
@@ -269,8 +279,8 @@ function specsSurface(ctx: Contexte): Spec[] {
           bg.computeBoundingSphere()
           const mode = modeCouleurActif(k)
           const ech = echelleCouleur(k, mode)
-          const cleC = `${k.phase}|${mode}|${ech ? `${ech.quoi}|${ech.min}|${ech.max}|${ech.palette}` : ''}|${mode === 'taux' ? JSON.stringify(seuils(k)) + k.ph.terrain_aval : ''}`
-          if (!cacheCoul.has(cleC)) cacheCoul.set(cleC, couleursGrille(k, g, mode, ech))
+          const cleC = `${k.phase}|${srcK.coupe ?? ''}|${srcK.phase}|${mode}|${ech ? `${ech.quoi}|${ech.min}|${ech.max}|${ech.palette}` : ''}|${mode === 'taux' ? JSON.stringify(seuils(k)) + k.ph.terrain_aval : ''}`
+          if (!cacheCoul.has(cleC)) cacheCoul.set(cleC, couleursGrille(k, a, g, mode, ech))
           const ca = bg.attributes.color as THREE.BufferAttribute
           ;(ca.array as Float32Array).set(cacheCoul.get(cleC)!)
           ca.needsUpdate = true
@@ -301,13 +311,13 @@ export function stationsAilettes(aretes: Arete[]): { k: number; sl: number }[] {
 }
 
 /** Échelle des ailettes : la valeur maximale (toutes phases) occupe `longueur` m. */
-function echelleAilette(res: Resultats, quoi: 'M' | 'V', H: number): number {
+export function echelleAilette(res: Resultats, quoi: 'M' | 'V', H: number): number {
   const b = bornes(res, quoi, null)
   const m = Math.max(Math.abs(b.min), Math.abs(b.max), 1e-9)
   return (0.3 * H) / m
 }
 
-function geoRuban(nz: number): THREE.BufferGeometry {
+export function geoRuban(nz: number): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 2 * nz), 3))
   g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(3 * 2 * nz), 3))
@@ -318,7 +328,7 @@ function geoRuban(nz: number): THREE.BufferGeometry {
 }
 
 /** Remplit un ruban : base sur la paroi, extrémité décalée de `val(z) × echelle` selon ±ni ; couleur par signe ou fixe. */
-function remplirRuban(g: THREE.BufferGeometry, a: Arete, sl: number, z: Float32Array, offset: number, sens: 1 | -1, val: (z: number) => number,
+export function remplirRuban(g: THREE.BufferGeometry, a: Pick<Arete, 'A' | 't' | 'ni'>, sl: number, z: Float32Array, offset: number, sens: 1 | -1, val: (z: number) => number,
   echelle: number, couleur: (v: number) => number) {
   const pos = g.attributes.position.array as Float32Array
   const col = g.attributes.color.array as Float32Array
@@ -342,7 +352,7 @@ function remplirRuban(g: THREE.BufferGeometry, a: Arete, sl: number, z: Float32A
   g.computeBoundingSphere()
 }
 
-function zGrille(pied: number, tete: number, n = 2 * NZ): Float32Array {
+export function zGrille(pied: number, tete: number, n = 2 * NZ): Float32Array {
   const z = new Float32Array(n)
   for (let j = 0; j < n; j++) z[j] = pied + ((tete - pied) * j) / (n - 1)
   return z
@@ -375,7 +385,8 @@ function specsAilettes(ctx: Contexte): Spec[] {
             const mode = modeCalque(c, calque, quoi === 'M' ? 'couleur' : 'ailettes')
             el.visiblePhase = !!k.ph.ok && mode === 'ailettes'
             if (!el.visiblePhase) return
-            const f = profilValeur(k.d.res, k.phase, quoi, a.s0 + st.sl)
+            const src = sourcePour(k, a.k, st.sl)
+            const f = profilValeur(src.res, src.phase, quoi, a.s0 + st.sl)
             if (!f) { el.visiblePhase = false; return }
             const facteur = reglageCalque(c, calque, 'echelle_ailettes', 1)
             remplirRuban(g, a, st.sl, z, offset, 1, f, ech * facteur, signe)
@@ -431,7 +442,8 @@ function specsAilettes(ctx: Contexte): Spec[] {
         }
         calculerEchelle(cx.d.res)
         el.appliquerPhase = (k) => {
-          const ph = k.ph
+          const src = sourcePour(k, a.k, st.sl)
+          const ph = src.res.phases[src.phase] ?? k.ph
           el.visiblePhase = !!ph.ok && !!ph.pressions
           if (!el.visiblePhase) return
           const mode = modeCalque(k.scene.calques, 'resultats.pressions', 'deux')

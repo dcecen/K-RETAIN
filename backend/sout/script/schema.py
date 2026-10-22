@@ -206,6 +206,27 @@ class Plan(_Base):
     contour: list[list[float]] = Field(description="polygone de la fouille [[x, y], ...] (m)")
     appuis: list[AppuiPlan] = Field(default_factory=list, description="positions des appuis en plan")
     cote_terrain: float | None = Field(None, description="cote du terrain autour de la fouille (m)")
+    cotes: dict[str, int] = Field(default_factory=dict, description="noms des côtés de la fouille → numéro d'arête du contour (0 = premier segment)")
+
+
+class TraceCoupe(_Base):
+    de: list[float] = Field(description="point de départ de la trace en plan [x, y] (m)")
+    a: list[float] = Field(description="point d'arrivée [x, y] (m)")
+
+
+class ZoneCoupe(_Base):
+    paroi: str | int = Field(description="côté de paroi auquel la coupe s'applique (nom du bloc plan.cotes ou numéro d'arête)")
+    de: float | None = Field(None, description="début du tronçon, abscisse le long du côté depuis son origine (m) ; vide = début du côté")
+    a: float | None = Field(None, description="fin du tronçon (m) ; vide = fin du côté")
+
+
+class CoupeScript(_Base):
+    nom: str = Field(description="nom de la coupe de calcul")
+    trace: TraceCoupe | None = Field(None, description="trace de la coupe en plan (segment) ; vide = perpendiculaire au milieu du tronçon")
+    zone: ZoneCoupe = Field(description="tronçon de paroi auquel la coupe s'applique")
+    script: dict | str | None = Field(
+        None, description="données locales de la coupe : bloc YAML en ligne (ou chemin d'un fichier du dossier exemples) ; "
+                          "les clés absentes héritent du script principal")
 
 
 class Pseudo3D(_Base):
@@ -238,3 +259,4 @@ class Script(_Base):
     pseudo3d: Pseudo3D | None = None
     hydraulique: Hydraulique | None = None
     assemblages: dict[str, AssemblageScript] = Field(default_factory=dict, description="assemblages à vérifier et à dessiner")
+    coupes: list[CoupeScript] = Field(default_factory=list, description="coupes de calcul 2D placées en plan (vide = une coupe unique sur toute la paroi)")

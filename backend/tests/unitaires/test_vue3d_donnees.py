@@ -58,13 +58,13 @@ def test_geometrie_maquette_renvoyee_avec_le_calcul(exemple):
     assert g["assemblages"]["A1"]["appui"] == "B1"
 
 
-@pytest.mark.parametrize("nom", ["fouille_exemple", "fouille_ecoulement", "pseudo3d_angle", "berlinoise_tirants"])
+@pytest.mark.parametrize("nom", ["fouille_exemple", "fouille_ecoulement", "pseudo3d_angle", "berlinoise_tirants", "fouille_coupes"])
 def test_jeux_figes_de_la_vue3d_a_jour(nom):
     """Les jeux figés des tests de l'interface reflètent le calcul actuel
     (sinon : `python -m outils.fixtures_vue3d` dans backend)."""
     chemin = DONNEES / f"{nom}.json"
     assert chemin.exists(), f"{chemin} absent : lancer python -m outils.fixtures_vue3d"
-    fige = json.loads(chemin.read_text(encoding="utf-8"))
+    fige = json.loads(chemin.read_text(encoding="utf-8"))["resultats"]
     actuel = _calcul(nom)
     assert [p["nom"] for p in fige["phases"]] == [p["nom"] for p in actuel["phases"]]
     for pf, pa in zip(fige["phases"], actuel["phases"]):
