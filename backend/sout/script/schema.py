@@ -133,14 +133,32 @@ class NiveauxEau(_Base):
     aval: float | None = Field(None, description="cote de la nappe côté aval (m) ; vide = pas de nappe")
 
 
+class TraceSurcharge(_Base):
+    de: list[float] = Field(description="début du tracé en plan [x, y] (m)")
+    a: list[float] = Field(description="fin du tracé [x, y] (m)")
+
+
 class Surcharge(_Base):
-    nom: str | None = Field(None, description="nom (pour la retirer dans une phase)")
-    type: Literal["repartie", "bande", "lineique"] = Field(description="répartie, en bande ou linéique")
-    q: float = Field(description="intensité : kPa (répartie, bande) ou kN/m (linéique)")
-    distance: float = Field(0.0, ge=0, description="distance au parement (m)")
-    largeur: float | None = Field(None, gt=0, description="largeur de la bande (m)")
-    cote: float | None = Field(None, description="cote d'application (m) ; défaut : terrain")
-    cote_ecran: Literal["amont", "aval"] = Field("amont", description="côté de l'écran")
+    nom: str | None = Field(None, description="nom (pour la retirer dans une phase, et pour la maquette)")
+    type: Literal["repartie", "uniforme", "bande", "rectangulaire", "ponctuelle", "lineique", "lineaire", "convoi"] = Field(
+        description="uniforme (= répartie), bande parallèle à la paroi, rectangulaire (emprise en plan), ponctuelle, "
+                    "linéaire (= linéique), convoi (modèle routier à fournir)")
+    q: float = Field(description="intensité : kPa (uniforme, bande, rectangulaire), kN (ponctuelle) ou kN/m (linéaire)")
+    distance: float = Field(0.0, ge=0, description="bande : distance du parement au début de la bande (m)")
+    largeur: float | None = Field(None, gt=0, description="bande : largeur (m) ; uniforme : largeur de la zone chargée (vide = illimitée)")
+    cote: float | None = Field(None, description="cote d'application (m) ; défaut : terrain − profondeur")
+    profondeur: float = Field(0.0, ge=0, description="profondeur d'application sous le terrain (m), ex. fondation d'un bâtiment")
+    cote_ecran: Literal["amont", "aval"] = Field("amont", description="face de l'écran chargée")
+    cote_paroi: str | int | list[str | int] | None = Field(
+        None, description="côté(s) de paroi concerné(s) : nom de plan.cotes, numéro d'arête, liste ou « toutes » (défaut)")
+    emprise: list[float] | dict[str, float] | None = Field(
+        None, description="rectangulaire/ponctuelle : [lx, ly] (m) ; bande : {de, a} ou [de, a], étendue le long du côté (m)")
+    position: list[float] | None = Field(None, description="rectangulaire/ponctuelle : centre en plan [x, y] (m)")
+    trace: TraceSurcharge | None = Field(None, description="linéaire : segment en plan")
+    niveaux: int | None = Field(None, ge=1, description="bâtiment : nombre de niveaux (maquette)")
+    modele: str | None = Field(None, description="convoi : modèle routier (Bc, Bt…), charges à fournir dans docs/normes")
+    phase: int | str | None = Field(None, description="phase d'application (numéro à partir de 1, ou nom) ; vide = dès le début")
+    phases: list[int | str] | None = Field(None, min_length=2, max_length=2, description="[première, dernière] phase d'existence")
 
 
 class Appui(_Base):
@@ -220,6 +238,19 @@ class ZoneCoupe(_Base):
     a: float | None = Field(None, description="fin du tronçon (m) ; vide = fin du côté")
 
 
+class CoupeCalculScript(_Base):
+    """Position de la coupe de calcul en plan (renseignée automatiquement par la préparation des coupes ;
+    peut être écrite à la main pour rapporter des surcharges en plan à un script à coupe unique)."""
+    x: float = Field(description="point de la coupe sur la paroi, x (m)")
+    y: float = Field(description="point de la coupe sur la paroi, y (m)")
+    ni: list[float] = Field(description="normale unitaire vers la fouille [nx, ny]")
+    t: list[float] = Field(description="tangente unitaire du côté [tx, ty]")
+    k: int = Field(0, ge=0, description="numéro d'arête du contour")
+    s: float = Field(0.0, description="abscisse de la coupe le long du côté (m)")
+    cote: str | None = Field(None, description="nom du côté (plan.cotes)")
+    nom: str | None = Field(None, description="nom de la coupe")
+
+
 class CoupeScript(_Base):
     nom: str = Field(description="nom de la coupe de calcul")
     trace: TraceCoupe | None = Field(None, description="trace de la coupe en plan (segment) ; vide = perpendiculaire au milieu du tronçon")
@@ -260,3 +291,4 @@ class Script(_Base):
     hydraulique: Hydraulique | None = None
     assemblages: dict[str, AssemblageScript] = Field(default_factory=dict, description="assemblages à vérifier et à dessiner")
     coupes: list[CoupeScript] = Field(default_factory=list, description="coupes de calcul 2D placées en plan (vide = une coupe unique sur toute la paroi)")
+    coupe_calcul: CoupeCalculScript | None = Field(None, description="position de cette coupe en plan (automatique)")

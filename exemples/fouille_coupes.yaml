@@ -23,7 +23,10 @@ eau:
   service: { amont: -2.0, aval: -2.0 }
 
 surcharges:
-  - { type: bande, q: 20, distance: 1.0, largeur: 5.0 }
+  - { nom: chantier, type: bande, q: 20, distance: 1.0, largeur: 5.0 }
+  - { nom: grue, type: ponctuelle, q: 1200, position: [15, -8], emprise: [6, 6], profondeur: 0.5, phases: [2, 3] }   # existe de la phase 2 à la phase 3
+  - { nom: stockage, type: rectangulaire, q: 40, position: [38, 9], emprise: [10, 8], phase: 2 }                    # à partir de la phase 2
+  - { nom: immeuble, type: bande, q: 90, distance: 3.5, largeur: 18, emprise: { de: 4, a: 26 }, cote_paroi: long_nord, profondeur: 2.0, niveaux: 6 }
 
 appuis:
   B1: { type: buton, element: modulaire_A, cote: -1.5, espacement: 6.0, longueur: 18.0, precharge: 50 }

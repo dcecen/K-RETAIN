@@ -21,14 +21,16 @@ import type { Modele } from '../lib/scriptDoc'
 import { analyserSelection, filAriane } from './navigation'
 import { PanneauResultats, type Volet } from './PanneauResultats'
 import { FABRIQUES_REPERES } from './reperes'
+import { entreeYamlSurcharge, FABRIQUES_SURCHARGES } from './surcharges'
+import { IconeSurcharge } from '../lib/icones'
 import { etatPrereglage } from './calques'
 
-const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS, ...FABRIQUES_COUPES, ...FABRIQUES_COUPE_LOCALE, ...FABRIQUES_REPERES]
+const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS, ...FABRIQUES_COUPES, ...FABRIQUES_COUPE_LOCALE, ...FABRIQUES_REPERES, ...FABRIQUES_SURCHARGES]
 import type { EtatCoupe, SceneRetainWall } from './scene'
 import { Vue3D, type PoigneeVue3D } from './Vue3D'
 
 /** Onglet « Maquette 3D » : vue persistante, outils de vue, plan de coupe, calques, exports. */
-export function Onglet3D({ res, texte, phase, theme, selection, onSelection, projet, coupeActive = 0, onCoupe, cotes = {}, onEpingler, modele, onPhase, onOuvrir, prereglageInitial, onPrereglage }: {
+export function Onglet3D({ res, texte, phase, theme, selection, onSelection, projet, coupeActive = 0, onCoupe, cotes = {}, onEpingler, modele, onPhase, onOuvrir, prereglageInitial, onPrereglage, onAjouterSurcharge }: {
   res: Resultats
   texte: string
   projet?: ProjetCoupes | null
@@ -43,6 +45,8 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   /** Préréglage de calques demandé par l'ancre d'URL à l'ouverture. */
   prereglageInitial?: string | null
   onPrereglage?: (id: string | null) => void
+  /** Ajout d'une surcharge tracée dans la maquette (entrée du bloc surcharges). */
+  onAjouterSurcharge?: (entree: Record<string, unknown>) => void
   phase: number
   theme: Theme
   selection: string | null
@@ -60,7 +64,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   calquesRef.current = calques
   const liste = useMemo(() => calculerLegendes(res, versScene(calques), phase), [res, calques, phase])
   const premiers = useMemo(() => (projet && !projet.unique ? projet.coupes[0].resultats ?? res : res), [projet, res])
-  const extra = useMemo(() => (projet ? { projet, resultatsPour: resolveur(projet, premiers, coupeActive) } : {}), [projet, premiers, coupeActive])
+  const extra = useMemo(() => ({ cotes, ...(projet ? { projet, resultatsPour: resolveur(projet, premiers, coupeActive) } : {}) }), [projet, premiers, coupeActive, cotes])
   const plusieurs = !!projet && !projet.unique && projet.coupes.length > 1
   const [outilCoupe, setOutilCoupe] = useState(false)
   const [positionLocale, setPositionLocale] = useState<PositionCoupeLocale | null>(null)
@@ -78,7 +82,17 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   const [curseurZ, setCurseurZ] = useState<number | null>(null)
   const selRef = useRef(selection)
   selRef.current = selection
+  const [outilSurcharge, setOutilSurcharge] = useState<{ p1: [number, number] | null } | null>(null)
   const choisir = (id: string | null, point?: THREE.Vector3) => {
+    if (outilSurcharge && point && (id?.startsWith('couche:') || id === null)) {
+      const pt: [number, number] = [point.x, -point.z]
+      if (!outilSurcharge.p1) { setOutilSurcharge({ p1: pt }); return }
+      const q = Number(window.prompt('Valeur de la surcharge (kPa) :', '20'))
+      const nom = window.prompt('Nom de la surcharge :', `S${(res.maquette?.surcharges?.length ?? 0) + 1}`)
+      setOutilSurcharge(null)
+      if (Number.isFinite(q) && q > 0 && nom) onAjouterSurcharge?.(entreeYamlSurcharge(nom, q, outilSurcharge.p1, pt, phase > 0 ? phase : null))
+      return
+    }
     if (outilCoupe && point && id?.startsWith('paroi:')) { setPositionLocale(positionDepuisPoint(geo, point)); return }
     onSelection(id)
     if (id) setVoirResultats(true)
@@ -101,7 +115,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
     const c = sc?.centreDe(id)
     if (sc && c) sc.centrerSur(c, Math.max(12, sc.orbite.rayon * 0.5))
   }
-  const miettes = useMemo(() => filAriane(analyserSelection(selection), projet ?? null, coupeActive, res.maquette?.assemblages ?? {}), [selection, projet, coupeActive, res])
+  const miettes = useMemo(() => filAriane(analyserSelection(selection), projet ?? null, coupeActive, res.maquette?.assemblages ?? {}, (res.maquette?.surcharges ?? []).map((x) => x.nom)), [selection, projet, coupeActive, res])
 
   const appliquer = useCallback((sc: SceneRetainWall) => {
     sc.appliquerCalques(versScene(calquesRef.current))
@@ -180,6 +194,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
           </label>
         )}
         <button className={`btn ${outilCoupe ? 'actif' : ''}`} title="Couper ici (C) : cliquer sur la paroi ou glisser la coupe locale" onClick={basculerOutil}><IconeCiseaux taille={14} /> Couper ici</button>
+        <button className={`btn ${outilSurcharge ? 'actif' : ''}`} title="Ajouter une surcharge : cliquer deux coins de l'emprise sur le terrain, puis saisir la valeur" onClick={() => setOutilSurcharge(outilSurcharge ? null : { p1: null })}><IconeSurcharge taille={14} /> {outilSurcharge ? (outilSurcharge.p1 ? 'Second coin…' : 'Premier coin…') : 'Ajouter une surcharge'}</button>
         <button className={`btn ${voirResultats ? 'actif' : ''}`} title="Panneau de résultats (R)" onClick={() => setVoirResultats(!voirResultats)}><IconeTableau taille={14} /> Résultats</button>
         <button className={`btn ${voirCalques ? 'actif' : ''}`} title="Calques (L)" onClick={() => setVoirCalques(!voirCalques)}><IconeCalques taille={14} /> Calques</button>
         <button className="btn" disabled={exportEnCours} onClick={() => void exporterHtml()}>

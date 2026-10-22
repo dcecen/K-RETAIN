@@ -438,4 +438,5 @@ export const REGLAGES: Record<string, DefReglage[]> = {
     { cle: 'rouge', nom: 'seuil rouge', type: 'nombre', defaut: 1.0, min: 0.1, max: 2, pas: 0.05 },
   ],
   'coupes.zones': [{ cle: 'lisser', nom: 'lisser aux jonctions (visuel)', type: 'bool', defaut: false }],
+  'surcharges.volumes': [{ cle: 'echelle', nom: 'hauteur : 1 m pour (kPa)', type: 'nombre', defaut: 20, min: 1, max: 500, pas: 5 }],
 }

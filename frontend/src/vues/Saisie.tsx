@@ -296,7 +296,7 @@ function Surcharges({ ctx }: { ctx: Ctx }) {
   return (
     <div className="saisie">
       <h2>Surcharges</h2>
-      <p className="aide">Répartie illimitée, en bande (Boussinesq) ou linéique (Flamant). Les surcharges ajoutées ou retirées en cours de chantier se déclarent dans les phases.</p>
+      <p className="aide">Uniforme, en bande (Boussinesq), linéique (Flamant), et en plan : rectangulaire, ponctuelle, linéaire (position, emprise, trace, profondeur, phase d'application : dans le script ou depuis la maquette 3D, outil « Ajouter une surcharge »). Les surcharges ajoutées ou retirées en cours de chantier se déclarent par <code>phase</code> / <code>phases</code> ou dans les phases.</p>
       <div className="bloc">
         <table className="tableau">
           <thead><tr><Th t="Nom" /><Th t="Type" /><Th t="q" u="kPa ou kN/m" /><Th t="Distance" u="m" /><Th t="Largeur" u="m" /><Th t="Côté" /><th /></tr></thead>

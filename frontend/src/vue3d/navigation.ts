@@ -61,7 +61,7 @@ export function pointsAttention(res: Resultats, assemblages: Record<string, { ap
 export interface Miette { libelle: string; selection: string | null }
 
 /** Fil d'Ariane : Projet › Coupe C1 › Appuis › B2 › A1. */
-export function filAriane(sel: SelectionAnalysee | null, projet: ProjetCoupes | null, coupeActive: number, assemblages: Record<string, { appui: string | null }> = {}): Miette[] {
+export function filAriane(sel: SelectionAnalysee | null, projet: ProjetCoupes | null, coupeActive: number, assemblages: Record<string, { appui: string | null }> = {}, nomsSurcharges: string[] = []): Miette[] {
   const out: Miette[] = [{ libelle: 'Projet', selection: null }]
   const coupe = projet && !projet.unique ? projet.coupes[coupeActive] : null
   if (coupe) out.push({ libelle: coupe.nom.split(' — ')[0], selection: `coupe:${coupe.nom}` })
@@ -82,7 +82,7 @@ export function filAriane(sel: SelectionAnalysee | null, projet: ProjetCoupes | 
     case 'fond': out.push({ libelle: 'Fond de fouille', selection: 'fond' }); break
     case 'bouchon': out.push({ libelle: 'Fond de fouille', selection: 'fond' }, { libelle: 'Bouchon', selection: 'bouchon' }); break
     case 'couche': out.push({ libelle: 'Sol', selection: null }, { libelle: `Couche ${(sel.index ?? 0) + 1}`, selection: `couche:${sel.index ?? 0}` }); break
-    case 'surcharge': out.push({ libelle: 'Surcharges', selection: null }, { libelle: sel.nom, selection: `surcharge:${sel.nom}` }); break
+    case 'surcharge': out.push({ libelle: 'Surcharges', selection: null }, { libelle: nomsSurcharges[sel.index ?? 0] ?? sel.nom, selection: `surcharge:${sel.nom}` }); break
     case 'terrain': out.push({ libelle: 'Terrain', selection: null }, { libelle: sel.nom, selection: `terrain:${sel.nom}` }); break
   }
   return out
@@ -92,7 +92,7 @@ export function filAriane(sel: SelectionAnalysee | null, projet: ProjetCoupes | 
 export function titreFiltre(sel: SelectionAnalysee | null, coupeNom: string | null, phase: number): string {
   const objet = !sel ? 'Projet' : sel.type === 'paroi' ? `Paroi (côté ${sel.k ?? 0})` : sel.type === 'couche' ? `Couche ${(sel.index ?? 0) + 1}`
     : sel.type === 'coupe' ? sel.nom.split(' — ')[0] : sel.type === 'coupe_locale' ? 'Couper ici' : sel.type === 'fond' ? 'Fond de fouille' : sel.type === 'bouchon' ? 'Bouchon'
-    : sel.type === 'lierne' ? `Lierne de ${sel.nom}` : sel.nom
+    : sel.type === 'lierne' ? `Lierne de ${sel.nom}` : sel.type === 'surcharge' ? `Surcharge ${(sel.index ?? 0) + 1}` : sel.nom
   return [objet, coupeNom ? `coupe ${coupeNom.split(' — ')[0]}` : null, `phase ${phase + 1}`].filter(Boolean).join(' · ')
 }
 

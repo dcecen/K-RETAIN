@@ -130,7 +130,41 @@ def geometrie(ex) -> dict:
         "couches": couches, "z_bas": s.paroi.pied - max(3.0, 0.25 * (s.paroi.tete - s.paroi.pied)),
         "appuis": appuis, "plan_appuis": plan_appuis, "i_critique": i_crit,
         "assemblages": {nom: {"type": a.type, "appui": a.appui} for nom, a in s.assemblages.items()},
+        "surcharges": surcharges_maquette(ex),
+        "coupe_calcul": s.coupe_calcul.model_dump() if s.coupe_calcul is not None else None,
     }
+
+
+def surcharges_maquette(ex) -> list[dict]:
+    """Surcharges du script avec leur fenêtre de phases et le profil Δσv au droit de la coupe (maquette, panneau)."""
+    from ..sol.terrain import CoupeCalcul, SurchargePlan, profil_pour_affichage
+
+    s, m = ex.script, ex.modele
+    coupe = CoupeCalcul.depuis_dict(m.coupe)
+    z_terrain = m.terrain_amont if m.terrain_amont is not None else max(c.toit for c in m.couches)
+    objets = []
+    # surcharges du moteur, dans l'ordre d'apparition, avec leur fenêtre de phases (1 = première phase)
+    n_phases = len(m.phases)
+    vus: dict[str, dict] = {}
+    for sc in m.surcharges:
+        vus[sc.nom] = {"obj": sc, "debut": 0, "fin": n_phases}
+    for k, ph in enumerate(m.phases, start=1):
+        for sc in ph.ajouter_surcharges:
+            vus[sc.nom] = {"obj": sc, "debut": k, "fin": n_phases}
+        for nom in ph.retirer_surcharges:
+            if nom in vus:
+                vus[nom]["fin"] = k - 1
+    for nom, d in vus.items():
+        sc = d["obj"]
+        base = {"nom": nom, "type": sc.type, "q": sc.q, "cote_ecran": sc.cote_ecran, "phase_debut": d["debut"], "phase_fin": d["fin"],
+                "distance": getattr(sc, "distance", 0.0), "largeur": getattr(sc, "largeur", None), "cote": getattr(sc, "cote", None)}
+        if isinstance(sc, SurchargePlan):
+            base.update({"emprise": list(sc.emprise) if sc.emprise else None, "position": list(sc.position) if sc.position else None,
+                         "trace": [list(sc.trace[0]), list(sc.trace[1])] if sc.trace else None, "profondeur": sc.profondeur,
+                         "cotes_paroi": list(sc.cotes_paroi) if sc.cotes_paroi else None, "niveaux": sc.infos.get("niveaux"), "modele": sc.modele})
+        base["profil"] = profil_pour_affichage(sc, z_terrain, m.ecran.pied, coupe)
+        objets.append(base)
+    return objets
 
 
 def donnees(ex, p3d: dict | None = None) -> dict:

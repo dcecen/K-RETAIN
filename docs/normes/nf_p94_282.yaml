@@ -63,3 +63,12 @@ tirants:
 # Fiches discontinues : largeur de réaction sous le fond = rapport × largeur de l'élément, plafonnée à l'entraxe
 fiche_discontinue:
   rapport_largeur: { valeur: 3.0, source: "PRATIQUE FRANÇAISE (berlinoises, pieux disjoints) : butée mobilisée sur environ 3 fois la largeur de l'élément (NF P 94-282 § 5.4 renvoie à l'ingénieur) — à confirmer" }
+
+# Surcharges et géométrie du terrain (module sout/sol/terrain.py). Aucune valeur de norme n'est connue :
+# TODO-NORME — à renseigner d'après l'annexe de la NF P 94-282 sur les surcharges et les talus.
+surcharges_et_terrain:
+  methode_surcharges: { valeur: null, source: "TODO-NORME : NF P 94-282, annexe sur les surcharges (diffusion forfaitaire) — non fournie ; RetainWall applique la diffusion élastique de Boussinesq" }
+  convois:
+    Bc: { valeur: null, source: "TODO-NORME : charges et empreintes du convoi Bc (fascicule 61 titre II / EN 1991-2 AN) — à fournir" }
+    Bt: { valeur: null, source: "TODO-NORME : charges et empreintes du convoi Bt — à fournir" }
+  risberme_coin_de_rupture: { valeur: null, source: "TODO-NORME : méthode du coin de rupture passant sous la risberme — publication à fournir" }

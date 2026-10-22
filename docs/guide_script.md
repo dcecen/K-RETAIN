@@ -273,6 +273,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `hydraulique` | bloc |  |  |  |
 | `assemblages` | blocs nommés de bloc |  |  | assemblages à vérifier et à dessiner |
 | `coupes` | liste de bloc |  |  | coupes de calcul 2D placées en plan (vide = une coupe unique sur toute la paroi) |
+| `coupe_calcul` | bloc |  |  | position de cette coupe en plan (automatique) |
 
 ### calcul
 
@@ -366,13 +367,22 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- | --- |
-| `nom` | texte |  |  | nom (pour la retirer dans une phase) |
-| `type` | repartie / bande / lineique | oui |  | répartie, en bande ou linéique |
-| `q` | nombre | oui |  | intensité : kPa (répartie, bande) ou kN/m (linéique) |
-| `distance` | nombre |  | 0.0 | distance au parement (m) (≥ 0) |
-| `largeur` | nombre |  |  | largeur de la bande (m) (> 0) |
-| `cote` | nombre |  |  | cote d'application (m) ; défaut : terrain |
-| `cote_ecran` | amont / aval |  | amont | côté de l'écran |
+| `nom` | texte |  |  | nom (pour la retirer dans une phase, et pour la maquette) |
+| `type` | repartie / uniforme / bande / rectangulaire / ponctuelle / lineique / lineaire / convoi | oui |  | uniforme (= répartie), bande parallèle à la paroi, rectangulaire (emprise en plan), ponctuelle, linéaire (= linéique), convoi (modèle routier à fournir) |
+| `q` | nombre | oui |  | intensité : kPa (uniforme, bande, rectangulaire), kN (ponctuelle) ou kN/m (linéaire) |
+| `distance` | nombre |  | 0.0 | bande : distance du parement au début de la bande (m) (≥ 0) |
+| `largeur` | nombre |  |  | bande : largeur (m) ; uniforme : largeur de la zone chargée (vide = illimitée) (> 0) |
+| `cote` | nombre |  |  | cote d'application (m) ; défaut : terrain − profondeur |
+| `profondeur` | nombre |  | 0.0 | profondeur d'application sous le terrain (m), ex. fondation d'un bâtiment (≥ 0) |
+| `cote_ecran` | amont / aval |  | amont | face de l'écran chargée |
+| `cote_paroi` | texte ou entier ou liste de texte ou entier |  |  | côté(s) de paroi concerné(s) : nom de plan.cotes, numéro d'arête, liste ou « toutes » (défaut) |
+| `emprise` | liste de nombre ou blocs nommés de nombre |  |  | rectangulaire/ponctuelle : [lx, ly] (m) ; bande : {de, a} ou [de, a], étendue le long du côté (m) |
+| `position` | liste de nombre |  |  | rectangulaire/ponctuelle : centre en plan [x, y] (m) |
+| `trace` | bloc |  |  | linéaire : segment en plan |
+| `niveaux` | entier |  |  | bâtiment : nombre de niveaux (maquette) (≥ 1) |
+| `modele` | texte |  |  | convoi : modèle routier (Bc, Bt…), charges à fournir dans docs/normes |
+| `phase` | entier ou texte |  |  | phase d'application (numéro à partir de 1, ou nom) ; vide = dès le début |
+| `phases` | liste de entier ou texte |  |  | [première, dernière] phase d'existence |
 
 ### appuis (chaque appui)
 

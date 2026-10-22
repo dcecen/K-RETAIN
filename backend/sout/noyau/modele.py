@@ -74,3 +74,4 @@ class Modele:
     pas: float = 0.1                     # m, longueur maximale d'élément
     y_rupture: float = 5.0               # m
     hydraulique: dict | None = None      # bloc hydraulique du script (régime, substratum, bouchon...)
+    coupe: dict | None = None            # position de la coupe en plan (surcharges et terrain rapportés à la coupe)

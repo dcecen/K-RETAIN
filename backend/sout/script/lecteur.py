@@ -225,6 +225,37 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
                 e.append((("plan", "appuis", j, "appui"), f"appui « {ap.appui} » non défini"))
     n_aretes = len(s.plan.contour) if s.plan else 4
     cotes = s.plan.cotes if s.plan else {}
+    toutes = [(("surcharges", i), sc) for i, sc in enumerate(s.surcharges)]
+    for j, ph in enumerate(s.phases):
+        toutes += [(("phases", j, "ajouter_surcharges", i), sc) for i, sc in enumerate(ph.ajouter_surcharges or [])]
+    noms_phases = [p.nom for p in s.phases]
+    for chemin, sc in toutes:
+        if sc.type == "bande" and not sc.largeur:
+            e.append((chemin + ("largeur",), "surcharge en bande : largeur obligatoire"))
+        if sc.type in ("rectangulaire", "ponctuelle") and sc.position is None:
+            e.append((chemin + ("position",), f"surcharge {sc.type} : position [x, y] obligatoire"))
+        if sc.type == "rectangulaire" and (not isinstance(sc.emprise, list) or len(sc.emprise) != 2):
+            e.append((chemin + ("emprise",), "surcharge rectangulaire : emprise [lx, ly] obligatoire"))
+        if sc.type in ("lineaire", "lineique") and sc.trace is None and sc.position is None and (sc.distance is None):
+            e.append((chemin + ("trace",), "surcharge linéaire : trace en plan obligatoire"))
+        if sc.type == "lineaire" and sc.trace is None:
+            e.append((chemin + ("trace",), "surcharge linéaire en plan : trace {de, a} obligatoire"))
+        if sc.type == "convoi" and not sc.modele:
+            e.append((chemin + ("modele",), "surcharge de type convoi : modèle obligatoire (Bc, Bt…)"))
+        if sc.type in ("rectangulaire", "ponctuelle", "lineaire") and s.plan is None and s.coupe_calcul is None:
+            e.append((chemin + ("type",), f"surcharge {sc.type} : un bloc plan (contour) est nécessaire pour la rapporter à la coupe"))
+        cp = sc.cote_paroi
+        for nom in ([cp] if isinstance(cp, (str, int)) else cp or []):
+            if isinstance(nom, str) and nom != "toutes" and nom not in cotes:
+                e.append((chemin + ("cote_paroi",), f"côté « {nom} » inconnu : déclarez-le dans plan.cotes"))
+            if isinstance(nom, int) and not 0 <= nom < n_aretes:
+                e.append((chemin + ("cote_paroi",), f"numéro d'arête {nom} hors du contour"))
+        for cle, refs in (("phase", [sc.phase] if sc.phase is not None else []), ("phases", sc.phases or [])):
+            for ref in refs:
+                if isinstance(ref, str) and ref not in noms_phases:
+                    e.append((chemin + (cle,), f"phase « {ref} » inconnue"))
+                if isinstance(ref, int) and not 1 <= ref <= len(s.phases):
+                    e.append((chemin + (cle,), f"numéro de phase {ref} hors de la liste (1 à {len(s.phases)})"))
     for nom, k in cotes.items():
         if not 0 <= k < n_aretes:
             e.append((("plan", "cotes", nom), f"côté « {nom} » : numéro d'arête {k} hors du contour (0 à {n_aretes - 1})"))

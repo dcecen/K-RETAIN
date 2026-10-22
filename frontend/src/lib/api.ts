@@ -138,6 +138,27 @@ export interface AppuiMaquette {
   D: number
 }
 
+/** Surcharge telle que la maquette la reçoit (bloc surcharges du script, phases et profil Δσv au droit de la coupe). */
+export interface SurchargeMaquette {
+  nom: string
+  type: string
+  q: number
+  cote_ecran: string
+  phase_debut: number          // 0 = dès l'état initial, k = k-ième phase du script
+  phase_fin: number
+  distance?: number
+  largeur?: number | null
+  cote?: number | null
+  emprise?: number[] | null
+  position?: number[] | null
+  trace?: number[][] | null
+  profondeur?: number
+  cotes_paroi?: string[] | null
+  niveaux?: number | null
+  modele?: string | null
+  profil?: { z: number[]; dsv: number[]; methode: string }
+}
+
 export interface Maquette {
   projet: string
   paroi: { type: string; tete: number; pied: number; epaisseur: number; diametre: number; entraxe: number
@@ -150,6 +171,8 @@ export interface Maquette {
   plan_appuis: { appui: string; de: number[]; a: number[] }[]
   i_critique: (number | null)[]
   assemblages: Record<string, { type: string; appui: string | null }>
+  surcharges?: SurchargeMaquette[]
+  coupe_calcul?: { x: number; y: number; ni: number[]; t: number[]; k: number; s: number; cote: string | null; nom: string | null } | null
 }
 
 export interface Resultats {

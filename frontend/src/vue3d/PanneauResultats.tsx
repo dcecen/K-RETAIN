@@ -199,6 +199,35 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
         </div>
       )
     }
+    if (sel.type === 'surcharge') {
+      const sc = res.maquette?.surcharges?.[sel.index ?? 0]
+      if (!sc) return <div className="note" style={{ padding: 10 }}>Surcharge introuvable.</div>
+      const unite = sc.type === 'ponctuelle' ? 'kN' : sc.type === 'lineaire' || sc.type === 'lineique' ? 'kN/m' : 'kPa'
+      const nomPhase = (k: number) => (k <= 0 ? 'état initial' : `${k}. ${res.phases[k]?.nom ?? ''}`)
+      return (
+        <div className="insp-section">
+          <div className="insp-titre">Surcharge {sc.nom} <span className="doux">· {sc.type}</span></div>
+          <dl className="lignes-cle">
+            <dt>Valeur</dt><dd>{nb(sc.q, 0)} {unite}</dd>
+            {sc.position && <><dt>Position</dt><dd>x = {nb(sc.position[0], 1)} m, y = {nb(sc.position[1], 1)} m</dd></>}
+            {sc.emprise && (sc.type === 'bande' ? <><dt>Le long du côté</dt><dd>de {nb(sc.emprise[0], 1)} à {nb(sc.emprise[1], 1)} m</dd></> : <><dt>Emprise</dt><dd>{nb(sc.emprise[0], 1)} × {nb(sc.emprise[1], 1)} m</dd></>)}
+            {sc.type === 'bande' && <><dt>Bande</dt><dd>de {nb(sc.distance ?? 0, 1)} à {nb((sc.distance ?? 0) + (sc.largeur ?? 0), 1)} m de la paroi</dd></>}
+            {!!sc.profondeur && <><dt>Profondeur</dt><dd>{nb(sc.profondeur, 1)} m</dd></>}
+            <dt>Application</dt><dd>{nomPhase(sc.phase_debut)}</dd>
+            {sc.phase_fin < res.phases.length - 1 && <><dt>Retrait après</dt><dd>{nomPhase(sc.phase_fin)}</dd></>}
+            {sc.cotes_paroi && <><dt>Côtés</dt><dd>{sc.cotes_paroi.join(', ')}</dd></>}
+          </dl>
+          {sc.profil && (
+            <>
+              <div className="insp-titre" style={{ marginTop: 8 }}>Contrainte verticale induite au droit de la coupe</div>
+              <Mini theme={theme} traces={[{ x: sc.profil.dsv, y: sc.profil.z, name: 'Δσv (kPa)', type: 'scatter', mode: 'lines', line: { color: couleurs().orange } }]}
+                layout={{ xaxis: { title: { text: 'Δσv (kPa)', font: { size: 10 } } }, yaxis: { title: { text: 'cote (m)', font: { size: 10 } } } }} />
+              <div className="note">{sc.profil.methode}. Pression horizontale supplémentaire ≈ Ka × Δσv (côté poussée), telle que le moteur l'applique aux ressorts.</div>
+            </>
+          )}
+        </div>
+      )
+    }
     return <div className="note" style={{ padding: 10 }}>Pas de courbe pour cet objet.</div>
   }
 

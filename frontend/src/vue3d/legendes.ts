@@ -84,6 +84,10 @@ export function legendes(res: Resultats, c: EtatCalquesScene, phase: number): Le
     out.push({ type: 'discrete', id: 'fleches', titre: `Flèche des butons et liernes × ${nb(amp, 0)}${r === 'auto' || r === 0 ? ' (auto : 1,5 m à l\'écran)' : ''}`, classes: [], phase: nomPhase,
       note: modeCalque(c, 'resultats.fleches', 'compression') === 'compression' ? 'poids propre amplifié par 1/(1 − N/Ncr) ; liernes : valeur approchée' : 'poids propre seul ; liernes : valeur approchée' })
   }
+  if (vis('surcharges.volumes') && res.maquette?.surcharges?.length) {
+    out.push({ type: 'discrete', id: 'surcharges', titre: `Surcharges : 1 m de hauteur = ${nb(reglageCalque(c, 'surcharges.volumes', 'echelle', 20), 0)} kPa`, phase: nomPhase, classes: [],
+      note: 'présentes de leur phase d\'application à leur retrait ; survol : pression induite' })
+  }
   if (vis('resultats.enveloppes')) {
     out.push({ type: 'discrete', id: 'enveloppes', titre: `Enveloppe ${modeCalque(c, 'resultats.enveloppes', 'deformee') === 'moment' ? 'des moments' : 'de la déformée'} (toutes phases, fantôme)`, phase: 'toutes phases', classes: [] })
   }

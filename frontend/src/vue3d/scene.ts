@@ -51,7 +51,7 @@ export function reglageCalque<T extends number | string | boolean>(c: EtatCalque
 
 /** État par défaut : tout est visible sauf les résultats ; le plan de coupe s'applique au terrain, à la fouille et à l'eau. */
 export const CALQUES_DEFAUT: EtatCalquesScene = {
-  visible: (id) => (!id.startsWith('resultats') || id === 'resultats.alertes') && !id.startsWith('coupes.diagrammes'),
+  visible: (id) => (!id.startsWith('resultats') || id === 'resultats.alertes') && !id.startsWith('coupes.diagrammes') && id !== 'surcharges.pressions',
   opacite: () => 1,
   verrouille: () => false,
   coupe: (id) => /^(terrain|fouille|eau)/.test(id),
@@ -64,6 +64,8 @@ export interface DonneesScene {
   geo: Contour
   /** Projet à coupes de calcul (plans, zones, diagrammes). */
   projet?: ProjetCoupes | null
+  /** Noms des côtés de la fouille (plan.cotes du script). */
+  cotes?: Record<string, number>
   /** Résultats et phase à afficher pour un point de paroi (arête k, abscisse locale sl) — coupes de calcul. */
   resultatsPour?: (k: number, sl: number, phase: number) => { res: Resultats; phase: number; coupe: string | null }
 }

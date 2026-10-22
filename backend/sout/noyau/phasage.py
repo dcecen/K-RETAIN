@@ -30,7 +30,8 @@ from ..sol import coefficients as coef
 from ..sol import kerisel_absi
 from ..sol.couches import Couche, contraintes_totales, contraintes_verticales, indice_couche, trier
 from ..sol.kh import em_depuis_cpt, kh_schmitt
-from ..sol.surcharges import Surcharge, delta_sigma_v
+from ..sol.surcharges import Surcharge
+from ..sol.terrain import CoupeCalcul, ErreurTerrain, delta_sigma_v_surcharges
 from .modele import Modele, Phase
 from .poutre import maillage
 from .ressorts import AMONT, AVAL, Ressorts
@@ -196,10 +197,10 @@ class MoteurPhases:
         """σ'v et u au milieu des demi-mailles. Avec un modèle d'écoulement, σ'v = σv(total) − u(écoulement) :
         un écoulement ascendant (fouille) réduit σ'v et donc la butée, un écoulement descendant l'augmente."""
         nom = "amont" if cote == AMONT else "aval"
-        dsv = np.zeros(self.nd)
-        for s in surcharges:
-            if s.cote_ecran == nom:
-                dsv += delta_sigma_v(s, self.d_zm, terrain)
+        try:   # surcharges (historiques et étendues) rapportées à la coupe : module sol.terrain
+            dsv = delta_sigma_v_surcharges(surcharges, nom, self.d_zm, terrain, CoupeCalcul.depuis_dict(self.m.coupe))
+        except ErreurTerrain as e:
+            raise ErreurModele(str(e)) from None
         if ecoulement is None or ecoulement.regime == "hydrostatique":
             return contraintes_verticales(self.d_zm, terrain, eau, self.couches, self.m.gamma_w, dsv)
         sv_tot = contraintes_totales(self.d_zm, terrain, eau, self.couches, self.m.gamma_w, dsv)
