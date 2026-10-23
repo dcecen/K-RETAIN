@@ -6,10 +6,18 @@ ressorts de la section 2D, multipliés par sa largeur tributaire, avec sa propre
 mémoire d'état. Les appuis deviennent ponctuels, répartis à leur espacement le
 long de la paroi (raideur et précharge 2D × espacement).
 
-Conditions aux extrémités : libres, appuyées (w = 0) ou encastrées (w = 0, θs = 0).
+Conditions aux extrémités : libres, appuyées (w = 0 et rotation le long du bord
+nulle) ou encastrées (w = 0, les deux rotations nulles).
 Angle de fouille au milieu de la paroi : les deux parois se tiennent mutuellement
 dans leur plan, d'où w = 0 sur la ligne d'angle (parois supposées indéformables
-dans leur plan).
+dans leur plan). Seule la présence d'un angle compte : sa valeur n'intervient pas,
+et la continuité du ferraillage d'angle (encastrement partiel) est négligée.
+
+Efforts restitués par phase : déplacement W, moments Mz (vertical) et Ms (horizontal)
+du grillage, torsion Mzs, effort tranchant V par la statique de chaque ligne verticale
+(charges du sol, de l'eau, des appuis et forces de transfert de la plaque, voir
+plaque.efforts_lignes), réactions des lignes pénalisées (bords, angle) et bilan
+d'équilibre global.
 """
 from __future__ import annotations
 
@@ -33,7 +41,16 @@ class PhasePseudo3D:
     W: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))    # m, (ns, nz)
     Mz: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))   # kN·m/m
     Ms: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))   # kN·m/m
-    appuis: list = field(default_factory=list)  # [{"nom", "s", "effort"}] kN par appui
+    appuis: list = field(default_factory=list)  # [{"nom", "s", "effort", "actif", "espacement", "angle"}] kN par appui
+    V: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))    # kN/m aux nœuds (ns, nz)
+    V_diag: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))   # kN/m, 2 points par élément
+    M_stat: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))   # kN·m/m par la statique, 2 points par élément
+    z_diag: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    Mzs: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))  # kN·m/m, torsion
+    p: np.ndarray = field(default_factory=lambda: np.zeros(0))         # kPa, pression de chaque ressort
+    reactions: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))  # kN par nœud pénalisé (bords, angle), positif = retient
+    forces: dict = field(default_factory=dict)   # {"sol", "eau", "appuis", "reactions"} : kN par nœud (ns, nz), positifs vers la fouille
+    bilan: dict = field(default_factory=dict)    # sommes (kN) et moments résiduels (kN·m)
 
 
 @dataclass
@@ -64,23 +81,25 @@ class MoteurPseudo3D:
         else:
             self.Ds = np.full_like(self.Dz, rigidite_horizontale)
         K = plaque.assembler(self.s, self.z, self.Dz, self.Ds)
+        # Grillage réduit à la flexion verticale (forces de transfert, voir plaque.forces_transfert)
+        self.K_v = plaque.assembler(self.s, self.z, self.Dz, np.zeros_like(self.Ds))
         # Conditions aux limites par pénalité
-        pen = 1e4 * float(K.diagonal().max())
+        self.pen = 1e4 * float(K.diagonal().max())
         diag = np.zeros(K.shape[0])
-        lignes = []
         if bords in ("appuyes", "encastres"):
-            lignes += [0, ns - 1]
-        for i in (0, ns - 1) if bords in ("appuyes", "encastres") else ():
-            for j in range(nz):
-                k = i * nz + j
-                diag[3 * k] = pen
-                if bords == "encastres":
-                    diag[3 * k + 2] = pen
+            for i in (0, ns - 1):
+                for j in range(nz):
+                    k = i * nz + j
+                    diag[3 * k] = self.pen          # w = 0
+                    diag[3 * k + 1] = self.pen      # θz = 0 : w nul tout le long du bord ⇒ pente tangente nulle
+                    if bords == "encastres":
+                        diag[3 * k + 2] = self.pen  # θs = 0 : rotation normale au bord bloquée
         self.i_angle = None
         if angle is not None and abs(angle - 180.0) > 1e-6:
             self.i_angle = int(np.argmin(np.abs(self.s - longueur / 2)))
             for j in range(nz):
-                diag[3 * (self.i_angle * nz + j)] = pen
+                diag[3 * (self.i_angle * nz + j)] = self.pen
+        self.ddl_pen_w = np.flatnonzero(diag[0::3] > 0)   # nœuds dont w est pénalisé (réactions)
         self.K = (K + sparse.diags(diag)).tocsc()
         self.ddl_w = np.arange(0, 3 * ns * nz, 3)
         # Ressorts : les demi-mailles 2D de chaque ligne verticale
@@ -102,6 +121,45 @@ class MoteurPseudo3D:
         debut = (L - (nb - 1) * espacement) / 2
         return debut + espacement * np.arange(nb)
 
+    # ------------------------------------------------------------------
+    def _efforts_phase(self, u: np.ndarray, r: Ressorts, appuis: Appuis, f_ext: np.ndarray,
+                       u_am: np.ndarray, u_av: np.ndarray) -> dict:
+        """Champs d'efforts d'une phase résolue : moments du grillage, torsion, V par la statique
+        de chaque ligne (plaque.efforts_lignes), réactions, forces nodales et bilan d'équilibre."""
+        m2, ns, nz = self.m2, self.ns, self.nz
+        W = u[0::3]
+        Mz, Ms = plaque.moments(self.s, self.z, self.Dz, self.Ds, u)
+        Mzs = plaque.torsion(self.s, self.z, self.Dz, self.Ds, u)
+        p, _ = r.pressions(W)
+        nd, m2n = m2.nd, self.m2_taille
+        A, P = r.A.reshape(ns, m2n), p.reshape(ns, m2n)
+        # charge nette sol + eau de chaque demi-maille, par mètre de paroi (comme en 2D)
+        q_lignes = (A[:, :nd] * P[:, :nd] - A[:, nd:] * P[:, nd:]) / (m2.d_L[None, :] * self.ds[:, None]) \
+            + (u_am - u_av)[None, :]
+        eff, _ = appuis.efforts(W)
+        f_app = -np.bincount(appuis.noeud, weights=eff, minlength=ns * nz) if len(appuis) else np.zeros(ns * nz)
+        t_w, t_th = plaque.forces_transfert(self.K, self.K_v, u, ns, nz)
+        z_diag, M_stat, V_diag = plaque.efforts_lignes(self.z, m2.d_zb, m2.d_zh, m2.d_noeud, q_lignes,
+                                                       f_app.reshape(ns, nz), t_w, t_th, self.ds)
+        V = np.empty((ns, nz))
+        V[:, 0], V[:, -1] = V_diag[:, 0], V_diag[:, -1]
+        V[:, 1:-1] = 0.5 * (V_diag[:, 1:-2:2] + V_diag[:, 2:-1:2])
+        reactions = np.zeros(ns * nz)
+        reactions[self.ddl_pen_w] = self.pen * W[self.ddl_pen_w]
+        f_sol = np.bincount(r.noeud, weights=-r.s * r.A * p, minlength=ns * nz)
+        f_eau = f_ext[0::3]
+        forces = {"sol": f_sol.reshape(ns, nz), "eau": f_eau.reshape(ns, nz), "appuis": f_app.reshape(ns, nz),
+                  "reactions": (-reactions).reshape(ns, nz)}
+        total = f_sol + f_eau + f_app - reactions
+        Z = np.tile(self.z - self.z[0], ns)
+        S = np.repeat(self.s, nz)
+        bilan = {"sol": float(f_sol.sum()), "eau": float(f_eau.sum()), "appuis": float(f_app.sum()),
+                 "reactions": float(-reactions.sum()), "residu": float(total.sum()),
+                 "moment_residu_z": float((total * Z).sum()), "moment_residu_s": float((total * S).sum()),
+                 "echelle": float(np.abs(f_sol).sum() + np.abs(f_eau).sum() + np.abs(f_app).sum() + np.abs(reactions).sum())}
+        return {"W": W.reshape(ns, nz), "Mz": Mz, "Ms": Ms, "Mzs": Mzs, "V": V, "V_diag": V_diag, "M_stat": M_stat,
+                "z_diag": z_diag, "p": p, "reactions": reactions.reshape(ns, nz), "forces": forces, "bilan": bilan}
+
     def calculer(self) -> ResultatPseudo3D:
         m, m2 = self.m, self.m2
         ns, nz = self.ns, self.nz
@@ -113,6 +171,7 @@ class MoteurPseudo3D:
         poses: dict[str, list] = {}   # nom -> [(nœud, s, y_pose, k, F0)]
         f_ext_prec = np.zeros_like(u)  # forces imposées (eau) de la dernière phase calculée
         sorties: list[PhasePseudo3D] = []
+        signales: set[str] = set()
 
         def _points(nom: str, W: np.ndarray, raideur: float, F0: float) -> list:
             d = m.appuis[nom]
@@ -121,6 +180,11 @@ class MoteurPseudo3D:
             pts = []
             for sp in self._positions_appui(e):
                 i = int(np.argmin(np.abs(self.s - sp)))
+                if self.i_angle is not None and i == self.i_angle and nom not in signales:
+                    signales.add(nom)
+                    self.avertissements.append(
+                        f"Pseudo-3D : un point de l'appui {nom} tombe sur la ligne d'angle (s = {self.s[i]:.1f} m), "
+                        "où le déplacement est nul : il ne porte rien.")
                 k = i * nz + j
                 pts.append((k, float(self.s[i]), float(W[k]), raideur * e, F0 * e))
             return pts
@@ -176,15 +240,18 @@ class MoteurPseudo3D:
                 sorties.append(PhasePseudo3D(ph.nom, False, f"Rupture : {e}"))
                 break
             W = u[0::3]
+            champs = self._efforts_phase(u, r, appuis, f_ext, u_am, u_av)
             r.memoriser(W)
             sv_prec, present_prec = sol3["sv"], sol3["present"]
             f_ext_prec = f_ext
-            Mz, Ms = plaque.moments(self.s, self.z, self.Dz, self.Ds, u)
             eff, actif = appuis.efforts(W)
             sorties.append(PhasePseudo3D(
-                ph.nom, True, "", W=W.reshape(ns, nz), Mz=Mz, Ms=Ms,
-                appuis=[{"nom": nm, "s": sp, "effort": float(ef), "actif": bool(ac)}
-                        for nm, sp, ef, ac in zip(noms, ss, eff, actif)]))
+                ph.nom, True, "",
+                appuis=[{"nom": nm, "s": sp, "effort": float(ef), "actif": bool(ac),
+                         "espacement": float(m.appuis[nm].infos.get("espacement", 1.0) or 1.0),
+                         "angle": float(m.appuis[nm].infos.get("angle", 0.0) or 0.0)}
+                        for nm, sp, ef, ac in zip(noms, ss, eff, actif)],
+                **champs))
         return ResultatPseudo3D(self.s, self.z, sorties, self.avertissements)
 
 
@@ -213,21 +280,30 @@ def _sous_echantillon(n: int, max_n: int) -> np.ndarray:
 
 def serialiser(res: ResultatPseudo3D, res2d=None) -> dict:
     js = _sous_echantillon(len(res.z), 90)
+    phases2d = {p.nom: p for p in res2d.phases} if res2d is not None else {}
     phases = []
-    for k, ph in enumerate(res.phases):
+    for ph in res.phases:
         d = {"nom": ph.nom, "ok": ph.ok, "message": ph.message}
         if ph.ok:
+            lignes = np.flatnonzero(np.abs(ph.reactions).sum(axis=1) > 0)
             d.update({
                 "y_mm": (ph.W[:, js] * 1e3).round(3).tolist(),
                 "M": ph.Mz[:, js].round(2).tolist(),
                 "Ms": ph.Ms[:, js].round(2).tolist(),
+                "V": ph.V[:, js].round(2).tolist(),
                 "y_max_mm": float(np.abs(ph.W).max() * 1e3),
                 "Mz_max": float(ph.Mz.max()), "Mz_min": float(ph.Mz.min()),
                 "Ms_absmax": float(np.abs(ph.Ms).max()),
+                "V_absmax": float(np.abs(ph.V_diag).max()),
+                "Mzs_absmax": float(np.abs(ph.Mzs).max()),
                 "appuis": ph.appuis,
+                "reactions": {"s": res.s[lignes].round(3).tolist(),
+                              "total_kN": ph.reactions[lignes].sum(axis=1).round(2).tolist()},
+                "bilan": {k: round(v, 4) for k, v in ph.bilan.items()},
             })
-            if res2d is not None and k < len(res2d.phases) and res2d.phases[k].ok:
-                d["y_max_2d_mm"] = float(np.abs(res2d.phases[k].y).max() * 1e3)
+            p2 = phases2d.get(ph.nom)
+            if p2 is not None and p2.ok:
+                d["y_max_2d_mm"] = float(np.abs(p2.y).max() * 1e3)
         phases.append(d)
     return {"s": res.s.round(4).tolist(), "z": res.z[js].round(4).tolist(), "phases": phases,
             "avertissements": res.avertissements}

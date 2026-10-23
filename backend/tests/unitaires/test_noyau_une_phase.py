@@ -172,3 +172,37 @@ def test_equilibre_limite_autostable_rigide():
         else:
             haut = h
     assert bas == pytest.approx(h_ref, rel=2e-2)
+
+
+def test_efforts_par_statique_couples_appliques():
+    """Couples concentrés aux nœuds (moments transmis par la plaque en pseudo-3D) : la statique
+    redonne exactement les moments internes des éléments (Ke·ue, exacts pour des charges nodales)
+    sur une console encastrée en pied portant un couple en tête, un couple à mi-hauteur et une
+    force en tête ; V est insensible aux couples ; le saut de M au droit du couple vaut C."""
+    from sout.noyau.poutre import assembler, efforts_internes, efforts_par_statique, maillage
+    from scipy.sparse.linalg import spsolve
+
+    L, EI, n = 6.0, 2.0e5, 12
+    z = maillage([], 0.0, L, L / n)
+    EI_elem = np.full(len(z) - 1, EI)
+    K = assembler(z, EI_elem)
+    f = np.zeros(2 * len(z))
+    jm, jt = n // 2, n
+    P, C1, C2 = 7.0, 15.0, -4.0
+    f[2 * jt] = P              # force en tête (vers la fouille)
+    f[2 * jt + 1] = C1         # couple en tête
+    f[2 * jm + 1] = C2         # couple à mi-hauteur
+    libres = np.arange(2, 2 * len(z))                      # encastrement au pied : y0 = θ0 = 0
+    u = np.zeros(2 * len(z))
+    u[libres] = spsolve(K[libres][:, libres].tocsc(), f[libres])
+    zi, Mi, Vi = efforts_internes(z, EI_elem, u)
+    zb, zh = z[:-1], z[1:]
+    zs, Ms, Vs = efforts_par_statique(z, zb, zh, np.zeros(n), [jt], [P], [jt, jm], [C1, C2])
+    np.testing.assert_allclose(zs, zi, atol=1e-12)
+    np.testing.assert_allclose(Ms, Mi, rtol=1e-9, atol=1e-9)
+    np.testing.assert_allclose(Vs, Vi, rtol=1e-9, atol=1e-9)
+    # saut de M au droit du couple de mi-hauteur : M au-dessus − M en dessous = C2 ; V constant = P
+    assert Ms[2 * jm] - Ms[2 * jm - 1] == pytest.approx(C2, abs=1e-9)
+    assert np.allclose(Vs, P)
+    # sans couple : M continu, et le couple en tête se lit directement en tête (M = −C1)
+    assert Ms[-1] == pytest.approx(-C1, abs=1e-9)

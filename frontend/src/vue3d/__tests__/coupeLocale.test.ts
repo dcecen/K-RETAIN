@@ -89,3 +89,28 @@ describe('coupe locale et source de résultats', () => {
     expect(sc.fab.creations).toBe(c0)
   })
 })
+
+describe('champ pseudo-3D du serveur : efforts des appuis et tranchant', () => {
+  it("ramène l'effort du point (kN par appui) en kN/m et en effort axial, et lit V dans le champ", () => {
+    const p3 = jeu('p3d')
+    const geo = new Contour(p3.maquette!.contour)
+    const src = sourcePseudo3D(p3, geo)!
+    const last = p3.phases.length - 1
+    const q = p3.pseudo3d!.phases[last]
+    const pt = q.appuis![0]                       // B1 : espacement 6 m, angle 0
+    expect(pt.espacement).toBe(6)
+    const k = geo.projeter(geo.point(pt.s).x, geo.point(pt.s).y).k
+    const c = src.coupeLocale(k, pt.s - geo.aretes[k].s0, last)!
+    const b1 = c.res.phases[last].appuis!.find((a) => a.nom === 'B1')!
+    expect(b1.effort_axial_kN).toBeCloseTo(pt.effort, 6)          // et non effort × espacement
+    expect(b1.effort_kN_m).toBeCloseTo(pt.effort / 6, 6)
+    const base = p3.phases[last].appuis!.find((a) => a.nom === 'B1')!
+    expect(b1.effort_elu_kN! / base.effort_elu_kN!).toBeCloseTo(b1.effort_axial_kN / base.effort_axial_kN, 9)
+    // V lu dans le champ (statique des lignes verticales), pas dérivé de M
+    const i = p3.pseudo3d!.s.indexOf(pt.s)
+    expect(i).toBeGreaterThanOrEqual(0)
+    expect(c.res.phases[last].V![5]).toBeCloseTo(q.V![i][5], 3)
+    expect(c.res.phases[last].V).not.toEqual(deriver(c.res.phases[last].z!, c.res.phases[last].M!))
+    expect(c.origine).toContain('tranchant')
+  })
+})

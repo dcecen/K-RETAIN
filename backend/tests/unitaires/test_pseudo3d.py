@@ -86,3 +86,105 @@ def test_serialisation(calculs):
     assert len(d["phases"]) == 4 and len(d["phases"][-1]["y_mm"]) == len(d["s"])
     assert len(d["phases"][-1]["y_mm"][0]) == len(d["z"])
     assert d["phases"][-1]["y_max_2d_mm"] == pytest.approx(np.abs(r2.phases[-1].y).max() * 1e3)
+
+
+# ---------------------------------------------------------------------------
+# Efforts 3D : effort tranchant par la statique des lignes, réactions, bilan d'équilibre
+# ---------------------------------------------------------------------------
+def test_tranchant_3d_identique_au_2d_en_flexion_cylindrique(calculs):
+    """Avant la pose des appuis ponctuels (flexion cylindrique), les forces de transfert sont
+    nulles : V et M par la statique de chaque ligne redonnent exactement les diagrammes 2D."""
+    r2, r3 = calculs
+    ph2, ph3 = r2.phases[1], r3.phases[1]
+    np.testing.assert_allclose(ph3.z_diag, ph2.z_diag, atol=1e-12)
+    for i in range(ph3.V_diag.shape[0]):
+        np.testing.assert_allclose(ph3.V_diag[i], ph2.V, rtol=1e-6, atol=1e-9 * np.abs(ph2.V).max())
+        np.testing.assert_allclose(ph3.M_stat[i], ph2.M, rtol=1e-6, atol=1e-9 * np.abs(ph2.M).max())
+    assert np.abs(ph3.Mzs).max() < 1e-9 * np.abs(ph3.Mz).max()
+
+
+def test_tranchant_nul_aux_extremites_libres_et_equilibre_3d(calculs):
+    """À chaque phase : V = 0 en tête et en pied libres sur toutes les lignes ; la somme des forces
+    (sol, eau, appuis, réactions) et leurs moments selon z et selon s sont nuls."""
+    _, r3 = calculs
+    H, L = r3.z[-1] - r3.z[0], r3.s[-1]
+    for ph in r3.phases:
+        if not ph.ok:
+            continue
+        vmax = np.abs(ph.V_diag).max()
+        assert np.abs(ph.V_diag[:, 0]).max() <= 1e-6 * vmax
+        assert np.abs(ph.V_diag[:, -1]).max() <= 1e-6 * vmax
+        b = ph.bilan
+        ech = max(b["echelle"], 1.0)          # état initial : aucune force (échelle nulle)
+        assert abs(b["residu"]) <= 1e-6 * ech
+        assert abs(b["moment_residu_z"]) <= 1e-6 * ech * H
+        assert abs(b["moment_residu_s"]) <= 1e-6 * ech * L
+        assert b["reactions"] == 0.0          # bords libres, pas d'angle
+        # cohérence des forces nodales avec le bilan
+        assert sum(f.sum() for f in ph.forces.values()) == pytest.approx(b["residu"], abs=1e-9 * ech)
+
+
+def test_saut_de_tranchant_au_droit_des_appuis(calculs):
+    """Sur la ligne d'un appui ponctuel, V saute de effort/ds au nœud de l'appui ; les forces de
+    transfert, réparties sur les demi-mailles, ne créent aucun saut ailleurs."""
+    from sout.pseudo3d import plaque
+    _, r3 = calculs
+    ph = r3.phases[-1]
+    ds = plaque.largeurs_tributaires(r3.s)
+    j = int(np.argmin(np.abs(r3.z - (-1.0))))
+    for a in ph.appuis:
+        i = int(np.argmin(np.abs(r3.s - a["s"])))
+        saut = ph.V_diag[i, 2 * j] - ph.V_diag[i, 2 * j - 1]      # au-dessus − en dessous du nœud
+        assert saut == pytest.approx(a["effort"] / ds[i], rel=1e-8, abs=1e-9)
+    # ligne sans appui : V continu partout
+    i0 = int(np.argmin(np.abs(r3.s - (ph.appuis[0]["s"] + 2.0))))
+    assert all(abs(x["s"] - r3.s[i0]) > 0.5 for x in ph.appuis)
+    sauts = ph.V_diag[i0, 2:-1:2] - ph.V_diag[i0, 1:-2:2]
+    assert np.abs(sauts).max() <= 1e-9 * np.abs(ph.V_diag).max()
+
+
+def test_angle_reactions_equilibrent_les_charges():
+    """Avec un angle, la ligne d'angle (w = 0) reprend exactement ce que le sol, l'eau et les
+    appuis ne reprennent pas."""
+    m = _modele()
+    r3 = MoteurPseudo3D(m, 48.0, 1.0, angle=90.0).calculer()
+    ph = r3.phases[-1]
+    b = ph.bilan
+    assert b["reactions"] != 0.0
+    assert b["reactions"] == pytest.approx(-(b["sol"] + b["eau"] + b["appuis"]), rel=1e-6)
+    lignes = np.flatnonzero(np.abs(ph.reactions).sum(axis=1) > 0)
+    assert lignes.tolist() == [int(np.argmin(np.abs(r3.s - 24.0)))]
+    assert abs(b["residu"]) <= 1e-6 * b["echelle"]
+
+
+def test_bords_appuyes_bloquent_w_et_la_rotation_tangente():
+    """Bord appuyé : w = 0 et θz = 0 (pente le long du bord) pénalisés, θs libre ; bord encastré :
+    les trois ; les bords encastrés retiennent davantage la paroi que les bords appuyés."""
+    m = _modele()
+    ma = MoteurPseudo3D(m, 20.0, 1.0, bords="appuyes")
+    me = MoteurPseudo3D(m, 20.0, 1.0, bords="encastres")
+    nz = ma.nz
+    da, de = ma.K.diagonal(), me.K.diagonal()
+    for i in (0, ma.ns - 1):
+        for j in (0, nz // 2, nz - 1):
+            k = i * nz + j
+            assert da[3 * k] >= ma.pen and da[3 * k + 1] >= ma.pen and da[3 * k + 2] < ma.pen
+            assert de[3 * k] >= me.pen and de[3 * k + 1] >= me.pen and de[3 * k + 2] >= me.pen
+    k = (ma.ns // 2) * nz + nz // 2
+    assert da[3 * k] < ma.pen and da[3 * k + 1] < ma.pen
+    ra, re = ma.calculer().phases[-1], me.calculer().phases[-1]
+    assert np.abs(ra.W[0]).max() < 1e-3 * np.abs(ra.W).max()
+    assert np.abs(re.W[1]).max() < np.abs(ra.W[1]).max()
+    assert ra.bilan["reactions"] == pytest.approx(-(ra.bilan["sol"] + ra.bilan["eau"] + ra.bilan["appuis"]), rel=1e-6)
+
+
+def test_serialisation_efforts_3d(calculs):
+    r2, r3 = calculs
+    d = serialiser(r3, r2)
+    ph = d["phases"][-1]
+    assert len(ph["V"]) == len(d["s"]) and len(ph["V"][0]) == len(d["z"])
+    assert ph["V_absmax"] > 0 and "Mzs_absmax" in ph and ph["reactions"] == {"s": [], "total_kN": []}
+    assert abs(ph["bilan"]["residu"]) <= 1e-6 * ph["bilan"]["echelle"]
+    assert all(a["espacement"] == 4.0 and a["angle"] == 0.0 for a in ph["appuis"])
+    # appariement 2D/3D par nom de phase, pas par indice
+    assert ph["y_max_2d_mm"] == pytest.approx(np.abs(next(p for p in r2.phases if p.nom == ph["nom"]).y).max() * 1e3)

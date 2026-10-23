@@ -305,7 +305,9 @@ class Pseudo3D(_Base):
     longueur: float = Field(gt=0, description="longueur développée de la paroi modélisée (m)")
     pas_horizontal: float = Field(0.5, gt=0.05, description="taille des éléments selon la longueur (m)")
     bords: Literal["libres", "encastres", "appuyes"] = Field("libres", description="conditions aux extrémités")
-    angle: float | None = Field(None, gt=0, lt=360, description="angle de la fouille au milieu de la paroi (degrés)")
+    angle: float | None = Field(None, gt=0, lt=360, description="angle de la fouille au milieu de la paroi (degrés) ; "
+                                "seule sa présence compte : la paroi perpendiculaire impose w = 0 sur la ligne d'angle "
+                                "(appui simple, continuité du ferraillage d'angle négligée)")
     rigidite_horizontale: float | None = Field(None, gt=0, description="EI horizontal par mètre de hauteur (kN·m²/m)")
 
 

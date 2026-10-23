@@ -3,8 +3,9 @@
 // - Mode 2D (projet à coupes ou coupe unique) : la coupe locale lit simplement les résultats de
 //   la coupe de calcul du tronçon, et le dit.
 // - Mode pseudo-3D : les courbes sont lues dans le champ de la plaque (déplacement et moment le
-//   long de la verticale à l'abscisse s), le tranchant est dérivé numériquement du moment, les
-//   pressions et l'eau viennent du calcul 2D d'accompagnement.
+//   long de la verticale à l'abscisse s), le tranchant est lu dans le champ (statique de chaque
+//   ligne verticale) ou, à défaut, dérivé numériquement du moment ; les pressions et l'eau
+//   viennent du calcul 2D d'accompagnement.
 // Le pseudo-3D s'y branche par `sourceChamp` : toute fonction (s → courbes) convient, ce qui permet
 // de tester l'extraction avec un champ analytique.
 import type { AppuiPhase, PhaseRes, ProjetCoupes, Resultats } from '../lib/api'
@@ -30,8 +31,8 @@ export interface SourceResultats {
 /** Champ 3D : courbes le long de la verticale à l'abscisse développée s, pour chaque phase. */
 export interface ChampPlaque {
   z: number[]
-  /** y (mm) et M (kN·m/m) aux cotes z pour la phase i ; null si la phase n'est pas calculée. */
-  courbes(s: number, phase: number): { y_mm: number[]; M: number[] } | null
+  /** y (mm), M (kN·m/m) et, s'il existe, V (kN/m) aux cotes z pour la phase i ; null si la phase n'est pas calculée. */
+  courbes(s: number, phase: number): { y_mm: number[]; M: number[]; V?: number[] } | null
 }
 
 // ------------------------------------------------------------------ mode 2D
@@ -73,11 +74,12 @@ function phaseChamp(base: PhaseRes, champ: ChampPlaque, s: number, i: number, ap
   const z = champ.z
   const M = c.M
   const y_mm = c.y_mm
+  const V = c.V ?? deriver(z, M)
   const i_max = y_mm.reduce((k, v, j) => (Math.abs(v) > Math.abs(y_mm[k]) ? j : k), 0)
   return {
-    ...base, z, y_mm, z_diag: z, M, V: deriver(z, M), appuis: appuis ?? base.appuis,
+    ...base, z, y_mm, z_diag: z, M, V, appuis: appuis ?? base.appuis,
     synthese: { ...base.synthese!, y_max_mm: y_mm[i_max], z_y_max: z[i_max], y_tete_mm: y_mm[z.length - 1],
-      M_max: Math.max(...M), M_min: Math.min(...M), V_absmax: Math.max(...deriver(z, M).map(Math.abs)) },
+      M_max: Math.max(...M), M_min: Math.min(...M), V_absmax: Math.max(...V.map(Math.abs)) },
   }
 }
 
@@ -97,7 +99,7 @@ export function sourceChamp(res: Resultats, champ: ChampPlaque, geo: Contour, ap
         cache.set(cle, r)
       }
       return { res: r, phase, coupe: null, mode: 'pseudo3d',
-        origine: `mode pseudo-3D : déplacement et moment lus dans le champ à s = ${s.toFixed(1)} m ; V dérivé de M ; pressions du calcul 2D` }
+        origine: `mode pseudo-3D : déplacement, moment et tranchant lus dans le champ de la plaque à s = ${s.toFixed(1)} m ; pressions du calcul 2D` }
     },
   }
 }
@@ -117,7 +119,7 @@ export function champPseudo3D(res: Resultats): ChampPlaque | null {
       const i1 = Math.min(i + 1, S.length - 1)
       const t = S[i1] === S[i] ? 0 : Math.min(Math.max((s - S[i]) / (S[i1] - S[i]), 0), 1)
       const mix = (A: number[], B: number[]) => A.map((v, j) => (1 - t) * v + t * B[j])
-      return { y_mm: mix(q.y_mm[i], q.y_mm[i1]), M: mix(q.M[i], q.M[i1]) }
+      return { y_mm: mix(q.y_mm[i], q.y_mm[i1]), M: mix(q.M[i], q.M[i1]), V: q.V ? mix(q.V[i], q.V[i1]) : undefined }
     },
   }
 }
@@ -134,7 +136,14 @@ export function sourcePseudo3D(res: Resultats, geo: Contour): SourceResultats | 
       const cands = q.appuis!.filter((x) => x.nom === a.nom)
       if (!cands.length) return a
       const prox = cands.reduce((m, x) => (Math.abs(x.s - s) < Math.abs(m.s - s) ? x : m))
-      return { ...a, effort_kN_m: prox.effort, effort_axial_kN: a.effort_kN_m ? (a.effort_axial_kN * prox.effort) / a.effort_kN_m : a.effort_axial_kN, actif: prox.actif }
+      // effort du point en kN par appui : kN/m = effort/espacement, axial = effort/cos(angle) (comme verifs_struct) ;
+      // les valeurs ELU suivent le rapport axial pseudo-3D / axial 2D
+      const e = prox.espacement ?? 1
+      const axial = prox.effort / Math.cos(((prox.angle ?? 0) * Math.PI) / 180)
+      const r = a.effort_axial_kN ? axial / a.effort_axial_kN : 1
+      return { ...a, effort_kN_m: prox.effort / e, effort_axial_kN: axial, actif: prox.actif,
+        effort_elu_kN: a.effort_elu_kN == null ? a.effort_elu_kN : a.effort_elu_kN * r,
+        effort_elu_kN_m: a.effort_elu_kN_m == null ? a.effort_elu_kN_m : a.effort_elu_kN_m * r }
     })
   }
   return sourceChamp(res, champ, geo, appuis)

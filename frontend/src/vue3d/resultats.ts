@@ -2,7 +2,7 @@
 // Les valeurs viennent uniquement des résultats du calcul ; tout est mis en cache par phase.
 //
 // Conventions : déplacement y positif vers la fouille (mm) ; moment M positif quand la face
-// côté fouille est tendue (kN·m/m) ; tranchant V = dM/dz (kN/m) ; pressions en kPa.
+// côté fouille est tendue (kN·m/m) ; tranchant V = dM/dz (kN/m ; en pseudo-3D : statique des lignes verticales) ; pressions en kPa.
 import * as THREE from 'three'
 import type { Pressions, Resultats, Verif } from '../lib/api'
 import { nb } from '../lib/format'
@@ -26,9 +26,9 @@ export function profilValeur(res: Resultats, phase: number, quoi: 'y' | 'M' | 'V
   const ph = res.phases[phase]
   if (!ph?.ok) return null
   const p3 = res.pseudo3d
-  if (p3 && quoi !== 'V') {
+  if (p3) {
     const q = p3.phases[phase]
-    const champ = quoi === 'M' ? q?.M : q?.y_mm
+    const champ = quoi === 'M' ? q?.M : quoi === 'V' ? q?.V : q?.y_mm
     if (q?.ok && champ) {
       const S = p3.s
       let i = 0
@@ -55,7 +55,7 @@ export function bornes(res: Resultats, quoi: 'y' | 'M' | 'V' | 'yabs', phase: nu
     if (!ph?.ok) continue
     const idx = res.phases.indexOf(ph)
     const p3 = res.pseudo3d?.phases[idx]
-    const champ = quoi === 'M' ? p3?.M : quoi === 'V' ? undefined : p3?.y_mm
+    const champ = quoi === 'M' ? p3?.M : quoi === 'V' ? p3?.V : p3?.y_mm
     const vals: number[] = p3?.ok && champ ? champ.flat() : quoi === 'M' ? ph.M! : quoi === 'V' ? ph.V! : ph.y_mm!
     for (const v of vals) {
       const u = quoi === 'yabs' ? Math.abs(v) : v

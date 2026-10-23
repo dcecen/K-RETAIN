@@ -474,7 +474,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `longueur` | nombre | oui |  | longueur développée de la paroi modélisée (m) (> 0) |
 | `pas_horizontal` | nombre |  | 0.5 | taille des éléments selon la longueur (m) (> 0.05) |
 | `bords` | libres / encastres / appuyes |  | libres | conditions aux extrémités |
-| `angle` | nombre |  |  | angle de la fouille au milieu de la paroi (degrés) (> 0, < 360) |
+| `angle` | nombre |  |  | angle de la fouille au milieu de la paroi (degrés) ; seule sa présence compte : la paroi perpendiculaire impose w = 0 sur la ligne d'angle (appui simple, continuité du ferraillage d'angle négligée) (> 0, < 360) |
 | `rigidite_horizontale` | nombre |  |  | EI horizontal par mètre de hauteur (kN·m²/m) (> 0) |
 
 <!-- REFERENCE:FIN -->

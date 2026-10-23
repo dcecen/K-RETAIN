@@ -84,6 +84,7 @@ def efforts_internes(z: np.ndarray, EI_elem: np.ndarray, u: np.ndarray) -> tuple
 def efforts_par_statique(
     z: np.ndarray, zb: np.ndarray, zh: np.ndarray, q: np.ndarray,
     noeud_app: np.ndarray | None = None, F_app: np.ndarray | None = None,
+    noeud_M: np.ndarray | None = None, M_app: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Moment et effort tranchant par la statique : résultante des charges situées
     au-dessus de la section (définition de résistance des matériaux).
@@ -95,13 +96,18 @@ def efforts_par_statique(
     d'extrémité apparaissait comme un saut de V au pied ou en tête).
 
     q : charge répartie de chaque tronçon (kN/m, positive vers la fouille) ;
-    F_app : forces ponctuelles (kN, positives vers la fouille) aux nœuds noeud_app.
+    F_app : forces ponctuelles (kN, positives vers la fouille) aux nœuds noeud_app ;
+    M_app : couples concentrés (kN·m) aux nœuds noeud_M, conjugués de la rotation
+    θ = dy/dz (même convention que le vecteur de charges du système résolu, f[2i+1]).
+    Un couple C au nœud j crée un saut de M : M juste au-dessus = M juste en
+    dessous + C ; V ne saute pas. Ce sont, en pseudo-3D, les moments transmis à une
+    ligne verticale par la torsion des poutres horizontales.
     Convention (CLAUDE.md) : V(z) = Σ charges au-dessus de z (positives vers la
     fouille) ; M(z) = −Σ charges × bras de levier, positif quand la face côté
     fouille est tendue (M = −EI·y'' avec y positif vers la fouille).
 
     Renvoie (z_points, M, V) avec deux points par élément (bas puis haut) ;
-    V saute au droit des appuis, M est continu.
+    V saute au droit des appuis, M est continu sauf au droit d'un couple appliqué.
     """
     z = np.asarray(z, dtype=float)
     zb, zh, q = (np.asarray(v, dtype=float) for v in (zb, zh, q))
@@ -113,14 +119,19 @@ def efforts_par_statique(
     Mq = bras @ q
     Pa, Ma = np.zeros(n), np.zeros(n)                          # appuis strictement au-dessus du nœud i
     if noeud_app is not None and len(noeud_app):
-        for j, F in zip(np.asarray(noeud_app, dtype=int), np.asarray(F_app, dtype=float)):
-            Pa[:j] += F
-            Ma[:j] += F * (z[j] - z[:j])
-    M = -(Mq + Ma)
+        F = np.zeros(n)
+        np.add.at(F, np.asarray(noeud_app, dtype=int), np.asarray(F_app, dtype=float))
+        Pa = np.cumsum(F[::-1])[::-1] - F                      # Σ F_j, j > i
+        Ma = np.cumsum((F * z)[::-1])[::-1] - F * z - z * Pa   # Σ F_j·(z_j − z_i), j > i
+    C = np.zeros(n)                                            # couple appliqué à chaque nœud
+    if noeud_M is not None and len(noeud_M):
+        np.add.at(C, np.asarray(noeud_M, dtype=int), np.asarray(M_app, dtype=float))
+    Mc = np.cumsum(C[::-1])[::-1] - C                          # couples strictement au-dessus du nœud i
+    M = -(Mq + Ma) - Mc
     zp = np.empty(2 * (n - 1))
     zp[0::2], zp[1::2] = z[:-1], z[1:]
     Mo = np.empty_like(zp)
-    Mo[0::2], Mo[1::2] = M[:-1], M[1:]
+    Mo[0::2], Mo[1::2] = M[:-1], M[1:] - C[1:]   # haut de l'élément e : le couple du nœud e+1 agit sur la coupe
     V = np.empty_like(zp)
     V[0::2] = D[:-1] + Pa[:-1]    # bas de l'élément e : charges au-dessus du nœud e, appuis aux nœuds > e
     V[1::2] = D[1:] + Pa[:-1]     # haut de l'élément e (sous le nœud e+1) : appuis aux nœuds ≥ e+1

@@ -235,12 +235,21 @@ export interface Resultats {
       message: string
       y_mm?: number[][]
       M?: number[][]
+      /** Moment horizontal Ms (kN·m/m) et effort tranchant V (kN/m, statique de chaque ligne verticale). */
+      Ms?: number[][]
+      V?: number[][]
       y_max_mm?: number
       y_max_2d_mm?: number
       Mz_max?: number
       Mz_min?: number
       Ms_absmax?: number
-      appuis?: { nom: string; s: number; effort: number; actif: boolean }[]
+      V_absmax?: number
+      Mzs_absmax?: number
+      /** Réactions des lignes pénalisées (bords, angle), kN par ligne ; bilan d'équilibre (kN, kN·m). */
+      reactions?: { s: number[]; total_kN: number[] }
+      bilan?: Record<string, number>
+      /** Effort en kN par appui ponctuel ; espacement (m) et angle (°) pour revenir au kN/m et à l'effort axial. */
+      appuis?: { nom: string; s: number; effort: number; actif: boolean; espacement?: number; angle?: number }[]
     }[]
   }
 }
