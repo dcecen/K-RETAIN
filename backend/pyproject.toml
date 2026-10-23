@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=8", "httpx>=0.27"]
+rapport = ["matplotlib>=3.8"]   # figures du rapport docs/validation (python -m outils.rafale_elementaire)
 
 [tool.setuptools.packages.find]
 include = ["sout*"]

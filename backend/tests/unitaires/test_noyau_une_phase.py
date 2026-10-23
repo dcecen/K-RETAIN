@@ -140,23 +140,8 @@ def test_convergence_maillage():
 
 
 def _h_critique_equilibre_limite(D, ka, kp, gamma):
-    """Rupture d'un écran rigide autostable par rotation autour d'un point de
-    profondeur t (poussée/butée limites de part et d'autre, inversées sous t).
-    Résout l'équilibre des forces et des moments (inconnues h et t)."""
-    a, b = ka * gamma, kp * gamma
-
-    def eq(x):
-        h, t = x
-        F = (a * t**2 / 2 - b * (t - h) ** 2 / 2 + b * (D**2 - t**2) / 2
-             - a * ((D - h) ** 2 - (t - h) ** 2) / 2)
-        def I(d1, d2, c):  # ∫ (d − c)·d dd
-            return (d2**3 - d1**3) / 3 - c * (d2**2 - d1**2) / 2
-        M = (a * t**3 / 3 - b * I(h, t, h) + b * (D**3 - t**3) / 3 - a * I(t, D, h))
-        return [F, M]
-
-    h, t = fsolve(eq, [0.5 * D, 0.8 * D])
-    assert 0 < h < t < D
-    return h
+    from sout.validation.cas_ecran import h_critique_autostable_equilibre_limite
+    return h_critique_autostable_equilibre_limite(D, ka, kp, gamma)
 
 
 def test_equilibre_limite_autostable_rigide():
