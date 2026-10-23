@@ -417,7 +417,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `qs` | nombre |  |  | tirant : frottement latéral limite du scellement (kPa) (> 0) |
 | `epaisseur` | nombre |  |  | dalle : épaisseur (m) (> 0) |
 | `unilateral` | true / false |  |  | ne reprend pas d'effort négatif (défaut : oui sauf dalle) |
-| `lierne` | texte |  |  | profilé de lierne (base matériaux) |
+| `lierne` | texte |  |  | profilé de lierne (base matériaux) ; en pseudo-3D, poutre horizontale continue E·Iy au niveau de l'appui (nuance acier requise), torsion négligée |
 | `nombre` | entier |  |  | tirant : nombre de torons ou de barres de l'élément (≥ 1) |
 | `acier` | texte |  |  | nuance d'acier de l'élément (base matériaux) |
 | `beton` | texte |  |  | dalle : classe de béton (base matériaux) |

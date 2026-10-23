@@ -225,7 +225,8 @@ class Appui(_Base):
     qs: float | None = Field(None, gt=0, description="tirant : frottement latéral limite du scellement (kPa)")
     epaisseur: float | None = Field(None, gt=0, description="dalle : épaisseur (m)")
     unilateral: bool | None = Field(None, description="ne reprend pas d'effort négatif (défaut : oui sauf dalle)")
-    lierne: str | None = Field(None, description="profilé de lierne (base matériaux)")
+    lierne: str | None = Field(None, description="profilé de lierne (base matériaux) ; en pseudo-3D, poutre horizontale continue "
+                                                 "E·Iy au niveau de l'appui (nuance acier requise), torsion négligée")
     nombre: int | None = Field(None, ge=1, description="tirant : nombre de torons ou de barres de l'élément")
     acier: str | None = Field(None, description="nuance d'acier de l'élément (base matériaux)")
     beton: str | None = Field(None, description="dalle : classe de béton (base matériaux)")

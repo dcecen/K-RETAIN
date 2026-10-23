@@ -88,6 +88,10 @@ class PoutreRDM:
         self.C = np.zeros(n)
         self.k_y = np.zeros(n)
         self.k_t = np.zeros(n)
+        self.k_rep = 0.0                       # fondation de Winkler (kN/m par mètre), répartie
+        self.t = np.zeros(n)                   # longueurs tributaires des nœuds
+        self.t[1:] += 0.5 * np.diff(self.z)
+        self.t[:-1] += 0.5 * np.diff(self.z)
         self.bloc_y: set[int] = set()
         self.bloc_t: set[int] = set()
 
@@ -116,12 +120,11 @@ class PoutreRDM:
         return self
 
     def ressorts_repartis(self, k: float) -> "PoutreRDM":
-        """Fondation de Winkler k (kN/m par mètre), concentrée aux nœuds au prorata des longueurs
-        tributaires (comme les ressorts de sol du moteur)."""
-        t = np.zeros(len(self.z))
-        t[1:] += 0.5 * np.diff(self.z)
-        t[:-1] += 0.5 * np.diff(self.z)
-        self.k_y += k * t
+        """Fondation de Winkler k (kN/m par mètre) : raideur concentrée aux nœuds au prorata des
+        longueurs tributaires dans le système résolu, et réaction répartie sur ces longueurs dans la
+        statique (comme les ressorts de sol du moteur : V nul aux extrémités libres)."""
+        self.k_rep += k
+        self.k_y += k * self.t
         return self
 
     # --- charges
@@ -167,21 +170,30 @@ class PoutreRDM:
         reactions = {}
         for i in sorted(self.bloc_y | self.bloc_t):
             reactions[i] = (-r[2 * i] if i in self.bloc_y else 0.0, -r[2 * i + 1] if i in self.bloc_t else 0.0)
-        forces = self.F + f_res + np.where([i in self.bloc_y for i in range(n)], r[0::2], 0.0)
+        # Statique : ressorts ponctuels et réactions concentrés aux nœuds ; fondation de Winkler
+        # répartie sur les bandes tributaires (charge uniforme par élément −k·(y_e + y_e+1)/2)
+        f_point = -(self.k_y - self.k_rep * self.t) * y
+        q_stat = self.q - self.k_rep * 0.5 * (y[:-1] + y[1:])
+        forces = self.F + f_point + np.where([i in self.bloc_y for i in range(n)], r[0::2], 0.0)
         couples = self.C + c_res + np.where([i in self.bloc_t for i in range(n)], r[1::2], 0.0)
         tous = np.arange(n)
-        z_diag, M, V = efforts_par_statique(z, z[:-1], z[1:], self.q, tous, forces, tous, couples)
-        # Contrôles de statique : équilibre global, V = dM/dz et q = dV/dz élément par élément
+        z_diag, M, V = efforts_par_statique(z, z[:-1], z[1:], q_stat, tous, forces, tous, couples)
+        # Contrôles de statique : équilibre global du système nodal résolu (identités exactes),
+        # V = dM/dz et q = dV/dz élément par élément sur les diagrammes
         Le = np.diff(z)
-        residu_F = float(forces.sum() + (self.q * Le).sum())
-        residu_M = float((forces * z).sum() + couples.sum() + (self.q * Le * 0.5 * (z[1:] + z[:-1])).sum())
+        f_nod = self.F + f_res + np.where([i in self.bloc_y for i in range(n)], r[0::2], 0.0)
+        residu_F = float(f_nod.sum() + (self.q * Le).sum())
+        residu_M = float((f_nod * z).sum() + couples.sum() + (self.q * Le * 0.5 * (z[1:] + z[:-1])).sum())
         dM = (M[1::2] - M[0::2]) / Le - 0.5 * (V[0::2] + V[1::2])
-        dV = (V[1::2] - V[0::2]) / Le + self.q
-        echelle_F = max(float(np.abs(forces).sum() + np.abs(self.q * Le).sum()), 1e-12)
+        dV = (V[1::2] - V[0::2]) / Le + q_stat
+        # échelle : charges brutes (pas la charge nette, qui peut être nulle : Winkler sous charge uniforme)
+        echelle_F = max(float(np.abs(self.F).sum() + np.abs(self.q * Le).sum() + np.abs(self.k_y * y).sum()
+                              + sum(abs(v[0]) for v in reactions.values())), 1e-12)
         controles = {
             "residu_forces": residu_F / echelle_F,
             "residu_moments": residu_M / (echelle_F * max(self.L, 1e-12)),
             "V_egale_dM_dz": float(np.abs(dM).max()) / max(float(np.abs(V).max()), 1e-12),
-            "q_egale_dV_dz": float(np.abs(dV).max()) / max(float(np.abs(self.q).max()), float(np.abs(V).max()) / self.L, 1e-12),
+            "q_egale_dV_dz": float(np.abs(dV).max()) / max(float(np.abs(q_stat).max()), float(np.abs(V).max()) / self.L, 1e-12),
         }
+        controles["echelle_forces"] = echelle_F
         return SolutionRDM(z, y, theta, z_diag, M, V, reactions, f_res, c_res, controles)

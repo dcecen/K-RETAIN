@@ -70,7 +70,7 @@ def _controles(cas: Cas, sol, libres: tuple[bool, bool] = (False, False)) -> Non
         Grandeur("V = dM/dz (écart relatif max)", 0.0, c["V_egale_dM_dz"], 1e-9, "RDM", echelle=1.0),
         Grandeur("q = dV/dz (écart relatif max)", 0.0, c["q_egale_dV_dz"], 1e-9, "RDM", echelle=1.0),
     ]
-    vmax = max(float(np.abs(sol.V).max()), 1e-12)
+    vmax = max(float(np.abs(sol.V).max()), float(c["echelle_forces"]), 1e-12)
     if libres[0]:
         cas.grandeurs.append(Grandeur("V nul à l'extrémité libre z = 0", 0.0, float(sol.V[0]), 1e-8, "statique", "kN", echelle=vmax))
     if libres[1]:
@@ -328,7 +328,7 @@ def winkler_semi_infinie_force_en_bout() -> Cas:
     cas.grandeurs = [
         Grandeur("flèche sous la force", 2 * P * lam / k, float(s.y[0]), 1e-2, "y₀ = 2Pλ/k, λ = (k/4EI)^¼, " + HETENYI, "m"),
         Grandeur("moment maximal (en z = π/4λ)", -0.3224 * P / lam, _val(s, zM, "M"), 1e-2, "−0,3224·P/λ : M = −(P/λ)·e^(−λz)·sin λz", "kN·m"),
-        Grandeur("moment nul à l'extrémité libre", 0.0, _val(s, 0.0, "M"), 1e-9, "extrémité libre", "kN·m", echelle=P / lam),
+        Grandeur("moment nul à l'extrémité libre", 0.0, _val(s, 0.0, "M"), 1e-3, "extrémité libre (réaction du sol répartie sur la demi-bande d'extrémité : écart en (λh)²)", "kN·m", echelle=P / lam),
     ]
     _controles(cas, s, (False, True))
     return cas
@@ -341,7 +341,7 @@ def winkler_semi_infinie_couple_en_bout() -> Cas:
     s = p.couple(0.0, C0).resoudre()
     cas.grandeurs = [
         Grandeur("flèche à l'extrémité (valeur absolue)", 2 * C0 * lam ** 2 / k, abs(float(s.y[0])), 1e-2, "|y₀| = 2Cλ²/k, " + HETENYI, "m"),
-        Grandeur("moment à l'extrémité (valeur absolue)", C0, abs(_val(s, 0.0, "M", "bas")), 1e-9, "|M(0)| = C", "kN·m"),
+        Grandeur("moment à l'extrémité (valeur absolue)", C0, abs(_val(s, 0.0, "M", "bas")), 1e-3, "|M(0)| = C (écart en (λh)², réaction répartie sur la demi-bande d'extrémité)", "kN·m"),
     ]
     _controles(cas, s, (False, True))
     return cas

@@ -51,6 +51,7 @@ class PhasePseudo3D:
     reactions: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))  # kN par nœud pénalisé (bords, angle), positif = retient
     forces: dict = field(default_factory=dict)   # {"sol", "eau", "appuis", "reactions"} : kN par nœud (ns, nz), positifs vers la fouille
     bilan: dict = field(default_factory=dict)    # sommes (kN) et moments résiduels (kN·m)
+    liernes: dict = field(default_factory=dict)  # nom -> {"cote", "EI", "M" (ns,) kN·m, "V" (ns,) kN} : poutre horizontale réelle
 
 
 @dataclass
@@ -125,6 +126,20 @@ class MoteurPseudo3D:
             self.avertissements.append(
                 f"Pseudo-3D : joints de panneaux en s = {', '.join(f'{x:g}' for x in self.joints)} m : "
                 "aucun moment horizontal ni torsion transmis (panneaux indépendants en flexion horizontale).")
+        # Liernes : poutres horizontales réelles (E·Iy, kN·m²) ajoutées aux éléments horizontaux de la
+        # rangée de leur appui, présentes tant que l'appui est posé (sout.appuis.construction.rigidite_lierne)
+        self.liernes: dict[str, tuple[int, float]] = {}
+        for nom, d in modele.appuis.items():
+            if "EI_lierne" not in d.infos:
+                continue
+            if d.infos.get("EI_lierne") is None:
+                self.avertissements.append(f"Pseudo-3D : lierne non modélisée ({d.infos.get('lierne_motif')}).")
+                continue
+            j = int(np.argmin(np.abs(self.z - d.cote)))
+            self.liernes[nom] = (j, float(d.infos["EI_lierne"]))
+            self.avertissements.append(
+                f"Pseudo-3D : lierne de l'appui {nom} modélisée comme poutre horizontale continue "
+                f"(E·I = {d.infos['EI_lierne']:.3g} kN·m², flexion autour de l'axe fort, torsion négligée).")
         K = plaque.assembler(self.s, self.z, self.Dz, self.Ds, coef_h=self.coef_h, GJ_elem=self.GJ)
         # Grillage réduit à la flexion verticale (forces de transfert, voir plaque.forces_transfert)
         self.K_v = plaque.assembler(self.s, self.z, self.Dz, np.zeros_like(self.Ds), GJ_elem=np.zeros_like(self.Dz))
@@ -149,7 +164,9 @@ class MoteurPseudo3D:
             for j in range(nz):
                 diag[3 * (self.i_angle * nz + j)] = self.pen
         self.ddl_pen_w = np.flatnonzero(diag[0::3] > 0)   # nœuds dont w est pénalisé (réactions)
-        self.K = (K + sparse.diags(diag)).tocsc()
+        self._diag_pen = diag                              # pénalités sans lierne posée
+        self.K = (K + sparse.diags(diag)).tocsc()          # sans lierne
+        self._K_liernes: dict[frozenset, sparse.csc_matrix] = {frozenset(): self.K}
         self.ddl_w = np.arange(0, 3 * ns * nz, 3)
         # Ressorts : les demi-mailles 2D de chaque ligne verticale
         r2 = self.m2.ressorts
@@ -182,6 +199,50 @@ class MoteurPseudo3D:
                 return [(int(i), float(rec[i] / rec.sum())) for i in sel]
         return [(int(np.argmin(np.abs(self.s - sp))), 1.0)]
 
+    def _matrice(self, posees: frozenset) -> sparse.csc_matrix:
+        """Rigidité du grillage avec les liernes des appuis posés (mise en cache par jeu posé)."""
+        posees = frozenset(n for n in posees if n in self.liernes)
+        if posees not in self._K_liernes:
+            sup = np.zeros((self.ns - 1, self.nz))
+            diag = self._diag_pen.copy()
+            for nom in posees:
+                j, EI = self.liernes[nom]
+                sup[:, j] += EI
+                if self.Ds_nulle:
+                    # la lierne tient la rotation θs de sa rangée : plus de pénalité (sinon elle ne fléchit pas)
+                    diag[3 * (np.arange(self.ns) * self.nz + j) + 2] = 0.0
+            K = plaque.assembler(self.s, self.z, self.Dz, self.Ds, EI_h_sup=sup, coef_h=self.coef_h, GJ_elem=self.GJ)
+            self._K_liernes[posees] = (K + sparse.diags(diag)).tocsc()
+        return self._K_liernes[posees]
+
+    def _efforts_liernes(self, u: np.ndarray, posees) -> dict:
+        """Moment (kN·m) et effort tranchant (kN) de chaque lierne posée le long de s : efforts
+        d'extrémité des éléments de poutre E·I de la rangée (convention de Ms : positif face fouille
+        tendue), moyennés aux nœuds."""
+        ns, nz = self.ns, self.nz
+        W = u[0::3].reshape(ns, nz)
+        Ts = u[2::3].reshape(ns, nz)
+        out = {}
+        for nom in posees:
+            if nom not in self.liernes:
+                continue
+            j, EI = self.liernes[nom]
+            M = np.zeros(ns)
+            V = np.zeros(ns)
+            c = np.zeros(ns)
+            for i in range(ns - 1):
+                L = self.s[i + 1] - self.s[i]
+                fe = plaque.rigidite_element(EI, L) @ np.array([W[i, j], Ts[i, j], W[i + 1, j], Ts[i + 1, j]])
+                M[i] += fe[1]
+                M[i + 1] += -fe[3]
+                v = (-fe[3] - fe[1]) / L
+                V[i] += v
+                V[i + 1] += v
+                c[i] += 1
+                c[i + 1] += 1
+            out[nom] = {"cote": float(self.z[j]), "EI": EI, "M": M / c, "V": V / c}
+        return out
+
     def _positions_appui(self, espacement: float) -> np.ndarray:
         """Appuis réels à leur espacement exact, centrés sur la longueur modélisée."""
         L = self.s[-1]
@@ -191,7 +252,7 @@ class MoteurPseudo3D:
 
     # ------------------------------------------------------------------
     def _efforts_phase(self, u: np.ndarray, r: Ressorts, appuis: Appuis, f_ext: np.ndarray,
-                       u_am: np.ndarray, u_av: np.ndarray) -> dict:
+                       u_am: np.ndarray, u_av: np.ndarray, K: sparse.spmatrix | None = None) -> dict:
         """Champs d'efforts d'une phase résolue : moments du grillage, torsion, V par la statique
         de chaque ligne (plaque.efforts_lignes), réactions, forces nodales et bilan d'équilibre."""
         m2, ns, nz = self.m2, self.ns, self.nz
@@ -206,7 +267,7 @@ class MoteurPseudo3D:
             + (u_am - u_av)[None, :]
         eff, _ = appuis.efforts(W)
         f_app = -np.bincount(appuis.noeud, weights=eff, minlength=ns * nz) if len(appuis) else np.zeros(ns * nz)
-        t_w, t_th = plaque.forces_transfert(self.K, self.K_v, u, ns, nz)
+        t_w, t_th = plaque.forces_transfert(self.K if K is None else K, self.K_v, u, ns, nz)
         z_diag, M_stat, V_diag = plaque.efforts_lignes(self.z, m2.d_zb, m2.d_zh, m2.d_noeud, q_lignes,
                                                        f_app.reshape(ns, nz), t_w, t_th, self.ds)
         V = np.empty((ns, nz))
@@ -283,8 +344,9 @@ class MoteurPseudo3D:
                 for nm in a_verin:
                     dico[nm] = _points(nm, W, 0.0, m.appuis[nm].precharge)
                 appuis_v, _ = _appuis(dico)
+                K_ph = self._matrice(frozenset(dico))
                 try:
-                    u, _, _ = resoudre_general(self.K, self.ddl_w, r, appuis_v, f_ext_prec, u0=u, y_rupture=m.y_rupture)
+                    u, _, _ = resoudre_general(K_ph, self.ddl_w, r, appuis_v, f_ext_prec, u0=u, y_rupture=m.y_rupture)
                 except RuptureEquilibre as e:
                     sorties.append(PhasePseudo3D(ph.nom, False, f"Rupture à la mise en charge des appuis : {e}"))
                     break
@@ -302,13 +364,15 @@ class MoteurPseudo3D:
             f_ext[0::3] = np.outer(self.ds, f_ligne).ravel()
             appuis, ss = _appuis(poses)
             noms = list(appuis.nom)
+            K_ph = self._matrice(frozenset(poses))
             try:
-                u, it, nR = resoudre_general(self.K, self.ddl_w, r, appuis, f_ext, u0=u, y_rupture=m.y_rupture)
+                u, it, nR = resoudre_general(K_ph, self.ddl_w, r, appuis, f_ext, u0=u, y_rupture=m.y_rupture)
             except RuptureEquilibre as e:
                 sorties.append(PhasePseudo3D(ph.nom, False, f"Rupture : {e}"))
                 break
             W = u[0::3]
-            champs = self._efforts_phase(u, r, appuis, f_ext, u_am, u_av)
+            champs = self._efforts_phase(u, r, appuis, f_ext, u_am, u_av, K_ph)
+            champs["liernes"] = self._efforts_liernes(u, poses)
             r.memoriser(W)
             sv_prec, present_prec = sol3["sv"], sol3["present"]
             f_ext_prec = f_ext
@@ -375,6 +439,10 @@ def serialiser(res: ResultatPseudo3D, res2d=None) -> dict:
                 "reactions": {"s": res.s[lignes].round(3).tolist(),
                               "total_kN": ph.reactions[lignes].sum(axis=1).round(2).tolist()},
                 "bilan": {k: round(v, 4) for k, v in ph.bilan.items()},
+                "liernes": {nom: {"cote": li["cote"], "EI": li["EI"], "M": li["M"].round(2).tolist(),
+                                  "V": li["V"].round(2).tolist(), "M_absmax": float(np.abs(li["M"]).max()),
+                                  "V_absmax": float(np.abs(li["V"]).max())}
+                            for nom, li in ph.liernes.items()},
             })
             p2 = phases2d.get(ph.nom)
             if p2 is not None and p2.ok:

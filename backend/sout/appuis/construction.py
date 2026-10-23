@@ -64,5 +64,32 @@ def construire_appui(nom: str, a, catalogue=None) -> DefAppui:
         raise ErreurAppui(f"appui {nom} : type inconnu {a.type}")
     F0 = raideurs.force_horizontale(a.precharge, a.espacement, angle) if a.precharge else 0.0
     unilateral = a.unilateral if a.unilateral is not None else a.type != "dalle"
+    infos = a.model_dump()
+    infos.update(rigidite_lierne(nom, a, catalogue))
     return DefAppui(nom=nom, cote=a.cote, raideur=float(k), precharge=float(F0), unilateral=unilateral,
-                    type=a.type, infos=a.model_dump())
+                    type=a.type, infos=infos)
+
+
+def rigidite_lierne(nom: str, a, catalogue=None) -> dict:
+    """Rigidité de flexion E·Iy (kN·m²) de la lierne d'un appui, pour la modéliser en pseudo-3D
+    comme une poutre horizontale continue au niveau des appuis (flexion autour de son axe fort,
+    âme horizontale et ailes parallèles à la paroi, comme dans le module assemblages ; torsion
+    négligée). Renvoie {} sans lierne, et {"EI_lierne": None, "lierne_motif": …} si la base ne
+    permet pas de la chiffrer (profil inconnu, nuance d'acier absente)."""
+    if not a.lierne:
+        return {}
+    if catalogue is None:
+        return {"EI_lierne": None, "lierne_motif": f"appui {nom} : base matériaux indisponible pour la lierne {a.lierne}"}
+    try:
+        prof = catalogue.profil(a.lierne)
+    except KeyError:
+        return {"EI_lierne": None, "lierne_motif": f"appui {nom} : lierne {a.lierne} absente de la base"}
+    if not a.acier:
+        return {"EI_lierne": None, "lierne_motif": f"appui {nom} : nuance d'acier de la lierne {a.lierne} non donnée (mot-clé acier)"}
+    try:
+        E = catalogue.acier(a.acier).get("E_MPa")
+    except KeyError:
+        E = None
+    if E is None or not prof.get("Iy_cm4"):
+        return {"EI_lierne": None, "lierne_motif": f"appui {nom} : module d'Young ou inertie de la lierne {a.lierne} inconnus"}
+    return {"EI_lierne": float(E) * 1e3 * float(prof["Iy_cm4"]) * 1e-8}
