@@ -168,3 +168,29 @@ def test_torsion_imposee():
     assert np.abs(ph0.Mzs).max() == 0.0 and np.abs(ph1.Mzs).max() > 0.0
     prof0, prof1 = np.abs(ph0.W).max(axis=1), np.abs(ph1.W).max(axis=1)
     assert prof0[8:-8].max() / prof0[8:-8].min() > prof1[8:-8].max() / prof1[8:-8].min()
+
+
+def test_moment_horizontal_integre_sur_la_hauteur_suit_la_poutre_continue():
+    """Paroi très raide horizontalement (Ds = 100·Dz), butons tous les e = 4 m : l'intégrale de Ms sur
+    la hauteur est le moment de la poutre-cloison horizontale continue à travées égales sous charge
+    uniforme (théorème des trois moments ; Timoshenko, *Résistance des matériaux*) : −R·e/12 sur
+    appui, +R·e/24 à mi-travée, différence R·e/8, R étant l'effort d'un buton. Avec un appui réparti
+    sur b = 2 m, la différence devient R·(e − b)/8 (réaction uniforme sur la largeur b)."""
+    m = _modele()
+
+    def integrales(largeur):
+        mo = MoteurPseudo3D(m, 48.0, 0.5, rapport_rigidite_horizontale=100.0, largeur_appui=largeur)
+        ph = mo.calculer().phases[-1]
+        integ = (ph.Ms * np.gradient(mo.z)[None, :]).sum(axis=1)
+        R = float(np.mean([a["effort"] for a in ph.appuis[3:-3]]))
+        i_app = [int(np.argmin(np.abs(mo.s - a["s"]))) for a in ph.appuis[4:8]]
+        i_mid = [int(np.argmin(np.abs(mo.s - (a["s"] + 2.0)))) for a in ph.appuis[4:8]]
+        return R, float(np.mean(integ[i_app])), float(np.mean(integ[i_mid]))
+
+    e = 4.0
+    R, sur_appui, mi_travee = integrales(None)
+    assert sur_appui == pytest.approx(-R * e / 12, rel=0.05)
+    assert mi_travee == pytest.approx(R * e / 24, rel=0.08)
+    assert mi_travee - sur_appui == pytest.approx(R * e / 8, rel=0.02)
+    R, sur_appui, mi_travee = integrales(2.0)
+    assert mi_travee - sur_appui == pytest.approx(R * (e - 2.0) / 8, rel=0.02)
