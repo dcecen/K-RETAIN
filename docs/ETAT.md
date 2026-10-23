@@ -466,3 +466,15 @@ pytest : 281 réussis, 6 ignorés (cas K-Réa/RIDO absents) ; vitest : 61 ; rafa
 - EN 1993-1-1 § 6.3.3 (k_yy) : interaction N-M des butons simplifiée ; EN 1992-1-1 § 9.6.3 : As horizontal
   minimal non contrôlé ; tranchant des pieux non automatisé.
 - Hetényi poutre finie (formules en sinh/cosh) non recopiées de l'ouvrage.
+
+
+## Menu Fichier et vérifications élémentaires (24 octobre 2026)
+
+- Menus déroulants rendus au premier plan (la barre de titre les coupait) ; « [object Object] » supprimé
+  du titre quand la clé `projet` n'est pas un texte. Vérifié dans Chrome à 1 280 et 760 px.
+- Menu Fichier : groupe « Vérifications élémentaires » (`exemples/elementaires`, 8 scripts E01 à E08 avec
+  résultat attendu et source en en-tête) et entrée « Rapport de validation complet » (45 cas).
+- Les cas de poutres pures (RDM7, Winkler) et de plaque sans sol ne peuvent pas s'écrire en script (le
+  langage ne prévoit ni charge directe sur la paroi ni paroi sans sol) : ils sont dans le rapport.
+- Tests : pytest 290 réussis (6 ignorés), vitest 62.
+
