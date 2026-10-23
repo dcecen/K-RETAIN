@@ -64,10 +64,12 @@ def _entrees(ddl: np.ndarray, k: np.ndarray) -> tuple[np.ndarray, np.ndarray, np
 
 
 def assembler(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarray,
-              EI_h_sup: np.ndarray | None = None, coef_h: np.ndarray | None = None) -> sparse.csc_matrix:
+              EI_h_sup: np.ndarray | None = None, coef_h: np.ndarray | None = None,
+              GJ_elem: np.ndarray | None = None) -> sparse.csc_matrix:
     """Rigidité du grillage (assemblage vectorisé).
 
     Dz_elem, Ds_elem : rigidités par mètre pour chaque élément vertical (selon z).
+    GJ_elem : rigidité de torsion par mètre de chaque élément vertical (défaut √(Ds·Dz), Huber).
     EI_h_sup (ns−1, nz) : rigidité de flexion absolue (kN·m²) ajoutée à chaque élément
     horizontal (i, j) — poutre réelle sur une rangée, par ex. une lierne.
     coef_h (ns−1, nz) : facteur appliqué à la flexion et à la torsion des éléments
@@ -78,12 +80,14 @@ def assembler(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.nda
     dz = largeurs_tributaires(z)
     Dz_noeud = _moyenne_noeuds(Dz_elem, nz)
     Ds_noeud = _moyenne_noeuds(Ds_elem, nz)
+    GJ_elem = np.sqrt(Ds_elem * Dz_elem) if GJ_elem is None else np.asarray(GJ_elem, float)
+    GJ_noeud = _moyenne_noeuds(GJ_elem, nz)
     # --- poutres verticales : élément (i, j) entre les nœuds i·nz+j et i·nz+j+1
     a = (np.arange(ns)[:, None] * nz + np.arange(nz - 1)[None, :]).ravel()
     b = a + 1
     Lv = np.tile(np.diff(z), ns)
     EIv = (Dz_elem[None, :] * ds[:, None]).ravel()
-    GJv = (np.sqrt(Ds_elem * Dz_elem)[None, :] * ds[:, None]).ravel()
+    GJv = (GJ_elem[None, :] * ds[:, None]).ravel()
     ddl_v = np.stack([3 * a, 3 * a + 1, 3 * b, 3 * b + 1], axis=1)
     ddl_tv = np.stack([3 * a + 2, 3 * b + 2], axis=1)
     kt = np.array([[1.0, -1.0], [-1.0, 1.0]])
@@ -94,7 +98,7 @@ def assembler(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.nda
     b = a + nz
     Lh = np.repeat(np.diff(s), nz)
     EIh = np.tile(Ds_noeud * dz, ns - 1)
-    GJh = np.tile(np.sqrt(Ds_noeud * Dz_noeud) * dz, ns - 1)
+    GJh = np.tile(GJ_noeud * dz, ns - 1)
     if coef_h is not None:
         EIh = EIh * np.asarray(coef_h, float).ravel()
         GJh = GJh * np.asarray(coef_h, float).ravel()
@@ -111,10 +115,11 @@ def assembler(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.nda
 
 
 def moments(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarray,
-            u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+            u: np.ndarray, coef_h: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Moments par mètre aux nœuds : Mz (flexion verticale, convention du 2D :
     positif face fouille tendue) et Ms (flexion horizontale, même convention de signe).
-    Moyenne des extrémités d'éléments adjacents."""
+    Moyenne des extrémités d'éléments adjacents. coef_h (ns−1, nz) : facteur de rigidité des
+    éléments horizontaux (0 sur un joint), comme dans assembler."""
     ns, nz = len(s), len(z)
     W = u[0::3].reshape(ns, nz)
     Tz = u[1::3].reshape(ns, nz)
@@ -137,7 +142,7 @@ def moments(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarr
         for i in range(ns - 1):
             L = s[i + 1] - s[i]
             for j in range(nz):
-                ke = rigidite_element(Ds_noeud[j], L)
+                ke = rigidite_element(Ds_noeud[j] * (1.0 if coef_h is None else coef_h[i, j]), L)
                 fe = ke @ np.array([W[i, j], Ts[i, j], W[i + 1, j], Ts[i + 1, j]])
                 Ms[i, j] += fe[1]
                 Ms[i + 1, j] += -fe[3]
@@ -146,13 +151,14 @@ def moments(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarr
     return Mz, Ms
 
 
-def torsion(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarray, u: np.ndarray) -> np.ndarray:
-    """Moment de torsion par mètre Mzs = √(Ds·Dz)·∂²w/∂s∂z (torque des poutres verticales
-    par mètre de largeur ; dans le grillage chaque famille de poutres porte le moment de
-    torsion de la plaque, Hambly § 3). Valeur aux nœuds par moyenne des éléments adjacents."""
+def torsion(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarray, u: np.ndarray,
+            GJ_elem: np.ndarray | None = None) -> np.ndarray:
+    """Moment de torsion par mètre Mzs = GJ·∂²w/∂s∂z, GJ = √(Ds·Dz) par défaut (torque des poutres
+    verticales par mètre de largeur ; dans le grillage chaque famille de poutres porte le moment
+    de torsion de la plaque, Hambly § 3). Valeur aux nœuds par moyenne des éléments adjacents."""
     ns, nz = len(s), len(z)
     Ts = u[2::3].reshape(ns, nz)
-    GJ = np.sqrt(Ds_elem * Dz_elem)
+    GJ = np.sqrt(Ds_elem * Dz_elem) if GJ_elem is None else np.asarray(GJ_elem, float)
     T_elem = GJ[None, :] * np.diff(Ts, axis=1) / np.diff(z)[None, :]
     out = np.zeros((ns, nz))
     out[:, :-1] += T_elem

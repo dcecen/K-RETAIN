@@ -161,4 +161,39 @@ def construire_ecran(p, catalogue=None, normes=None) -> Ecran:
     else:
         infos["EI_source"] = "calculé (base matériaux)"
     infos["EI"] = EI
+    infos["rigidite_horizontale"] = rigidite_horizontale(p)
     return Ecran(tete=p.tete, pied=p.pied, EI=EI, largeur_reaction=largeur, infos=infos)
+
+
+def rigidite_horizontale(p) -> dict:
+    """Rigidité de flexion horizontale par défaut de la paroi vue comme une plaque (pseudo-3D),
+    en rapport Ds/Dz. Hypothèses mécaniques documentées, aucune valeur normative :
+    - paroi moulée : 1 (plaque de béton continue, même rapport fissuré que Dz ; les joints
+      entre panneaux ne transmettent pas de moment horizontal : paroi.longueur_panneau) ;
+    - palplanches : 0 (serrures libres : chaîne de rotules en flexion horizontale ; la rigidité
+      de plaque ondulée (Seydel, Timoshenko & Woinowsky-Krieger) n'est pas activée, TODO-SOURCE :
+      à imposer par pseudo3d.rigidite_horizontale si elle est justifiée) ;
+    - pieux sécants : 0 (recouvrements de béton non armé : pas de source pour une continuité
+      partielle, TODO-NORME ; valeur à imposer si des clés de cisaillement existent) ;
+    - pieux disjoints, berlinoise : 0 (aucune continuité ; blindage négligé) ;
+    - EI imposé sans type détaillé : None (le moteur retombe sur l'isotropie, avec avertissement).
+    Renvoie {"rapport", "source", "avertissement"}."""
+    if p.EI is not None:
+        return {"rapport": None, "source": "EI imposé : type de paroi non exploité", "avertissement": None}
+    if p.type == "paroi_moulee":
+        return {"rapport": 1.0, "source": "paroi moulée : plaque de béton continue (hypothèse)",
+                "avertissement": None if p.longueur_panneau else
+                "Pseudo-3D : paroi moulée traitée comme une plaque continue ; les joints entre panneaux ne "
+                "transmettent pas de moment horizontal : donnez paroi.longueur_panneau pour les placer."}
+    if p.type == "palplanche":
+        return {"rapport": 0.0, "source": "palplanches : serrures libres, aucune flexion horizontale (hypothèse)",
+                "avertissement": "Pseudo-3D : palplanches sans rigidité horizontale (serrures libres) : des butons "
+                "ponctuels ne retiennent que leur ligne ; prévoyez une lierne (appuis.<nom>.lierne) ou imposez "
+                "pseudo3d.rigidite_horizontale."}
+    if p.type == "pieux_secants":
+        return {"rapport": 0.0, "source": "pieux sécants : recouvrements non armés sans continuité (hypothèse, TODO-NORME)",
+                "avertissement": "Pseudo-3D : pieux sécants sans rigidité horizontale (recouvrements non armés) ; "
+                "imposez pseudo3d.rigidite_horizontale si une continuité est justifiée."}
+    return {"rapport": 0.0, "source": f"{p.type} : éléments indépendants, blindage négligé (hypothèse)",
+            "avertissement": f"Pseudo-3D : {p.type} sans rigidité horizontale (éléments indépendants) ; les butons "
+            "ponctuels ne retiennent que leur ligne sans lierne."}

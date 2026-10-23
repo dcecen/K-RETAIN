@@ -67,6 +67,11 @@ class Paroi(_Base):
     armatures_fouille: float | None = Field(None, gt=0, description="paroi moulée : armatures côté fouille (cm²/m)")
     armatures_terre: float | None = Field(None, gt=0, description="paroi moulée : armatures côté terre (cm²/m)")
     armatures_pieu: float | None = Field(None, gt=0, description="pieux : armatures longitudinales par pieu (cm²)")
+    longueur_panneau: float | None = Field(
+        None, gt=0, description="paroi moulée (pseudo-3D) : longueur des panneaux (m) ; un joint entre panneaux ne transmet "
+                                "ni moment ni torsion horizontaux")
+    origine_panneaux: float = Field(
+        0.0, ge=0, description="paroi moulée (pseudo-3D) : abscisse du premier joint le long de la paroi (m)")
 
 
 class Couche(_Base):
@@ -308,7 +313,14 @@ class Pseudo3D(_Base):
     angle: float | None = Field(None, gt=0, lt=360, description="angle de la fouille au milieu de la paroi (degrés) ; "
                                 "seule sa présence compte : la paroi perpendiculaire impose w = 0 sur la ligne d'angle "
                                 "(appui simple, continuité du ferraillage d'angle négligée)")
-    rigidite_horizontale: float | None = Field(None, gt=0, description="EI horizontal par mètre de hauteur (kN·m²/m)")
+    rigidite_horizontale: float | None = Field(
+        None, ge=0, description="rigidité de flexion horizontale Ds imposée, par mètre de hauteur (kN·m²/m ; 0 = aucune) ; "
+                                "défaut selon le type de paroi (paroi moulée : Ds = Dz ; palplanches, pieux, berlinoise : 0)")
+    rapport_rigidite_horizontale: float | None = Field(
+        None, ge=0, description="rapport Ds/Dz imposé (sans unité ; 0 = aucune flexion horizontale, 1 = plaque isotrope) ; "
+                                "prioritaire sur le défaut du type, moins que rigidite_horizontale")
+    torsion: float | None = Field(
+        None, ge=0, description="rigidité de torsion GJ par mètre imposée (kN·m²/m) ; défaut √(Ds·Dz) (plaque de Huber)")
     largeur_appui: float | None = Field(
         None, gt=0, description="largeur sur laquelle chaque appui ponctuel est réparti le long de la paroi (m : plaque "
                                 "d'appui, semelle de lierne) ; sans cette clé l'appui agit sur un seul nœud et Ms, V à "

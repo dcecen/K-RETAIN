@@ -319,6 +319,8 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `armatures_fouille` | nombre |  |  | paroi moulée : armatures côté fouille (cm²/m) (> 0) |
 | `armatures_terre` | nombre |  |  | paroi moulée : armatures côté terre (cm²/m) (> 0) |
 | `armatures_pieu` | nombre |  |  | pieux : armatures longitudinales par pieu (cm²) (> 0) |
+| `longueur_panneau` | nombre |  |  | paroi moulée (pseudo-3D) : longueur des panneaux (m) ; un joint entre panneaux ne transmet ni moment ni torsion horizontaux (> 0) |
+| `origine_panneaux` | nombre |  | 0.0 | paroi moulée (pseudo-3D) : abscisse du premier joint le long de la paroi (m) (≥ 0) |
 
 ### paroi.blindage
 
@@ -475,7 +477,9 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `pas_horizontal` | nombre |  | 0.5 | taille des éléments selon la longueur (m) (> 0.05) |
 | `bords` | libres / encastres / appuyes |  | libres | conditions aux extrémités |
 | `angle` | nombre |  |  | angle de la fouille au milieu de la paroi (degrés) ; seule sa présence compte : la paroi perpendiculaire impose w = 0 sur la ligne d'angle (appui simple, continuité du ferraillage d'angle négligée) (> 0, < 360) |
-| `rigidite_horizontale` | nombre |  |  | EI horizontal par mètre de hauteur (kN·m²/m) (> 0) |
+| `rigidite_horizontale` | nombre |  |  | rigidité de flexion horizontale Ds imposée, par mètre de hauteur (kN·m²/m ; 0 = aucune) ; défaut selon le type de paroi (paroi moulée : Ds = Dz ; palplanches, pieux, berlinoise : 0) (≥ 0) |
+| `rapport_rigidite_horizontale` | nombre |  |  | rapport Ds/Dz imposé (sans unité ; 0 = aucune flexion horizontale, 1 = plaque isotrope) ; prioritaire sur le défaut du type, moins que rigidite_horizontale (≥ 0) |
+| `torsion` | nombre |  |  | rigidité de torsion GJ par mètre imposée (kN·m²/m) ; défaut √(Ds·Dz) (plaque de Huber) (≥ 0) |
 | `largeur_appui` | nombre |  |  | largeur sur laquelle chaque appui ponctuel est réparti le long de la paroi (m : plaque d'appui, semelle de lierne) ; sans cette clé l'appui agit sur un seul nœud et Ms, V à son droit dépendent du maillage (> 0) |
 
 <!-- REFERENCE:FIN -->

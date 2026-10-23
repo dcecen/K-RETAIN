@@ -64,7 +64,9 @@ class ResultatPseudo3D:
 class MoteurPseudo3D:
     def __init__(self, modele: Modele, longueur: float, pas_horizontal: float = 0.5, bords: str = "libres",
                  angle: float | None = None, rigidite_horizontale: float | None = None,
-                 largeur_appui: float | None = None):
+                 largeur_appui: float | None = None, rapport_rigidite_horizontale: float | None = None,
+                 torsion: float | None = None, longueur_panneau: float | None = None,
+                 origine_panneaux: float = 0.0):
         self.m = modele
         self.largeur_appui = largeur_appui
         self.m2 = MoteurPhases(modele)
@@ -75,19 +77,64 @@ class MoteurPseudo3D:
         self.ns, self.nz = ns, nz
         self.avertissements = list(self.m2.avertissements)
         self.Dz = self.m2.EI_elem
-        if rigidite_horizontale is None:
+        # Rigidité horizontale : valeur du script > rapport du script > défaut du type de paroi
+        # (sout.parois.construction.rigidite_horizontale) > isotropie avec avertissement.
+        defaut = modele.ecran.infos.get("rigidite_horizontale") or {}
+        if rigidite_horizontale is not None:
+            self.Ds = np.full_like(self.Dz, float(rigidite_horizontale))
+            source = f"Ds = {rigidite_horizontale:g} kN·m²/m imposé par le script"
+        elif rapport_rigidite_horizontale is not None:
+            self.Ds = float(rapport_rigidite_horizontale) * self.Dz
+            source = f"Ds = {rapport_rigidite_horizontale:g}·Dz imposé par le script"
+        elif defaut.get("rapport") is not None:
+            self.Ds = float(defaut["rapport"]) * self.Dz
+            source = f"Ds = {defaut['rapport']:g}·Dz, {defaut['source']}"
+            if defaut.get("avertissement"):
+                self.avertissements.append(defaut["avertissement"])
+        else:
             self.Ds = self.Dz.copy()
+            source = "Ds = Dz, plaque isotrope par défaut"
             self.avertissements.append(
                 "Pseudo-3D : rigidité horizontale non donnée, plaque isotrope (Ds = Dz). Pour des palplanches, "
                 "des pieux disjoints ou une paroi moulée à joints, donnez pseudo3d.rigidite_horizontale.")
-        else:
-            self.Ds = np.full_like(self.Dz, rigidite_horizontale)
-        K = plaque.assembler(self.s, self.z, self.Dz, self.Ds)
+        if 0.0 < float(self.Ds.max()) < 1e-6 * float(self.Dz.max()):
+            self.avertissements.append(
+                "Pseudo-3D : rigidité horizontale inférieure à 1e-6·Dz, arrondie à 0 (conditionnement numérique).")
+            self.Ds = np.zeros_like(self.Dz)
+        self.Ds_nulle = bool(float(self.Ds.max()) <= 0.0)
+        self.GJ = np.sqrt(self.Ds * self.Dz) if torsion is None else np.full_like(self.Dz, float(torsion))
+        self.avertissements.append(
+            f"Pseudo-3D : rigidité horizontale {source} ; torsion GJ = "
+            + ("√(Ds·Dz) (plaque de Huber, ν = 0)" if torsion is None else f"{torsion:g} kN·m²/m imposée") + ".")
+        # Joints de panneaux : aucun moment ni torsion horizontaux à travers l'élément qui porte le joint
+        self.coef_h = None
+        self.joints: list[float] = []
+        if longueur_panneau is not None and longueur_panneau < longueur - 1e-9:
+            if longueur_panneau < 2 * pas_horizontal:
+                raise ErreurModele(f"pseudo3d : longueur_panneau ({longueur_panneau} m) doit valoir au moins deux fois "
+                                   f"pas_horizontal ({pas_horizontal} m)")
+            x = float(origine_panneaux)
+            while x < longueur - 1e-9:
+                if x > 1e-9:
+                    self.joints.append(x)
+                x += longueur_panneau
+            self.coef_h = np.ones((ns - 1, nz))
+            for x in self.joints:
+                i = min(int(np.searchsorted(self.s, x + 1e-9) - 1), ns - 2)
+                self.coef_h[max(i, 0), :] = 0.0
+            self.avertissements.append(
+                f"Pseudo-3D : joints de panneaux en s = {', '.join(f'{x:g}' for x in self.joints)} m : "
+                "aucun moment horizontal ni torsion transmis (panneaux indépendants en flexion horizontale).")
+        K = plaque.assembler(self.s, self.z, self.Dz, self.Ds, coef_h=self.coef_h, GJ_elem=self.GJ)
         # Grillage réduit à la flexion verticale (forces de transfert, voir plaque.forces_transfert)
-        self.K_v = plaque.assembler(self.s, self.z, self.Dz, np.zeros_like(self.Ds))
+        self.K_v = plaque.assembler(self.s, self.z, self.Dz, np.zeros_like(self.Ds), GJ_elem=np.zeros_like(self.Dz))
         # Conditions aux limites par pénalité
         self.pen = 1e4 * float(K.diagonal().max())
         diag = np.zeros(K.shape[0])
+        if self.Ds_nulle:
+            # Sans flexion horizontale, θs n'est tenu que par la torsion des poutres verticales, qui
+            # laisse libre la rotation d'ensemble de chaque ligne : θs est bloqué (bandes indépendantes).
+            diag[2::3] = self.pen
         if bords in ("appuyes", "encastres"):
             for i in (0, ns - 1):
                 for j in range(nz):
@@ -149,8 +196,8 @@ class MoteurPseudo3D:
         de chaque ligne (plaque.efforts_lignes), réactions, forces nodales et bilan d'équilibre."""
         m2, ns, nz = self.m2, self.ns, self.nz
         W = u[0::3]
-        Mz, Ms = plaque.moments(self.s, self.z, self.Dz, self.Ds, u)
-        Mzs = plaque.torsion(self.s, self.z, self.Dz, self.Ds, u)
+        Mz, Ms = plaque.moments(self.s, self.z, self.Dz, self.Ds, u, coef_h=self.coef_h)
+        Mzs = plaque.torsion(self.s, self.z, self.Dz, self.Ds, u, GJ_elem=self.GJ)
         p, _ = r.pressions(W)
         nd, m2n = m2.nd, self.m2_taille
         A, P = r.A.reshape(ns, m2n), p.reshape(ns, m2n)
@@ -296,8 +343,10 @@ def depuis_script(ex) -> ResultatPseudo3D:
     p = ex.script.pseudo3d
     if p is None:
         raise ErreurModele("mode pseudo3d : bloc pseudo3d (longueur, pas_horizontal, bords) obligatoire")
+    paroi = ex.script.paroi
     return MoteurPseudo3D(ex.modele, p.longueur, p.pas_horizontal, p.bords, p.angle, p.rigidite_horizontale,
-                          p.largeur_appui).calculer()
+                          p.largeur_appui, p.rapport_rigidite_horizontale, p.torsion,
+                          paroi.longueur_panneau, paroi.origine_panneaux).calculer()
 
 
 def _sous_echantillon(n: int, max_n: int) -> np.ndarray:

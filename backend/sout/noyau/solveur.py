@@ -131,7 +131,7 @@ def resoudre_general(
     # petite devant la raideur du sol pour ne pas fausser la direction de Newton.
     reg = 1e-9 * max(1.0, float((ressorts.A * ressorts.kh).max(initial=0.0)),
                      float(appuis.k.max(initial=0.0)))
-    diag_max = float(Kb.diagonal().max())
+    diag = Kb.diagonal()
 
     def residu_et_tangente(u_: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         y = u_[ddl_y]
@@ -154,8 +154,10 @@ def resoudre_general(
     it = 0
     pas_negligeable = False
     for it in range(1, max_iter + 1):
-        # Tolérance : forces en jeu + bruit d'arrondi de la rigidité de la structure.
-        tol_it = tol + 1e-13 * diag_max * max(float(np.abs(u).max()), 1e-6)
+        # Tolérance : forces en jeu + bruit d'arrondi du produit K·u, estimé par max|K_ii·u_i|
+        # (pour un degré de liberté pénalisé — bord, angle du pseudo-3D — c'est la réaction
+        # physique, et non la pénalité multipliée par un déplacement quelconque).
+        tol_it = tol + 1e-13 * max(float(np.abs(diag * u).max()), 1e-6)
         if nR < tol_it or pas_negligeable:
             break
         J = Kb + sparse.csc_matrix((kt + reg, (ddl_y, ddl_y)), shape=(N, N))
