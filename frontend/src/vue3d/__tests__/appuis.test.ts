@@ -13,7 +13,7 @@ import { indicePhase, jeu, nouvelleScene } from './outils'
 const TOUT = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS]
 
 describe('résultats des appuis en 3D', () => {
-  it("l'étiquette de B1 affiche 141 kN/m et 847 kN (service) puis l'effort ELU", () => {
+  it("l'étiquette de B1 affiche 142 kN/m et 853 kN (service) puis l'effort ELU", () => {
     const { sc } = nouvelleScene(TOUT)
     const res = jeu('exemple')
     sc.charger(res)
@@ -21,16 +21,16 @@ describe('résultats des appuis en 3D', () => {
     sc.appliquerCalques(versScene(e))
     sc.phase(indicePhase(res, 'Terrassement final et pompage'))
     const et = sc.etiquettesCourantes.find((x) => x.id === 'effort.B1')!
-    expect(et.texte).toContain('141 kN/m')
-    expect(et.texte).toContain('847 kN')
+    expect(et.texte).toContain('142 kN/m')
+    expect(et.texte).toContain('853 kN')
     e = definirMode(e, 'resultats.efforts', 'elu')
     sc.appliquerCalques(versScene(e))
     const elu = sc.etiquettesCourantes.find((x) => x.id === 'effort.B1')!
-    expect(elu.texte).toContain('1 143 kN')
+    expect(elu.texte).toContain('1 152 kN')
     expect(elu.texte).toContain('ELU')
     const ap = res.phases[3].appuis!.find((a) => a.nom === 'B1')!
-    expect(effortAppui(ap, 'elu')!.axial).toBeCloseTo(1.35 * 846.91, 0)
-    expect(maxEfforts(res, 'service')).toBeCloseTo(141.15, 1)
+    expect(effortAppui(ap, 'elu')!.axial).toBeCloseTo(1.35 * 853.151, 0)
+    expect(maxEfforts(res, 'service')).toBeCloseTo(142.19, 1)
     // couleur par effort : le buton n'a plus sa couleur de base
     const mat = (sc.elements.get('appui.B1')!.objet.children[0] as THREE.Mesh).material as THREE.MeshLambertMaterial
     expect(mat.color.getHex()).not.toBe(0x2ca02c)
@@ -89,7 +89,7 @@ describe('résultats des appuis en 3D', () => {
   it('colore butons, liernes et assemblages par leur taux de travail', () => {
     const res = jeu('ecoulement')
     expect(tauxAppui(res.verifications, 'B2', {}, FILTRE_BARRE)).toBeCloseTo(99, 6)
-    expect(tauxAppui(res.verifications, 'B1', {}, FILTRE_LIERNE)).toBeCloseTo(0.648, 2)
+    expect(tauxAppui(res.verifications, 'B1', {}, FILTRE_LIERNE)).toBeCloseTo(0.654, 2)
     const { sc } = nouvelleScene(TOUT)
     sc.charger(res)
     sc.appliquerCalques(versScene(definirVisible(etatInitial(), 'resultats.taux', true)))
@@ -110,7 +110,7 @@ describe('résultats des appuis en 3D', () => {
     const mA1 = (s2.elements.get('appui.assemblage.A1')!.objet as THREE.Mesh).material as THREE.MeshLambertMaterial
     expect(mA3.color.getHex()).toBe(COULEURS_TAUX.rouge)
     expect(mA1.color.getHex()).toBe(COULEURS_TAUX.vert)
-    expect(s2.etiquettesCourantes.find((x) => x.id === 'nom.A3')!.texte).toContain('139 %')
+    expect(s2.etiquettesCourantes.find((x) => x.id === 'nom.A3')!.texte).toContain('140 %')
     // seuils réglables
     s2.appliquerCalques(versScene(definirReglage(definirVisible(etatInitial(), 'resultats.taux', true), 'resultats.taux', 'orange', 0.5)))
     expect(mA1.color.getHex()).toBe(COULEURS_TAUX.orange)   // A1 : 61 % ≥ 50 %
@@ -124,7 +124,7 @@ describe('résultats des appuis en 3D', () => {
     const l = legendes(res, versScene(e), 3)
     const ef = l.find((x) => x.id === 'efforts')!
     expect(ef.type).toBe('continue')
-    if (ef.type === 'continue') { expect(ef.unite).toBe('kN/m'); expect(ef.max).toBeCloseTo(141.15, 1) }
+    if (ef.type === 'continue') { expect(ef.unite).toBe('kN/m'); expect(ef.max).toBeCloseTo(142.19, 1) }
     expect(l.find((x) => x.id === 'fleches')!.titre).toContain('Flèche')
   })
 

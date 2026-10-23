@@ -186,5 +186,5 @@ def test_remblai_a_une_phase_ajoute_une_couche():
 def test_non_regression_sans_objet_de_terrain():
     api.vider_cache_coupes()
     r = TestClient(api.app).post("/api/calcul", json={"texte": BASE}).json()
-    assert r["resultats"]["dimensionnant"]["deplacement"]["valeur_mm"] == pytest.approx(17.7606, rel=1e-3)
+    assert r["resultats"]["dimensionnant"]["deplacement"]["valeur_mm"] == pytest.approx(17.6472, rel=1e-3)
     assert r["resultats"]["maquette"]["terrain"]["objets"] == [] and r["resultats"]["maquette"]["terrain"]["pente_beta"] is None

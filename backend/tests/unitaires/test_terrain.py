@@ -134,7 +134,7 @@ plan:
     # la grue charge la phase 3 et plus la phase 4 : déplacement en phase « Terrassement final » différent du cas exemple
     y_ref = TestClient(api.app).post("/api/calcul", json={"texte": BASE}).json()["resultats"]["phases"][3]["synthese"]["y_max_mm"]
     assert r["resultats"]["phases"][3]["synthese"]["y_max_mm"] != pytest.approx(y_ref, rel=1e-4)
-    assert y_ref == pytest.approx(17.7606, rel=1e-3)
+    assert y_ref == pytest.approx(17.6472, rel=1e-3)
     # convoi : accepté par le schéma, refusé au calcul
     conv = BASE.replace("  - { type: bande, q: 20, distance: 1.0, largeur: 5.0 }", "  - { type: convoi, modele: Bc, q: 0 }")
     with pytest.raises(ErreurModele, match="TODO-NORME"):

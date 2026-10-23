@@ -11,7 +11,7 @@ describe('navigation depuis la maquette', () => {
     const sel = analyserSelection('appui:B1')!
     expect(sel).toEqual({ type: 'appui', nom: 'B1' })
     const a = res.phases[3].appuis!.find((x) => x.nom === 'B1')!
-    expect(a.effort_kN_m).toBeCloseTo(141.15, 1)
+    expect(a.effort_kN_m).toBeCloseTo(142.19, 1)
     const vs = verifsPour(sel, res, res.maquette!.assemblages)
     expect(vs.map((v) => v.nom)).toContain('Buton — flambement et flexion')
     expect(vs.some((v) => v.element.startsWith('A1'))).toBe(true)          // assemblages de B1

@@ -367,3 +367,31 @@ pas ici : la non-régression porte sur `exemples/fouille_exemple.yaml` (valeurs 
   disponible et affichée. Tables de Kérisel-Absi avec talus : non fournies (Coulomb avec β seulement).
 - Si vous disposez du `cas.yaml` d'origine du prompt, l'ajouter dans `exemples/` pour en faire la
   référence de non-régression.
+
+## Revue du moteur de calcul (déplacements, moments, efforts) : fait
+
+Contrôles menés (scripts de diagnostic, non versionnés) : effort tranchant égal à la résultante
+des forces nodales et moment égal à son intégrale (écarts < 1e-6), équilibre global avec eau et
+appuis à chaque phase, Hetényi (flèche à 3e-7, moment en O(h²)), moment nul au-dessus du terrain,
+convergence du maillage (pas 0,5 à 0,02 m : y et M stables à 0,3 %), scénarios : excavation
+progressive, excavation puis remblai, buton précontraint, nappe amont seule, tête hors sol,
+surcharge ajoutée puis retirée, sol cohérent, écran très rigide, dépose d'appui, fouille sous
+l'eau, appui en tête, EI par segments, excavation au toit d'une couche, buton unilatéral.
+
+Deux défauts corrigés (tests de non-régression ajoutés) :
+| Gravité | Constat | Correction |
+| --- | --- | --- |
+| Majeur | Précharge/précontrainte : effort = F0 + k·(y − y_avant_pose) ; le recul de l'écran sous la mise en charge consommait aussitôt une part de F0 (buton précontraint à 100 kN/m : 36 kN/m à la fin de sa phase de pose ; exemple livré : 8,3 → 3,9 kN/m) | Mise en charge au vérin résolue comme sous-étape au début de la phase de pose (force F0 seule, état du sol de la phase précédente), puis appui bloqué : ressort dont le point zéro est le déplacement après mise en charge. L'effort vaut exactement F0 à la fin d'une phase de pose seule (convention K-Réa) ; une excavation dans la même phase charge ensuite le ressort. Même règle en pseudo-3D. |
+| Mineur | Effort tranchant non nul au pied libre (−4,5 kN au pas de 0,1 m, −17 kN au pas de 0,5 m) : charge de la demi-maille d'extrémité concentrée au nœud | Diagrammes M et V calculés par la statique avec les charges réparties sur leurs demi-mailles (`poutre.efforts_par_statique`) : V = 0 aux extrémités libres, M continu, sauts de V au droit des appuis. Le système résolu (charges nodales) est inchangé ; M au pied porte un résidu de l'ordre de 0,05 % du moment maximal. |
+
+Test modifié en conséquence : `test_precontrainte_retrouvee_dans_l_effort` (le point zéro de
+l'appui est désormais le déplacement à la fin de la phase de pose, et l'effort y vaut F0).
+
+Sans écart constaté (comportements vérifiés, hypothèses inchangées) : décalage Kd·Δσ'v à
+l'excavation, au remblai et au changement de nappe ; remblai au repos contre l'écran déplacé ;
+décharge élastique après retrait de surcharge (asymétrie charge/décharge propre au modèle
+élasto-plastique) ; appui unilatéral qui décolle puis reprend.
+
+Reste à faire : comparaison aux cas de référence K-Réa/RIDO (toujours absents) ; charges
+réparties cohérentes dans le système résolu (termes de rotation) si un maillage grossier doit être
+utilisé ; coefficient de recharge distinct de Kd (K-Réa : kr) si la pratique l'exige.

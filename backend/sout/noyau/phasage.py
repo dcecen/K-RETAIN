@@ -12,7 +12,15 @@ de référence, voir Delattre 2001, BLPC 234) :
   (par défaut K0), puis la pression est ramenée entre pa et pp ;
 - un sol mis en place (remblai) démarre au repos contre l'écran déplacé ;
 - un appui ne reprend que les déplacements postérieurs à sa pose, plus sa
-  précharge (ou précontrainte) F0 ;
+  précharge (ou précontrainte) F0 : effort = F0 + k·(y − y_pose). Un appui
+  précontraint est d'abord mis en charge au vérin (sous-étape résolue au début
+  de sa phase de pose, sur l'état du sol de la phase précédente) : il exerce la
+  force F0 seule, l'écran recule, puis l'appui est bloqué et devient un ressort
+  dont le point zéro y_pose est le déplacement atteint après mise en charge.
+  Ainsi, à la fin d'une phase de pose seule, l'effort vaut exactement F0 (comme
+  dans K-Réa, où le tirant précontraint n'agit que par sa précontrainte dans sa
+  phase d'activation) ; si la phase comporte aussi une excavation, celle-ci
+  charge ensuite l'appui élastiquement ;
 - eau : pressions hydrostatiques amont et aval appliquées sur toute la
   largeur de l'écran.
 
@@ -33,7 +41,7 @@ from ..sol.kh import em_depuis_cpt, kh_schmitt
 from ..sol.surcharges import Surcharge
 from ..sol.terrain import CoupeCalcul, ErreurTerrain, delta_sigma_v_surcharges
 from .modele import Modele, Phase
-from .poutre import maillage
+from .poutre import efforts_par_statique, maillage
 from .ressorts import AMONT, AVAL, Ressorts
 from .solveur import Appuis, RuptureEquilibre, resoudre
 
@@ -336,6 +344,22 @@ class MoteurPhases:
         r.A = np.where(present, sol["L"] * sol["fl"] * largeur, 0.0)
         r.kh = sol["kh"]
 
+    def _appuis(self, poses: dict[str, tuple[float, float]],
+                forces: list[tuple[str, float, float, float]] = ()) -> Appuis:
+        """Appuis ponctuels de la phase : ceux de `poses` (nom -> (y_pose, F0), raideur du modèle)
+        plus des appuis imposés `forces` = (nom, y_pose, F0, raideur), par ex. en mise en charge au vérin."""
+        m = self.m
+        lignes = [(nm, poses[nm][0], poses[nm][1], m.appuis[nm].raideur) for nm in poses] + list(forces)
+        defs = [m.appuis[nm] for nm, *_ in lignes]
+        return Appuis(
+            nom=[nm for nm, *_ in lignes],
+            noeud=np.array([int(np.argmin(np.abs(self.z - d.cote))) for d in defs], dtype=int),
+            k=np.array([l[3] for l in lignes], dtype=float),
+            F0=np.array([l[2] for l in lignes], dtype=float),
+            y_pose=np.array([l[1] for l in lignes], dtype=float),
+            unilateral=np.array([d.unilateral for d in defs], dtype=bool),
+        )
+
     # ------------------------------------------------------------------
     def calculer(self) -> ResultatCalcul:
         m = self.m
@@ -346,6 +370,7 @@ class MoteurPhases:
         u = np.zeros(2 * n)
         sv_prec = np.zeros(2 * self.nd)
         present_prec = np.zeros(2 * self.nd, dtype=bool)
+        f_ext_prec = np.zeros(2 * n)     # forces imposées (eau) de la dernière phase calculée
         r = self.ressorts
         resultats: list[ResultatPhase] = []
 
@@ -369,6 +394,7 @@ class MoteurPhases:
                 if parent != k_ph - 1 or resultats[-1].ok is False:
                     inst = copy.deepcopy(instantanes[parent])
                     etat, poses, u, sv_prec, present_prec = inst["etat"], inst["poses"], inst["u"], inst["sv_prec"], inst["present_prec"]
+                    f_ext_prec = inst["f_ext"]
                     terrain, eau = etat["terrain"], etat["eau"]
                     r.p_ref, r.y_ref, r.pa, r.pp, r.A, r.kh = (inst["ressorts"][c].copy() for c in ("p_ref", "y_ref", "pa", "pp", "A", "kh"))
             try:
@@ -380,6 +406,24 @@ class MoteurPhases:
                 continue
             for nom in deposer:
                 poses.pop(nom, None)
+            base = dict(terrain_amont=terrain[AMONT], terrain_aval=terrain[AVAL],
+                        eau_amont=eau[AMONT], eau_aval=eau[AVAL])
+
+            # Sous-étape : mise en charge au vérin des appuis posés avec précharge, sur l'état du
+            # sol et de l'eau de la phase précédente (ressorts non encore mis à jour). L'appui
+            # n'exerce que la force F0 (raideur nulle) ; les appuis déjà posés réagissent.
+            a_verin = [nm for nm in poser if m.appuis[nm].precharge != 0.0]
+            if a_verin:
+                appuis_v = self._appuis(poses, [(nm, 0.0, m.appuis[nm].precharge, 0.0) for nm in a_verin])
+                try:
+                    sol_v = resoudre(self.z, self.EI_elem, r, appuis_v, f_ext_prec, u0=u, y_rupture=m.y_rupture)
+                except RuptureEquilibre as e:
+                    resultats.append(ResultatPhase(ph.nom, False, f"Rupture à la mise en charge des appuis : {e}",
+                                                   **base, parent=parents[k_ph]))
+                    continue
+                u = sol_v.u
+                r.memoriser(sol_v.y)
+            # Les appuis posés deviennent des ressorts : point zéro = déplacement après mise en charge.
             y_noeuds = u[0::2]
             for nom in poser:
                 a = m.appuis[nom]
@@ -394,17 +438,8 @@ class MoteurPhases:
 
             noms = list(poses)
             defs = [m.appuis[nm] for nm in noms]
-            appuis = Appuis(
-                nom=noms,
-                noeud=np.array([int(np.argmin(np.abs(self.z - d.cote))) for d in defs], dtype=int),
-                k=np.array([d.raideur for d in defs], dtype=float),
-                F0=np.array([poses[nm][1] for nm in noms], dtype=float),
-                y_pose=np.array([poses[nm][0] for nm in noms], dtype=float),
-                unilateral=np.array([d.unilateral for d in defs], dtype=bool),
-            )
+            appuis = self._appuis(poses)
 
-            base = dict(terrain_amont=terrain[AMONT], terrain_aval=terrain[AVAL],
-                        eau_amont=eau[AMONT], eau_aval=eau[AVAL])
             try:
                 solution = resoudre(self.z, self.EI_elem, r, appuis, f_ext, u0=u, y_rupture=m.y_rupture)
             except RuptureEquilibre as e:
@@ -414,6 +449,13 @@ class MoteurPhases:
             u = solution.u
             r.memoriser(solution.y)
             sv_prec, present_prec = sol["sv"], sol["present"]
+            f_ext_prec = f_ext
+            # Diagrammes M et V par la statique, charges réparties sur leurs demi-mailles
+            # (V nul aux extrémités libres) ; q = pression nette sol + eau, par mètre d'écran.
+            nd = self.nd
+            q = (r.A[:nd] * solution.p[:nd] - r.A[nd:] * solution.p[nd:]) / self.d_L + (u_am - u_av)
+            z_diag, M_diag, V_diag = efforts_par_statique(self.z, self.d_zb, self.d_zh, q,
+                                                          appuis.noeud, -solution.efforts_appuis)
             present, fl, pa, pp, sv = sol["present"], sol["fl"], sol["pa"], sol["pp"], sol["sv"]
 
             pressions = {}
@@ -437,7 +479,7 @@ class MoteurPhases:
             ordre = np.argsort(self.d_zm)
             resultats.append(ResultatPhase(
                 nom=ph.nom, ok=True, message="", **base,
-                z=self.z, y=solution.y, z_diag=solution.z_diag, M=solution.M, V=solution.V,
+                z=self.z, y=solution.y, z_diag=z_diag, M=M_diag, V=V_diag,
                 pressions=pressions,
                 eau={"z": self.d_zm[ordre], "u_amont": u_am[ordre], "u_aval": u_av[ordre]},
                 appuis=[{"nom": nm, "cote": d.cote, "type": d.type, "effort": float(e_), "actif": bool(a_)}
@@ -446,7 +488,7 @@ class MoteurPhases:
                 hydro=ecoul.serialiser() if ecoul is not None else None, ecoulement=ecoul, parent=parents[k_ph],
             ))
             instantanes[k_ph] = {"etat": copy.deepcopy(etat), "poses": dict(poses), "u": u.copy(), "sv_prec": sv_prec.copy(),
-                                 "present_prec": present_prec.copy(),
+                                 "present_prec": present_prec.copy(), "f_ext": f_ext.copy(),
                                  "ressorts": {c: getattr(r, c).copy() for c in ("p_ref", "y_ref", "pa", "pp", "A", "kh")}}
         return ResultatCalcul(phases=resultats, z=self.z, avertissements=self.avertissements)
 

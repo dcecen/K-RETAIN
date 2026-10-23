@@ -88,15 +88,46 @@ def test_precontrainte_retrouvee_dans_l_effort():
     assert res.complet
     for ph in res.phases[2:]:
         assert ph.appuis[0]["effort"] == pytest.approx(80.0)
-    # Raideur non nulle : effort = F0 + k·(y − y_pose)
+    # Raideur non nulle : effort = F0 + k·(y − y_pose), où y_pose est le déplacement atteint
+    # à la fin de la mise en tension (phase de pose), et non celui d'avant la pose : le vérin
+    # impose F0, l'écran recule, puis le tirant est bloqué.
     k = 5000.0
     app = {"T": DefAppui("T", -1.0, k, precharge=80.0, type="tirant")}
     res = calculer(_modele([Phase("Exc", excaver=-2.0), Phase("Tirant", poser=["T"]),
                             Phase("Exc2", excaver=-4.0)], appuis=app))
     i = int(np.argmin(np.abs(res.z + 1.0)))
-    y_pose = res.phases[1].y[i]
-    for ph in res.phases[2:]:
+    assert res.phases[2].appuis[0]["effort"] == pytest.approx(80.0, abs=1e-6)
+    y_pose = res.phases[2].y[i]
+    for ph in res.phases[3:]:
         assert ph.appuis[0]["effort"] == pytest.approx(80.0 + k * (ph.y[i] - y_pose))
+
+
+def test_precharge_portee_integralement_apres_la_pose():
+    """Un buton précontraint à F0, posé dans une phase sans autre action, porte exactement F0
+    à la fin de cette phase (le vérin maintient F0 jusqu'au blocage) et l'écran a reculé.
+    Avant correction, l'effort valait F0 + k·(recul) et perdait plus de la moitié de F0."""
+    k = 5e4
+    app = {"B": DefAppui("B", -0.5, k, precharge=100.0)}
+    res = calculer(_modele([Phase("Exc", excaver=-2.0), Phase("Pose", poser=["B"]), Phase("Rien"),
+                            Phase("Exc2", excaver=-5.0)], appuis=app))
+    assert res.complet, [p.message for p in res.phases]
+    exc, pose, rien, exc2 = res.phases[1:]
+    assert pose.appuis[0]["effort"] == pytest.approx(100.0, abs=1e-6)
+    assert rien.appuis[0]["effort"] == pytest.approx(100.0, abs=1e-6)
+    assert pose.y[-1] < exc.y[-1]                       # l'écran recule sous la précharge
+    assert abs(_equilibre(pose)) < 1e-6 and abs(_equilibre(exc2)) < 1e-6
+    # Pose et excavation dans la même phase : mise en charge d'abord, puis l'excavation charge
+    # le ressort ; même état final que pose puis excavation en deux phases.
+    res2 = calculer(_modele([Phase("Exc", excaver=-2.0), Phase("Pose+Exc2", poser=["B"], excaver=-5.0)], appuis=app))
+    assert res2.complet
+    np.testing.assert_allclose(res2.phases[-1].y, exc2.y, atol=1e-9)
+    assert res2.phases[-1].appuis[0]["effort"] == pytest.approx(exc2.appuis[0]["effort"], abs=1e-6)
+    # Continuité : une précharge infime donne le même résultat qu'une précharge nulle.
+    app0 = {"B": DefAppui("B", -0.5, k, precharge=0.0)}
+    app1 = {"B": DefAppui("B", -0.5, k, precharge=1e-9)}
+    phases = [Phase("Exc", excaver=-2.0), Phase("Pose", poser=["B"]), Phase("Exc2", excaver=-5.0)]
+    r0, r1 = calculer(_modele(phases, appuis=app0)), calculer(_modele(phases, appuis=app1))
+    np.testing.assert_allclose(r1.phases[-1].y, r0.phases[-1].y, atol=1e-9)
 
 
 def test_surcharge_ajout_puis_retrait():

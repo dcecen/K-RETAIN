@@ -47,6 +47,15 @@ def test_paroi_tres_longue_retrouve_le_2d(calculs):
     assert np.mean(eff) == pytest.approx(fin2.appuis[0]["effort"] * 4.0, rel=0.05)
 
 
+def test_precharge_portee_apres_la_pose(calculs):
+    """Même règle qu'en 2D : après la phase de pose seule, l'appui porte exactement sa précharge
+    (20 kN/m en 2D ; en pseudo-3D chaque appui ponctuel porte 20 kN/m × espacement 4 m = 80 kN)."""
+    r2, r3 = calculs
+    assert r2.phases[2].appuis[0]["effort"] == pytest.approx(20.0, abs=1e-6)
+    for a in r3.phases[2].appuis:
+        assert a["effort"] == pytest.approx(20.0 * 4.0, abs=1e-6)
+
+
 def test_effet_d_angle_coherent():
     m = _modele()
     r2 = calculer(m)

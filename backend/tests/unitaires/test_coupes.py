@@ -76,7 +76,7 @@ def test_trois_coupes_calculees_independamment():
     y1 = r["resultats"]["dimensionnant"]["deplacement"]["valeur_mm"]
     y2 = pr["coupes"][1]["resultats"]["dimensionnant"]["deplacement"]["valeur_mm"]
     y3 = pr["coupes"][2]["resultats"]["dimensionnant"]["deplacement"]["valeur_mm"]
-    assert y1 == pytest.approx(17.7606, rel=1e-3)        # C1 = script principal = cas exemple
+    assert y1 == pytest.approx(17.6472, rel=1e-3)        # C1 = script principal = cas exemple
     assert y2 > 1.2 * y1                                 # sol plus faible : paroi plus souple
     assert y3 < y1                                       # excavation moins profonde
     assert api.statistiques_cache()["calculs"] == 3
@@ -110,7 +110,7 @@ def test_script_sans_coupes_identique_au_comportement_actuel():
     assert r["ok"]
     assert r["projet"]["unique"] is True and len(r["projet"]["coupes"]) == 1
     assert r["projet"]["coupes"][0]["nom"] == "Coupe unique"
-    assert r["resultats"]["dimensionnant"]["deplacement"]["valeur_mm"] == pytest.approx(17.7606, rel=1e-3)
+    assert r["resultats"]["dimensionnant"]["deplacement"]["valeur_mm"] == pytest.approx(17.6472, rel=1e-3)
     assert r["projet"]["phasage_projet"] == [p["nom"] for p in r["resultats"]["phases"]]
     assert r["projet"]["orphelins"] == []
 

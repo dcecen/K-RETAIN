@@ -25,23 +25,25 @@ def exemple() -> dict:
 
 
 def test_non_regression_cas_exemple(exemple):
-    """Valeurs du cas exemple figées avant la refonte de la vue 3D : la vue ne modifie rien."""
+    """Valeurs du cas exemple figées avant la refonte de la vue 3D : la vue ne modifie rien.
+    Mises à jour le 23/10/2026 : mise en charge au vérin de la précharge de B1 (50 kN/m) et
+    diagrammes M/V par la statique (voir docs/ETAT.md, « Revue du moteur de calcul »)."""
     ph = next(p for p in exemple["phases"] if p["nom"] == "Terrassement final et pompage")
     s = ph["synthese"]
-    assert s["y_max_mm"] == pytest.approx(17.7606, rel=1e-3)
+    assert s["y_max_mm"] == pytest.approx(17.6472, rel=1e-3)
     assert s["z_y_max"] == pytest.approx(-5.5, abs=1e-6)
-    assert s["M_max"] == pytest.approx(254.779, rel=1e-3)
-    assert s["M_min"] == pytest.approx(-154.064, rel=1e-3)
+    assert s["M_max"] == pytest.approx(254.71, rel=1e-3)
+    assert s["M_min"] == pytest.approx(-153.372, rel=1e-3)
     b1 = next(a for a in ph["appuis"] if a["nom"] == "B1")
-    assert b1["effort_kN_m"] == pytest.approx(141.152, rel=1e-3)
-    assert b1["effort_axial_kN"] == pytest.approx(846.91, rel=1e-3)
+    assert b1["effort_kN_m"] == pytest.approx(142.192, rel=1e-3)
+    assert b1["effort_axial_kN"] == pytest.approx(853.151, rel=1e-3)
 
 
 def test_complement_appuis_fleches_et_elu(exemple):
     """Chaque appui porte, par phase, son effort ELU et ses flèches issues du module de vérification."""
     ph = next(p for p in exemple["phases"] if p["nom"] == "Terrassement final et pompage")
     b1 = next(a for a in ph["appuis"] if a["nom"] == "B1")
-    assert b1["effort_elu_kN"] == pytest.approx(1.35 * 846.91, rel=1e-3)
+    assert b1["effort_elu_kN"] == pytest.approx(1.35 * 853.151, rel=1e-3)
     assert b1["fleche_mm"] is not None and 0 < b1["fleche_mm"] < 200
     assert b1["fleche_mm"] > b1["fleche_poids_propre_mm"]
     assert b1["N_cr_kN"] > b1["effort_axial_kN"]

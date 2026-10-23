@@ -21,7 +21,7 @@ describe('coupe locale et source de résultats', () => {
     expect(src.coupeLocale(3, 5, 3)).toBeNull()                    // tronçon orphelin
     // coupe unique : les mêmes résultats partout
     const u = source2D(null, jeu('exemple'), 0).coupeLocale(1, 3, 3)!
-    expect(u.res.phases[3].synthese!.y_max_mm).toBeCloseTo(17.76, 1)
+    expect(u.res.phases[3].synthese!.y_max_mm).toBeCloseTo(17.65, 1)
   })
 
   it('avec une source factice de type pseudo-3D, les courbes extraites suivent la fonction à 1 % près', () => {

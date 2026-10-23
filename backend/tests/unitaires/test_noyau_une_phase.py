@@ -29,6 +29,41 @@ def test_console_encastree_charge_en_tete():
     np.testing.assert_allclose(V, P, rtol=1e-10)
 
 
+def test_efforts_par_statique_console_charge_repartie():
+    # Console encastrée en pied (z = 0), charge répartie q sur toute la hauteur L, vers la fouille :
+    # V(z) = q·(L − z), M(z) = −q·(L − z)²/2 ; nuls en tête (extrémité libre).
+    from sout.noyau.poutre import efforts_par_statique
+    L, q = 6.0, 12.0
+    z = maillage([], 0.0, L, 0.5)
+    zb, zh = z[:-1], z[1:]                       # un tronçon par élément
+    zp, M, V = efforts_par_statique(z, zb, zh, np.full(len(zb), q))
+    np.testing.assert_allclose(V, q * (L - zp), atol=1e-12)
+    np.testing.assert_allclose(M, -q * (L - zp) ** 2 / 2, atol=1e-12)
+    # avec une force ponctuelle P en tête (nœud du haut), V saute de P et M = −P·(L − z) en plus
+    P = 30.0
+    zp, M2, V2 = efforts_par_statique(z, zb, zh, np.full(len(zb), q), [len(z) - 1], [P])
+    np.testing.assert_allclose(V2 - V, P, atol=1e-12)
+    np.testing.assert_allclose(M2 - M, -P * (L - zp), atol=1e-12)
+
+
+def test_tranchant_nul_aux_extremites_libres():
+    """Écran autostable : aucune force ponctuelle, donc V = 0 en pied et en tête (charges
+    réparties sur leurs demi-mailles). Avant correction, la charge de la demi-maille de pied,
+    concentrée au nœud, donnait un saut de V de plusieurs kN au pied."""
+    res = _autostable(3.0)
+    ph = res.phases[-1]
+    assert abs(ph.V[0]) < 1e-6 and abs(ph.V[-1]) < 1e-6
+    assert ph.M[-1] == 0.0
+    assert abs(ph.M[0]) < 1e-3 * abs(ph.M).max()
+    # le moment maximal par la statique reste celui de la poutre (M = −EI·y'') au maillage près
+    y = ph.y
+    z = ph.z
+    EI = 1e5
+    courbure = np.gradient(np.gradient(y, z), z)
+    i = int(np.argmax(np.abs(ph.M[0::2])))
+    assert -EI * courbure[i] == pytest.approx(ph.M[2 * i], rel=0.05)
+
+
 def _poutre_winkler(L, EI, k, pas):
     z = maillage([0.0], -L / 2, L / 2, pas)
     n = len(z)

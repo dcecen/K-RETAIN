@@ -156,10 +156,13 @@ sur le débit).
 | `dalle` | `epaisseur`, `beton` (ou `E`), `longueur` (portée) | bilatérale par défaut |
 
 `raideur` (kN/m par mètre d'écran) court-circuite le calcul de raideur. `precharge` est
-l'effort axial par appui (précharge d'un buton, précontrainte d'un tirant), appliqué à la
-pose. `lierne` désigne le profilé de lierne à vérifier (donnez aussi `acier`, sa nuance).
-Un appui posé dans une phase qui comporte aussi une excavation est en place avant cette
-excavation : il en reprend les déplacements.
+l'effort axial par appui (précharge d'un buton, précontrainte d'un tirant), appliqué au
+vérin au début de la phase de pose : l'appui exerce d'abord cette seule force (l'écran
+recule), puis il est bloqué et réagit élastiquement aux déplacements ultérieurs. À la fin
+d'une phase de pose sans autre action, l'effort de l'appui vaut donc exactement sa
+précharge. `lierne` désigne le profilé de lierne à vérifier (donnez aussi `acier`, sa nuance).
+Un appui posé dans une phase qui comporte aussi une excavation est en place (et mis en
+charge) avant cette excavation : il en reprend les déplacements.
 
 ## 7. Phases
 

@@ -109,7 +109,7 @@ describe('résultats de la paroi en 3D', () => {
     const b = jeu('berlinoise')
     const tb = tauxParoi(b.verifications)
     expect(tb.verifiable).toBe(true)
-    expect(tb.courant).toBeCloseTo(2.484, 2)             // blindage non vérifié
+    expect(tb.courant).toBeCloseTo(2.609, 2)             // blindage non vérifié (mise en charge au vérin du tirant, 23/10/2026)
   })
 
   it('profil et bornes : champ pseudo-3D utilisé quand il existe', () => {
@@ -127,10 +127,10 @@ describe('résultats de la paroi en 3D', () => {
   it('étiquettes d\'extrêmes : déplacement, moments, appuis avec cote et phase', () => {
     const res = jeu('exemple')
     const e = extremes(res)
-    expect(e.find((x) => x.id === 'y')!.texte).toContain('17,8 mm')
+    expect(e.find((x) => x.id === 'y')!.texte).toContain('17,6 mm')
     expect(e.find((x) => x.id === 'y')!.z).toBeCloseTo(-5.5, 6)
-    expect(e.find((x) => x.id === 'appui.B1')!.texte).toContain('141 kN/m')
-    expect(e.find((x) => x.id === 'appui.B1')!.texte).toContain('847 kN')
+    expect(e.find((x) => x.id === 'appui.B1')!.texte).toContain('142 kN/m')
+    expect(e.find((x) => x.id === 'appui.B1')!.texte).toContain('853 kN')
     const { sc } = nouvelleScene(TOUT)
     sc.charger(res)
     sc.appliquerCalques(versScene(definirVisible(etatInitial(), 'resultats.extremes', true)))
@@ -148,7 +148,7 @@ describe('résultats de la paroi en 3D', () => {
     if (d.type === 'continue') {
       expect(d.unite).toBe('mm')
       expect(d.min).toBe(0)
-      expect(d.max).toBeCloseTo(17.76, 1)
+      expect(d.max).toBeCloseTo(17.65, 1)
       expect(d.phase).toBe('toutes phases')
     }
     expect(l.some((x) => x.id === 'pressions')).toBe(true)

@@ -111,7 +111,29 @@ class MoteurPseudo3D:
         sv_prec = np.zeros(ns * self.m2_taille)
         present_prec = np.zeros(ns * self.m2_taille, dtype=bool)
         poses: dict[str, list] = {}   # nom -> [(nœud, s, y_pose, k, F0)]
+        f_ext_prec = np.zeros_like(u)  # forces imposées (eau) de la dernière phase calculée
         sorties: list[PhasePseudo3D] = []
+
+        def _points(nom: str, W: np.ndarray, raideur: float, F0: float) -> list:
+            d = m.appuis[nom]
+            e = d.infos.get("espacement", 1.0) or 1.0
+            j = int(np.argmin(np.abs(self.z - d.cote)))
+            pts = []
+            for sp in self._positions_appui(e):
+                i = int(np.argmin(np.abs(self.s - sp)))
+                k = i * nz + j
+                pts.append((k, float(self.s[i]), float(W[k]), raideur * e, F0 * e))
+            return pts
+
+        def _appuis(dico: dict[str, list]) -> tuple[Appuis, list]:
+            noms, noeuds, ks, F0s, yps, unis, ss = [], [], [], [], [], [], []
+            for nom, pts in dico.items():
+                for (k, sp, yp, kk, F0) in pts:
+                    noms.append(nom); noeuds.append(k); ks.append(kk); F0s.append(F0); yps.append(yp)
+                    unis.append(m.appuis[nom].unilateral); ss.append(sp)
+            return Appuis(nom=noms, noeud=np.array(noeuds, dtype=int), k=np.array(ks, float),
+                          F0=np.array(F0s, float), y_pose=np.array(yps, float), unilateral=np.array(unis, bool)), ss
+
         for ph in [Phase(nom="État initial")] + chaine_principale(m.phases):
             try:
                 poser, deposer = m2.appliquer_actions(etat, ph)
@@ -120,17 +142,25 @@ class MoteurPseudo3D:
                 break
             for nom in deposer:
                 poses.pop(nom, None)
+            # Mise en charge au vérin des appuis précontraints (même règle que le 2D, voir
+            # sout.noyau.phasage) : force F0 seule sur l'état précédent, puis ressort bloqué.
+            a_verin = [nm for nm in poser if m.appuis[nm].precharge != 0.0]
+            if a_verin:
+                W = u[0::3]
+                dico = dict(poses)
+                for nm in a_verin:
+                    dico[nm] = _points(nm, W, 0.0, m.appuis[nm].precharge)
+                appuis_v, _ = _appuis(dico)
+                try:
+                    u, _, _ = resoudre_general(self.K, self.ddl_w, r, appuis_v, f_ext_prec, u0=u, y_rupture=m.y_rupture)
+                except RuptureEquilibre as e:
+                    sorties.append(PhasePseudo3D(ph.nom, False, f"Rupture à la mise en charge des appuis : {e}"))
+                    break
+                r.memoriser(u[0::3])
             W = u[0::3]
             for nom in poser:
                 d = m.appuis[nom]
-                e = d.infos.get("espacement", 1.0) or 1.0
-                j = int(np.argmin(np.abs(self.z - d.cote)))
-                pts = []
-                for sp in self._positions_appui(e):
-                    i = int(np.argmin(np.abs(self.s - sp)))
-                    k = i * nz + j
-                    pts.append((k, float(self.s[i]), float(W[k]), d.raideur * e, d.precharge * e))
-                poses[nom] = pts
+                poses[nom] = _points(nom, W, d.raideur, d.precharge)
             sol = m2.etat_sol(etat)
             sol3 = {c: (np.tile(v, ns) if isinstance(v, np.ndarray) else v) for c, v in sol.items()}
             MoteurPhases.mettre_a_jour_ressorts(r, sol3, u[0::3][r.noeud], present_prec, sv_prec, self.largeur)
@@ -138,13 +168,8 @@ class MoteurPseudo3D:
             f_ligne = m2.force_eau_noeuds(u_am, u_av)
             f_ext = np.zeros_like(u)
             f_ext[0::3] = np.outer(self.ds, f_ligne).ravel()
-            noms, noeuds, ks, F0s, yps, unis, ss = [], [], [], [], [], [], []
-            for nom, pts in poses.items():
-                for (k, sp, yp, kk, F0) in pts:
-                    noms.append(nom); noeuds.append(k); ks.append(kk); F0s.append(F0); yps.append(yp)
-                    unis.append(m.appuis[nom].unilateral); ss.append(sp)
-            appuis = Appuis(nom=noms, noeud=np.array(noeuds, dtype=int), k=np.array(ks, float),
-                            F0=np.array(F0s, float), y_pose=np.array(yps, float), unilateral=np.array(unis, bool))
+            appuis, ss = _appuis(poses)
+            noms = list(appuis.nom)
             try:
                 u, it, nR = resoudre_general(self.K, self.ddl_w, r, appuis, f_ext, u0=u, y_rupture=m.y_rupture)
             except RuptureEquilibre as e:
@@ -153,6 +178,7 @@ class MoteurPseudo3D:
             W = u[0::3]
             r.memoriser(W)
             sv_prec, present_prec = sol3["sv"], sol3["present"]
+            f_ext_prec = f_ext
             Mz, Ms = plaque.moments(self.s, self.z, self.Dz, self.Ds, u)
             eff, actif = appuis.efforts(W)
             sorties.append(PhasePseudo3D(

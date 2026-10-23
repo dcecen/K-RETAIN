@@ -79,3 +79,49 @@ def efforts_internes(z: np.ndarray, EI_elem: np.ndarray, u: np.ndarray) -> tuple
         M[2 * e], M[2 * e + 1] = m_bas, m_haut
         V[2 * e] = V[2 * e + 1] = (m_haut - m_bas) / L
     return zp, M, V
+
+
+def efforts_par_statique(
+    z: np.ndarray, zb: np.ndarray, zh: np.ndarray, q: np.ndarray,
+    noeud_app: np.ndarray | None = None, F_app: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Moment et effort tranchant par la statique : résultante des charges situées
+    au-dessus de la section (définition de résistance des matériaux).
+
+    Les charges du sol et de l'eau sont réparties uniformément sur leur tronçon
+    [zb_j, zh_j] (demi-maille), et non concentrées au nœud comme dans le système
+    résolu : l'effort tranchant est alors nul aux extrémités libres, ce que la
+    concentration aux nœuds ne donne pas (la charge de la demi-maille
+    d'extrémité apparaissait comme un saut de V au pied ou en tête).
+
+    q : charge répartie de chaque tronçon (kN/m, positive vers la fouille) ;
+    F_app : forces ponctuelles (kN, positives vers la fouille) aux nœuds noeud_app.
+    Convention (CLAUDE.md) : V(z) = Σ charges au-dessus de z (positives vers la
+    fouille) ; M(z) = −Σ charges × bras de levier, positif quand la face côté
+    fouille est tendue (M = −EI·y'' avec y positif vers la fouille).
+
+    Renvoie (z_points, M, V) avec deux points par élément (bas puis haut) ;
+    V saute au droit des appuis, M est continu.
+    """
+    z = np.asarray(z, dtype=float)
+    zb, zh, q = (np.asarray(v, dtype=float) for v in (zb, zh, q))
+    n = len(z)
+    bas = np.maximum(zb[None, :], z[:, None])                 # partie de chaque tronçon au-dessus de z_i
+    longueur = np.clip(zh[None, :] - bas, 0.0, None)
+    D = longueur @ q                                           # résultante répartie au-dessus de z_i
+    bras = 0.5 * ((zh[None, :] - z[:, None]) ** 2 - (bas - z[:, None]) ** 2) * (longueur > 0)
+    Mq = bras @ q
+    Pa, Ma = np.zeros(n), np.zeros(n)                          # appuis strictement au-dessus du nœud i
+    if noeud_app is not None and len(noeud_app):
+        for j, F in zip(np.asarray(noeud_app, dtype=int), np.asarray(F_app, dtype=float)):
+            Pa[:j] += F
+            Ma[:j] += F * (z[j] - z[:j])
+    M = -(Mq + Ma)
+    zp = np.empty(2 * (n - 1))
+    zp[0::2], zp[1::2] = z[:-1], z[1:]
+    Mo = np.empty_like(zp)
+    Mo[0::2], Mo[1::2] = M[:-1], M[1:]
+    V = np.empty_like(zp)
+    V[0::2] = D[:-1] + Pa[:-1]    # bas de l'élément e : charges au-dessus du nœud e, appuis aux nœuds > e
+    V[1::2] = D[1:] + Pa[:-1]     # haut de l'élément e (sous le nœud e+1) : appuis aux nœuds ≥ e+1
+    return zp, Mo, V
