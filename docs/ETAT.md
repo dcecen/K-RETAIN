@@ -477,4 +477,12 @@ pytest : 281 réussis, 6 ignorés (cas K-Réa/RIDO absents) ; vitest : 61 ; rafa
 - Les cas de poutres pures (RDM7, Winkler) et de plaque sans sol ne peuvent pas s'écrire en script (le
   langage ne prévoit ni charge directe sur la paroi ni paroi sans sol) : ils sont dans le rapport.
 - Tests : pytest 290 réussis (6 ignorés), vitest 62.
+- Correctif du 24/10 (suite) : l'utilisateur voyait encore l'ancienne interface car le lanceur, trouvant
+  RetainWall déjà ouvert, rouvrait l'ancienne version. Le lanceur compare désormais l'heure de démarrage du
+  serveur (`/api/sante` → `demarrage`) aux sources : version périmée → arrêt, recompilation, redémarrage.
+- Lecture tolérante : `projet:` accepté en bloc (nom, affaire, client… dans `projet_infos`), mots-clés
+  inconnus ignorés avec un avertissement orange (ligne, chemin) au lieu de bloquer le calcul ; les vraies
+  erreurs restent bloquantes et sont listées, cliquables, à la place de « Aucun résultat ».
+- Vérifié dans Chrome sur localhost:8000 (bloc projet + mot-clé inconnu : calcul fait, avertissement affiché).
+  Tests : pytest 294 (6 ignorés), vitest 62.
 
