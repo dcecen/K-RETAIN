@@ -212,12 +212,16 @@ class MoteurPhases:
 
     # ------------------------------------------------------------------
     def _sigma_v(self, cote: int, terrain: float, eau: float | None, surcharges: list[Surcharge],
-                 ecoulement=None) -> tuple[np.ndarray, np.ndarray]:
+                 ecoulement=None, coupe: CoupeCalcul | None = None) -> tuple[np.ndarray, np.ndarray]:
         """σ'v et u au milieu des demi-mailles. Avec un modèle d'écoulement, σ'v = σv(total) − u(écoulement) :
-        un écoulement ascendant (fouille) réduit σ'v et donc la butée, un écoulement descendant l'augmente."""
+        un écoulement ascendant (fouille) réduit σ'v et donc la butée, un écoulement descendant l'augmente.
+        coupe : position en plan où rapporter les surcharges (défaut : celle du modèle) — le pseudo-3D
+        en donne une par ligne verticale."""
         nom = "amont" if cote == AMONT else "aval"
+        if coupe is None:
+            coupe = CoupeCalcul.depuis_dict(self.m.coupe)
         try:   # surcharges (historiques et étendues) rapportées à la coupe : module sol.terrain
-            dsv = delta_sigma_v_surcharges(surcharges, nom, self.d_zm, terrain, CoupeCalcul.depuis_dict(self.m.coupe))
+            dsv = delta_sigma_v_surcharges(surcharges, nom, self.d_zm, terrain, coupe)
         except ErreurTerrain as e:
             raise ErreurModele(str(e)) from None
         if ecoulement is None or ecoulement.regime == "hydrostatique":
@@ -289,12 +293,13 @@ class MoteurPhases:
                 etat["poses"].append(nom)
         return list(ph.poser), list(ph.deposer)
 
-    def etat_sol(self, etat: dict, ecoulement=None) -> dict:
-        """Grandeurs par demi-maille (amont puis aval, longueur 2·nd) pour l'état de chantier."""
+    def etat_sol(self, etat: dict, ecoulement=None, coupe: CoupeCalcul | None = None) -> dict:
+        """Grandeurs par demi-maille (amont puis aval, longueur 2·nd) pour l'état de chantier.
+        coupe : position en plan de la ligne calculée (surcharges localisées), défaut : celle du modèle."""
         terrain, eau = etat["terrain"], etat["eau"]
         liste_s = list(etat["surcharges"].values())
-        sv_am, _ = self._sigma_v(AMONT, terrain[AMONT], eau[AMONT], liste_s, ecoulement)
-        sv_av, _ = self._sigma_v(AVAL, terrain[AVAL], eau[AVAL], liste_s, ecoulement)
+        sv_am, _ = self._sigma_v(AMONT, terrain[AMONT], eau[AMONT], liste_s, ecoulement, coupe)
+        sv_av, _ = self._sigma_v(AVAL, terrain[AVAL], eau[AVAL], liste_s, ecoulement, coupe)
         sv = np.concatenate([sv_am, sv_av])
         present = np.concatenate([self.d_zh <= terrain[AMONT] + 1e-9, self.d_zh <= terrain[AVAL] + 1e-9])
         pa = np.maximum(np.concatenate([self.d_kah_amont, self.d_kah]) * sv - np.tile(self.d_ca, 2), 0.0)

@@ -40,6 +40,7 @@ from ..noyau.modele import Modele, Phase
 from ..noyau.phasage import ErreurModele, MoteurPhases
 from ..noyau.ressorts import Ressorts
 from ..noyau.solveur import Appuis, RuptureEquilibre, resoudre_general
+from ..sol.terrain import CoupeCalcul, SurchargePlan
 from . import plaque
 
 
@@ -81,9 +82,10 @@ class MoteurPseudo3D:
                  largeur_appui: float | None = None, rapport_rigidite_horizontale: float | None = None,
                  torsion: float | None = None, longueur_panneau: float | None = None,
                  origine_panneaux: float = 0.0, contour: list | None = None, plan_appuis: list | None = None,
-                 liens: bool = True):
+                 liens: bool = True, cotes_plan: dict | None = None):
         self.m = modele
         self.largeur_appui = largeur_appui
+        self.cotes_plan = dict(cotes_plan or {})
         self.m2 = MoteurPhases(modele)
         self.z = self.m2.z
         nz = len(self.z)
@@ -123,6 +125,25 @@ class MoteurPseudo3D:
         self.ns, self.nz = ns, nz
         self.longueur = float(longueur)
         self.nh = ns if self.fermeture is not None else ns - 1   # éléments horizontaux
+        # Surcharges localisées en plan : une coupe de calcul par ligne verticale (position sur le contour,
+        # normale vers la fouille, côté nommé), état du sol calculé ligne par ligne si une surcharge en plan existe
+        self.coupes_lignes: list[CoupeCalcul] | None = None
+        self.sol_par_ligne = False
+        if self.aretes is not None:
+            from ..plan.geometrie import point
+            noms_cotes = {k: n for n, k in self.cotes_plan.items()}
+            self.coupes_lignes = []
+            for s_i in self.s:
+                x, y, k, sl = point(self.aretes, float(s_i))
+                a = self.aretes[k]
+                self.coupes_lignes.append(CoupeCalcul(x=x, y=y, ni=tuple(a["ni"]), t=tuple(a["t"]), k=k, s=sl,
+                                                      cote=noms_cotes.get(k), nom=f"ligne s = {s_i:.2f} m"))
+            toutes = list(modele.surcharges) + [sc for ph in modele.phases for sc in ph.ajouter_surcharges]
+            self.sol_par_ligne = any(isinstance(sc, SurchargePlan) for sc in toutes)
+            if self.sol_par_ligne:
+                self.avertissements.append(
+                    "Pseudo-3D : surcharges en plan rapportées à chaque ligne verticale de la paroi (diffusion élastique "
+                    "depuis sa position sur le contour) : le chargement varie le long de la paroi.")
         self.Dz = self.m2.EI_elem
         # Rigidité horizontale : valeur du script > rapport du script > défaut du type de paroi
         # (sout.parois.construction.rigidite_horizontale) > isotropie avec avertissement.
@@ -466,8 +487,12 @@ class MoteurPseudo3D:
             for nom in poser:
                 d = m.appuis[nom]
                 poses[nom] = _points(nom, W, d.raideur, d.precharge)
-            sol = m2.etat_sol(etat)
-            sol3 = {c: (np.tile(v, ns) if isinstance(v, np.ndarray) else v) for c, v in sol.items()}
+            if self.sol_par_ligne:
+                sols = [m2.etat_sol(etat, coupe=c) for c in self.coupes_lignes]
+                sol3 = {c: (np.concatenate([x[c] for x in sols]) if isinstance(v, np.ndarray) else v) for c, v in sols[0].items()}
+            else:
+                sol = m2.etat_sol(etat)
+                sol3 = {c: (np.tile(v, ns) if isinstance(v, np.ndarray) else v) for c, v in sol.items()}
             MoteurPhases.mettre_a_jour_ressorts(r, sol3, u[0::3][r.noeud], present_prec, sv_prec, self.largeur)
             u_am, u_av = m2.pressions_eau(etat)
             f_ligne = m2.force_eau_noeuds(u_am, u_av)
@@ -531,7 +556,8 @@ def moteur_depuis_script(ex) -> "MoteurPseudo3D":
         plan_appuis = [a.model_dump() for a in s.plan.appuis] or None
     mo = MoteurPseudo3D(ex.modele, p.longueur, p.pas_horizontal, p.bords, p.angle, p.rigidite_horizontale,
                         p.largeur_appui, p.rapport_rigidite_horizontale, p.torsion,
-                        s.paroi.longueur_panneau, s.paroi.origine_panneaux, contour, plan_appuis)
+                        s.paroi.longueur_panneau, s.paroi.origine_panneaux, contour, plan_appuis,
+                        cotes_plan=s.plan.cotes if s.plan is not None else None)
     if p.longueur is not None and s.plan is not None:
         mo.avertissements.append(
             f"Pseudo-3D : paroi droite de {p.longueur:g} m ; pour la fouille fermée (parois en vis-à-vis reliées "
