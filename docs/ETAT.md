@@ -395,3 +395,74 @@ décharge élastique après retrait de surcharge (asymétrie charge/décharge pr
 Reste à faire : comparaison aux cas de référence K-Réa/RIDO (toujours absents) ; charges
 réparties cohérentes dans le système résolu (termes de rotation) si un maillage grossier doit être
 utilisé ; coefficient de recharge distinct de Kd (K-Réa : kr) si la pratique l'exige.
+
+
+## Bêta-test 3D, RDM, STR et rafale d'exemples élémentaires (23 octobre 2026)
+
+Plan en huit lots (0, A, B, C1, C2, D, C3, E, F), un commit par étape, tous validés par `lancer_tests.ps1`.
+
+### Fait
+- **Travail du 22/10 commité** (mise en charge au vérin, M/V par la statique) ; jeux figés régénérés et expliqués
+  (exemple : y_max 17,76 → 17,65 mm ; berlinoise : le tirant porte F0 après la pose, blindage 2,48 → 2,61).
+- **Preuve que le pseudo-3D est une vraie plaque** : tests de référence sans sol contre Timoshenko &
+  Woinowsky-Krieger (Navier carrée et rectangulaire à 1 % / 2 %, charge ponctuelle, plaque orthotrope de
+  Huber, plaque encastrée 0,00126·q·a⁴/D, flexion cylindrique exacte à 1e-9, plaque tournée de 90°,
+  équilibre 1e-10, convergence en O(h²)) ; assemblage vectorisé ; effort tranchant 3D par la statique de
+  chaque ligne verticale avec forces de transfert de la plaque (V nul aux extrémités libres, saut = effort/ds
+  au droit d'un appui) ; torsion Mzs, réactions des bords et des angles, bilan ΣF, ΣM à chaque phase ;
+  bords appuyés bloquant la rotation tangente ; appariement 2D/3D par nom de phase ; **`largeur_appui`** :
+  sans elle, Ms et V au droit d'un buton divergent avec le maillage (146 → 265 → 503 kN/m), avec elle ils
+  convergent (3 % et 1 %) ; intégrale de Ms sur la hauteur = poutre continue (−R·e/12, +R·e/24, R·e/8 à 0,3 %).
+- **Rigidité horizontale par type de paroi** (`parois/construction.rigidite_horizontale`) : paroi moulée 1,
+  palplanches / pieux / berlinoise 0, EI imposé isotrope ; clés `rapport_rigidite_horizontale`,
+  `rigidite_horizontale` (≥ 0), `torsion`, `paroi.longueur_panneau` et `origine_panneaux` (joints sans
+  moment ni torsion horizontaux, panneaux périodiques à 1e-6). **Ds = 0 ⇔ coupes 2D assemblées** : chaque
+  ligne est exactement l'écran 2D (lignes sans appui = 2D sans appui, ligne d'appui = 2D avec k·e/ds,
+  identité 1e-6) ; Ds = Dz : la plaque redistribue (déplacement quasi uniforme, effort par buton ≈ H_2D·e).
+- **Liernes** : poutre horizontale continue E·Iy dans le grillage tant que l'appui est posé (matrice par jeu
+  de liernes), moments et tranchants restitués ; lierne rigide ⇔ 2D à appui réparti ; lierne raide en poutre
+  continue sur les butons (−R·e/12, +R·e/24 à 10 %).
+- **Fouille fermée (« double écran »)** : `sout/plan/geometrie.py` partagé (coupes, maquette, pseudo-3D) ;
+  grillage périodique sur tout le contour (un seul nœud à l'angle d'origine, quatre angles monolithiques à
+  w = 0) ; butons = liens entre les deux parois en vis-à-vis (`solveur.Appuis.noeud2`, raideur EA/L sur la
+  longueur entière, action = réaction, précharge aux deux parois) ; positions du bloc `plan.appuis` ou
+  placement automatique ; dalle = liens de chaque nœud à son vis-à-vis ; déclenché quand
+  `pseudo3d.longueur` est absent. Tests : liens ≡ ressorts L/2 si tout est symétrique (1e-7), solution
+  symétrique, milieu d'un côté de 60 m à 5 % du 2D. Exemple `exemples/pseudo3d_fouille_fermee.yaml`.
+- **Surcharges localisées en plan** : état du sol calculé ligne par ligne (une coupe de calcul par nœud du
+  contour) ; grue de 3 000 kN derrière une paroi : +13 % sur le buton au droit, paroi d'en face repoussée
+  vers sa terre (5 × plus qu'avec des ressorts L/2).
+- **STR branchées sur le 3D** : pseudo-3D calculé une fois dans `verifications.executer` ; seconde série
+  « [pseudo-3D] » (Mz, V, Ms de la plaque ; appuis réels N = effort/cos θ ; liernes avec leurs moments 3D) ;
+  flexion horizontale Ms (paroi moulée : As horizontal requis, M_Rd si `armatures_horizontales`,
+  `enrobage_horizontal`) ; corrections : M_c,Rd des butons avec γM0, garde fck absent, libellé W pl/él.
+  **Contrôles manuels chiffrés** : buton modulaire_A 0,5756, tirant 0,6037, dalle 0,045, lierne 0,9696 /
+  0,8297 (3D), palplanche avec corrosion et interaction V-M 0,5996, berlinoise 0,6105, blindage 1,372,
+  paroi moulée 0,9164 (As requis 18,3 cm²/m), VRd,c 1,296 / 1,088, flexion horizontale 0,8604.
+- **RDM type RDM7** : `noyau/rdm.py` (charges cohérentes, couples, encastrements, ressorts, Winkler, M/V par
+  la statique, contrôles ΣF, ΣM, V = dM/dz, q = dV/dz) ; 18 cas de poutres exacts à 1e-9 (Hetényi 1 %) ;
+  erreur des charges nodales du moteur mesurée à 9e-5 (aucun changement nécessaire).
+- **Rapport pour le manager** : `python -m outils.rafale_elementaire` → `docs/validation/rafale_elementaire.md`,
+  `.html` (autonome, SVG intégrés) et `figures/*.png` : 45 cas conformes sur 45 (poutres 18, plaque 8,
+  écran 2D 12 dont butée simple à 0,6 % et balayages kh / EI / φ / γ / H / raideur / précharge / nappe,
+  pseudo-3D 7). Limites du modèle et table de correspondance avec RDM7 en fin de rapport.
+- Solveur : échelle du bruit d'arrondi = max|K_ii·u_i| (la pénalité des bords rendait la tolérance 1e4 fois
+  trop lâche en 3D) ; résultats 2D inchangés au sixième chiffre.
+
+### Testé
+pytest : 281 réussis, 6 ignorés (cas K-Réa/RIDO absents) ; vitest : 61 ; rafale : 45/45.
+
+### Reste à faire
+- Variantes de sol ou de phasage par côté d'une fouille fermée (un seul modèle pour tous les côtés) ;
+  écoulement, jeux d'eau secondaires et branches `depuis` en pseudo-3D.
+- Option d'angle articulé (palplanches) ; terme de Poisson (ν = 0 dans le grillage).
+- Interface : moments des liernes 3D et réactions d'angle non affichés dans l'onglet Pseudo-3D ; export
+  HTML de la maquette toujours sur l'ancienne vue.
+- Si vous disposez de RDM7 : un cas de console permettrait de figer la table des signes sur un résultat réel.
+
+### TODO-NORME / TODO-SOURCE
+- Plaque ondulée de Seydel (rigidité horizontale des palplanches) : formule non activée (serrures libres).
+- EN 1993-5 : résistance horizontale des serrures, Av « une âme par largeur », section efficace de classe 4.
+- EN 1993-1-1 § 6.3.3 (k_yy) : interaction N-M des butons simplifiée ; EN 1992-1-1 § 9.6.3 : As horizontal
+  minimal non contrôlé ; tranchant des pieux non automatisé.
+- Hetényi poutre finie (formules en sinh/cosh) non recopiées de l'ouvrage.

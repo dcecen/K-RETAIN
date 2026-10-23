@@ -38,6 +38,8 @@ def rigidite_horizontale_bandes_2d_contre_plaque() -> Cas:
     r2 = calculer(m).phases[-1]
     r2s = calculer(_modele(appuis=False)).phases[-1]
     y_avec, y_sans, H2 = float(np.abs(r2.y).max()), float(np.abs(r2s.y).max()), r2.appuis[0]["effort"]
+    j2 = int(np.argmin(np.abs(r2.z + 1.0)))          # niveau des butons, pour la figure
+    y_avec_but, y_sans_but = float(r2.y[j2]), float(r2s.y[j2])
     lignes = []
     profils = {}
     for rap in (0.0, 1e-3, 1e-2, 0.1, 1.0):
@@ -62,7 +64,7 @@ def rigidite_horizontale_bandes_2d_contre_plaque() -> Cas:
         _bool("le déplacement maximal décroît quand Ds/Dz croît", all(a["y_max_mm"] >= b["y_max_mm"] - 1e-9 for a, b in zip(lignes, lignes[1:])), "monotonie"),
     ]
     cas.courbes = {"tableau": lignes, "s": mo.s.tolist(), "profils_mm": {str(k): v for k, v in profils.items()},
-                   "y_2d_appui_reparti_mm": y_avec * 1e3, "y_2d_sans_appui_mm": y_sans * 1e3}
+                   "y_2d_appui_reparti_mm": y_avec_but * 1e3, "y_2d_sans_appui_mm": y_sans_but * 1e3}
     return cas
 
 
