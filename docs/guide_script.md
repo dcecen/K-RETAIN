@@ -476,5 +476,6 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `bords` | libres / encastres / appuyes |  | libres | conditions aux extrémités |
 | `angle` | nombre |  |  | angle de la fouille au milieu de la paroi (degrés) ; seule sa présence compte : la paroi perpendiculaire impose w = 0 sur la ligne d'angle (appui simple, continuité du ferraillage d'angle négligée) (> 0, < 360) |
 | `rigidite_horizontale` | nombre |  |  | EI horizontal par mètre de hauteur (kN·m²/m) (> 0) |
+| `largeur_appui` | nombre |  |  | largeur sur laquelle chaque appui ponctuel est réparti le long de la paroi (m : plaque d'appui, semelle de lierne) ; sans cette clé l'appui agit sur un seul nœud et Ms, V à son droit dépendent du maillage (> 0) |
 
 <!-- REFERENCE:FIN -->

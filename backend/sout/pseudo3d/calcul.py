@@ -63,8 +63,10 @@ class ResultatPseudo3D:
 
 class MoteurPseudo3D:
     def __init__(self, modele: Modele, longueur: float, pas_horizontal: float = 0.5, bords: str = "libres",
-                 angle: float | None = None, rigidite_horizontale: float | None = None):
+                 angle: float | None = None, rigidite_horizontale: float | None = None,
+                 largeur_appui: float | None = None):
         self.m = modele
+        self.largeur_appui = largeur_appui
         self.m2 = MoteurPhases(modele)
         self.z = self.m2.z
         nz = len(self.z)
@@ -113,6 +115,25 @@ class MoteurPseudo3D:
         )
         self.largeur = np.repeat(self.ds, m2)
         self.m2_taille = m2
+        if largeur_appui is None and modele.appuis:
+            self.avertissements.append(
+                "Pseudo-3D : chaque appui ponctuel agit sur un seul nœud ; le moment horizontal Ms et l'effort "
+                "tranchant V à son droit dépendent du maillage (singularité d'une charge concentrée sur une plaque). "
+                "Donnez pseudo3d.largeur_appui (plaque d'appui, semelle de lierne) pour le répartir.")
+
+    def _noeuds_appui(self, sp: float) -> list[tuple[int, float]]:
+        """Nœuds (indice i, part) portant un appui placé en s = sp : le plus proche, ou, avec
+        largeur_appui, chaque nœud au prorata du recouvrement de sa bande tributaire
+        [milieu avec le voisin de gauche, milieu avec le voisin de droite] par l'intervalle
+        [sp − largeur/2, sp + largeur/2] (répartition uniforme exacte sur la largeur)."""
+        if self.largeur_appui is not None:
+            bords = np.concatenate([[self.s[0]], 0.5 * (self.s[1:] + self.s[:-1]), [self.s[-1]]])
+            lo, hi = sp - self.largeur_appui / 2, sp + self.largeur_appui / 2
+            rec = np.clip(np.minimum(bords[1:], hi) - np.maximum(bords[:-1], lo), 0.0, None)
+            if rec.sum() > 1e-12:
+                sel = np.flatnonzero(rec > 1e-12)
+                return [(int(i), float(rec[i] / rec.sum())) for i in sel]
+        return [(int(np.argmin(np.abs(self.s - sp))), 1.0)]
 
     def _positions_appui(self, espacement: float) -> np.ndarray:
         """Appuis réels à leur espacement exact, centrés sur la longueur modélisée."""
@@ -179,14 +200,14 @@ class MoteurPseudo3D:
             j = int(np.argmin(np.abs(self.z - d.cote)))
             pts = []
             for sp in self._positions_appui(e):
-                i = int(np.argmin(np.abs(self.s - sp)))
-                if self.i_angle is not None and i == self.i_angle and nom not in signales:
-                    signales.add(nom)
-                    self.avertissements.append(
-                        f"Pseudo-3D : un point de l'appui {nom} tombe sur la ligne d'angle (s = {self.s[i]:.1f} m), "
-                        "où le déplacement est nul : il ne porte rien.")
-                k = i * nz + j
-                pts.append((k, float(self.s[i]), float(W[k]), raideur * e, F0 * e))
+                for i, part in self._noeuds_appui(sp):
+                    if self.i_angle is not None and i == self.i_angle and nom not in signales:
+                        signales.add(nom)
+                        self.avertissements.append(
+                            f"Pseudo-3D : un point de l'appui {nom} tombe sur la ligne d'angle (s = {self.s[i]:.1f} m), "
+                            "où le déplacement est nul : il ne porte rien.")
+                    k = i * nz + j
+                    pts.append((k, float(sp), float(W[k]), raideur * e * part, F0 * e * part))
             return pts
 
         def _appuis(dico: dict[str, list]) -> tuple[Appuis, list]:
@@ -245,12 +266,16 @@ class MoteurPseudo3D:
             sv_prec, present_prec = sol3["sv"], sol3["present"]
             f_ext_prec = f_ext
             eff, actif = appuis.efforts(W)
+            groupes: dict[tuple[str, float], list] = {}   # un appui réel = ses nœuds porteurs
+            for nm, sp, ef, ac in zip(noms, ss, eff, actif):
+                g = groupes.setdefault((nm, sp), [0.0, False])
+                g[0] += float(ef); g[1] = g[1] or bool(ac)
             sorties.append(PhasePseudo3D(
                 ph.nom, True, "",
-                appuis=[{"nom": nm, "s": sp, "effort": float(ef), "actif": bool(ac),
+                appuis=[{"nom": nm, "s": sp, "effort": g[0], "actif": g[1],
                          "espacement": float(m.appuis[nm].infos.get("espacement", 1.0) or 1.0),
                          "angle": float(m.appuis[nm].infos.get("angle", 0.0) or 0.0)}
-                        for nm, sp, ef, ac in zip(noms, ss, eff, actif)],
+                        for (nm, sp), g in groupes.items()],
                 **champs))
         return ResultatPseudo3D(self.s, self.z, sorties, self.avertissements)
 
@@ -271,7 +296,8 @@ def depuis_script(ex) -> ResultatPseudo3D:
     p = ex.script.pseudo3d
     if p is None:
         raise ErreurModele("mode pseudo3d : bloc pseudo3d (longueur, pas_horizontal, bords) obligatoire")
-    return MoteurPseudo3D(ex.modele, p.longueur, p.pas_horizontal, p.bords, p.angle, p.rigidite_horizontale).calculer()
+    return MoteurPseudo3D(ex.modele, p.longueur, p.pas_horizontal, p.bords, p.angle, p.rigidite_horizontale,
+                          p.largeur_appui).calculer()
 
 
 def _sous_echantillon(n: int, max_n: int) -> np.ndarray:

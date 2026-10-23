@@ -188,3 +188,47 @@ def test_serialisation_efforts_3d(calculs):
     assert all(a["espacement"] == 4.0 and a["angle"] == 0.0 for a in ph["appuis"])
     # appariement 2D/3D par nom de phase, pas par indice
     assert ph["y_max_2d_mm"] == pytest.approx(np.abs(next(p for p in r2.phases if p.nom == ph["nom"]).y).max() * 1e3)
+
+
+# ---------------------------------------------------------------------------
+# largeur_appui : appui réparti sur une largeur (plaque d'appui, semelle de lierne)
+# ---------------------------------------------------------------------------
+def test_largeur_appui_repartit_l_appui_sans_changer_sa_resultante():
+    """Poids par recouvrement exact des bandes tributaires (somme 1) ; après la phase de pose seule,
+    chaque appui réel porte F0·e ; la somme des efforts est celle du cas ponctuel à 2 % près."""
+    m = _modele()
+    mo = MoteurPseudo3D(m, 24.0, 0.5, largeur_appui=2.0)
+    pts = mo._noeuds_appui(10.0)
+    assert sum(w for _, w in pts) == pytest.approx(1.0, abs=1e-12)
+    assert len(pts) == 5 and all(abs(mo.s[i] - 10.0) <= 1.0 + 1e-9 for i, _ in pts)
+    poids = dict(pts)
+    i10 = int(np.argmin(np.abs(mo.s - 10.0)))
+    assert poids[i10] == pytest.approx(0.25) and poids[i10 - 2] == pytest.approx(0.125)   # nœuds extrêmes : quart de bande
+    r = mo.calculer()
+    assert len(r.phases[2].appuis) == 6 and all(a["effort"] == pytest.approx(80.0, abs=1e-6) for a in r.phases[2].appuis)
+    r0 = MoteurPseudo3D(m, 24.0, 0.5).calculer()
+    assert sum(a["effort"] for a in r.phases[-1].appuis) == pytest.approx(sum(a["effort"] for a in r0.phases[-1].appuis), rel=0.02)
+    assert any("largeur_appui" in a for a in r0.avertissements)
+    assert not any("largeur_appui" in a for a in r.avertissements)
+
+
+def test_largeur_appui_fait_converger_ms_et_v_au_droit_des_appuis():
+    """Sans largeur, Ms et V au droit d'un appui ponctuel croissent sans limite avec le raffinement
+    (singularité d'une charge concentrée sur une plaque) ; avec largeur_appui = 2 m ils convergent.
+    W et Mz convergent dans les deux cas."""
+    m = _modele()
+
+    def mesure(pas, larg):
+        mo = MoteurPseudo3D(m, 24.0, pas, largeur_appui=larg)
+        ph = mo.calculer().phases[-1]
+        j = int(np.argmin(np.abs(mo.z + 1.0)))
+        a = ph.appuis[2]
+        i = int(np.argmin(np.abs(mo.s - a["s"])))
+        return abs(ph.Ms[i, j]), float(np.abs(ph.V_diag).max()), float(np.abs(ph.W).max()), float(ph.Mz.max())
+
+    p5, p25 = mesure(0.5, None), mesure(0.25, None)
+    l5, l25 = mesure(0.5, 2.0), mesure(0.25, 2.0)
+    assert p25[1] > 1.6 * p5[1] and p25[0] > 1.15 * p5[0]          # cas ponctuel : divergence
+    assert l25[0] == pytest.approx(l5[0], rel=0.05) and l25[1] == pytest.approx(l5[1], rel=0.02)
+    for a, b in ((p5, p25), (l5, l25)):
+        assert b[2] == pytest.approx(a[2], rel=0.01) and b[3] == pytest.approx(a[3], rel=0.01)

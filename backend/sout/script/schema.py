@@ -309,6 +309,10 @@ class Pseudo3D(_Base):
                                 "seule sa présence compte : la paroi perpendiculaire impose w = 0 sur la ligne d'angle "
                                 "(appui simple, continuité du ferraillage d'angle négligée)")
     rigidite_horizontale: float | None = Field(None, gt=0, description="EI horizontal par mètre de hauteur (kN·m²/m)")
+    largeur_appui: float | None = Field(
+        None, gt=0, description="largeur sur laquelle chaque appui ponctuel est réparti le long de la paroi (m : plaque "
+                                "d'appui, semelle de lierne) ; sans cette clé l'appui agit sur un seul nœud et Ms, V à "
+                                "son droit dépendent du maillage")
 
 
 Verification = Literal[
