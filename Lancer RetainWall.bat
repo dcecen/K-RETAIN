@@ -9,13 +9,21 @@ chcp 65001 >nul
 title RetainWall
 cd /d "%~dp0"
 
-rem --- Deja lance ? On ouvre simplement le navigateur.
-powershell -NoProfile -Command "try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/sante -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }"
-if not errorlevel 1 (
-  echo RetainWall est deja lance.
-  if not defined RETAINWALL_SANS_NAVIGATEUR start "" http://localhost:8000
-  exit /b 0
-)
+rem --- Deja lance ? Si le code n'a pas change depuis son demarrage, on ouvre simplement le navigateur ;
+rem     sinon (mise a jour du logiciel) on arrete l'ancienne instance pour repartir sur la version a jour.
+rem     Code retour : 0 = a jour, 1 = perime, 2 = non lance.
+powershell -NoProfile -Command "try { $s = Invoke-RestMethod http://127.0.0.1:8000/api/sante -TimeoutSec 2 } catch { exit 2 }; if (-not $s.demarrage) { exit 1 }; $t0 = [DateTimeOffset]::FromUnixTimeMilliseconds([long]($s.demarrage * 1000)).LocalDateTime; $b = Get-ChildItem backend\sout -Recurse -Filter *.py | Where-Object { $_.LastWriteTime -gt $t0 }; $d = 'frontend\dist\index.html'; if (-not (Test-Path $d)) { exit 1 }; $td = (Get-Item $d).LastWriteTime; $f = Get-ChildItem frontend\src, frontend\index.html -Recurse -File | Where-Object { $_.LastWriteTime -gt $td }; if ($b -or $f) { exit 1 } else { exit 0 }"
+if errorlevel 2 goto lancement
+if errorlevel 1 goto mise_a_jour
+echo RetainWall est deja lance.
+if not defined RETAINWALL_SANS_NAVIGATEUR start "" http://localhost:8000
+exit /b 0
+
+:mise_a_jour
+echo RetainWall tourne avec une version perimee : redemarrage sur la version a jour...
+powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }; Start-Sleep -Seconds 1"
+
+:lancement
 
 rem --- 1. Serveur de calcul : installation la premiere fois
 if not exist "backend\.venv\Scripts\python.exe" (

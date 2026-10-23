@@ -365,6 +365,16 @@ select.champ { padding: 0 2px; }
 .liste-erreurs li:hover { background: var(--rouge-doux); }
 .liste-erreurs ul { list-style: none; margin: 0; padding: 0; }
 .liste-erreurs .ok { padding: 6px 12px; color: var(--vert); }
+.liste-erreurs li.avert { color: var(--orange); }
+.liste-erreurs li.avert:hover { background: var(--orange-doux); }
+.liste-erreurs li.ok-ligne { color: var(--vert); cursor: default; }
+.liste-erreurs li.ok-ligne:hover { background: none; }
+.vide-centre.bloque { justify-content: flex-start; padding-top: 48px; }
+.erreurs-bloquantes { list-style: none; margin: 4px 0 0; padding: 0; max-width: 720px; width: 100%; text-align: left; font-size: 12.5px;
+  border: 1px solid var(--filet); border-radius: 4px; }
+.erreurs-bloquantes li { display: flex; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--filet); color: var(--rouge); cursor: pointer; }
+.erreurs-bloquantes li:last-child { border-bottom: none; }
+.erreurs-bloquantes li:hover { background: var(--rouge-doux); }
 .rapport-rido { max-height: 25%; overflow: auto; font-size: 12px; padding: 6px 12px; background: var(--orange-doux); color: var(--orange); border-top: 1px solid var(--filet); }
 
 /* page d'accueil vide, notes */

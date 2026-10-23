@@ -3,6 +3,12 @@
 Le YAML est lu avec ruamel.yaml (mode aller-retour) pour garder le numéro de
 ligne de chaque clé ; les erreurs du schéma pydantic sont traduites en
 français et rattachées à leur ligne.
+
+Un mot-clé inconnu n'empêche pas le calcul : il est ignoré et signalé comme
+avertissement (niveau « avertissement », ligne et chemin), pour que des
+informations descriptives ou une clé mal orthographiée ne bloquent pas l'accès
+aux résultats. Toute autre erreur (mot-clé obligatoire manquant, valeur hors
+bornes, type incorrect, contrôle de cohérence) reste bloquante.
 """
 from __future__ import annotations
 
@@ -22,13 +28,14 @@ class ErreurScript:
     ligne: int | None
     chemin: str
     message: str
+    niveau: str = "erreur"          # "erreur" (bloque le calcul) ou "avertissement" (n'empêche pas le calcul)
 
     def __str__(self) -> str:
         pos = f"ligne {self.ligne}" if self.ligne else "script"
         return f"{pos} ({self.chemin}) : {self.message}" if self.chemin else f"{pos} : {self.message}"
 
     def vers_dict(self) -> dict:
-        return {"ligne": self.ligne, "chemin": self.chemin, "message": self.message}
+        return {"ligne": self.ligne, "chemin": self.chemin, "message": self.message, "niveau": self.niveau}
 
 
 class ScriptInvalide(Exception):
@@ -317,13 +324,63 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
             for cle in ("coupes", "plan"):
                 if cle in c.script:
                     e.append((("coupes", j, "script", cle), f"le bloc « {cle} » ne peut pas être redéfini dans une coupe"))
-            if "projet" in c.script and not isinstance(c.script["projet"], str):
-                e.append((("coupes", j, "script", "projet"), "projet : texte attendu"))
+            if "projet" in c.script and not isinstance(c.script["projet"], (str, dict)):
+                e.append((("coupes", j, "script", "projet"), "projet : texte ou bloc (nom, affaire…) attendu"))
     return e
 
 
+def _retirer(donnees, loc: tuple) -> None:
+    """Supprime de l'arbre Python la clé désignée par `loc` (mot-clé inconnu)."""
+    noeud = donnees
+    for c in loc[:-1]:
+        if isinstance(noeud, dict) and c in noeud:
+            noeud = noeud[c]
+        elif isinstance(noeud, list) and isinstance(c, int) and 0 <= c < len(noeud):
+            noeud = noeud[c]
+        else:
+            return
+    if isinstance(noeud, dict):
+        noeud.pop(loc[-1], None)
+
+
+def _lire(arbre, donnees) -> tuple[Script, list[ErreurScript]]:
+    """Valide l'arbre ; les mots-clés inconnus sont retirés et rendus comme avertissements."""
+    avertissements: list[ErreurScript] = []
+    vus_av = set()
+    for _ in range(3):   # les clés inconnues retirées, une nouvelle validation suffit (marge pour les imbrications)
+        try:
+            return Script.model_validate(donnees), avertissements
+        except ValidationError as ex:
+            erreurs, inconnues = [], []
+            vus = set()
+            for err in ex.errors(include_url=False):
+                loc = tuple(err["loc"])
+                cle = (loc, err["type"])
+                if cle in vus:
+                    continue
+                vus.add(cle)
+                if err["type"] == "extra_forbidden":
+                    inconnues.append(loc)
+                else:
+                    erreurs.append(ErreurScript(ligne_de(arbre, loc), _chemin_lisible(loc, donnees), _message(err)))
+            for loc in inconnues:
+                if loc not in vus_av:
+                    vus_av.add(loc)
+                    avertissements.append(ErreurScript(ligne_de(arbre, loc), _chemin_lisible(loc, donnees),
+                                                       "mot-clé inconnu, ignoré par le calcul (vérifiez l'orthographe)",
+                                                       "avertissement"))
+            if erreurs or not inconnues:
+                erreurs.sort(key=lambda e: e.ligne or 0)
+                raise ScriptInvalide(erreurs + avertissements) from None
+            for loc in inconnues:
+                _retirer(donnees, loc)
+    return Script.model_validate(donnees), avertissements
+
+
 def lire_script(texte: str) -> Script:
-    """Lit et valide un script. Lève ScriptInvalide avec la liste des erreurs."""
+    """Lit et valide un script. Lève ScriptInvalide avec la liste des erreurs (les erreurs bloquantes
+    d'abord, puis les avertissements). Les avertissements d'un script valide sont dans
+    `script.avertissements_lecture` (mots-clés inconnus ignorés)."""
     yaml = YAML(typ="rt")
     try:
         arbre = yaml.load(StringIO(texte))
@@ -333,29 +390,19 @@ def lire_script(texte: str) -> Script:
     if not isinstance(arbre, CommentedMap):
         raise ScriptInvalide([ErreurScript(1, "", "le script doit être un bloc de mots-clés (projet:, paroi:, sol:…)")])
     donnees = _python(arbre)
-    try:
-        script = Script.model_validate(donnees)
-    except ValidationError as ex:
-        erreurs = []
-        vus = set()
-        for err in ex.errors(include_url=False):
-            loc = tuple(err["loc"])
-            cle = (loc, err["type"])
-            if cle in vus:
-                continue
-            vus.add(cle)
-            erreurs.append(ErreurScript(ligne_de(arbre, loc), _chemin_lisible(loc, donnees), _message(err)))
-        erreurs.sort(key=lambda e: e.ligne or 0)
-        raise ScriptInvalide(erreurs) from None
+    script, avertissements = _lire(arbre, donnees)
     autres = _controles(script)
     if autres:
-        raise ScriptInvalide([ErreurScript(ligne_de(arbre, c), _chemin_lisible(c, donnees), m) for c, m in autres])
+        raise ScriptInvalide([ErreurScript(ligne_de(arbre, c), _chemin_lisible(c, donnees), m) for c, m in autres]
+                             + avertissements)
+    script.avertissements_lecture = avertissements
     return script
 
 
 def valider(texte: str) -> list[ErreurScript]:
+    """Erreurs et avertissements du script (niveau de chaque élément)."""
     try:
-        lire_script(texte)
+        s = lire_script(texte)
     except ScriptInvalide as e:
         return e.erreurs
-    return []
+    return list(s.avertissements_lecture)

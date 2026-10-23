@@ -5,6 +5,8 @@ requêtes HTTP <-> objets Python.
 """
 from __future__ import annotations
 
+import time
+
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, UploadFile
@@ -80,10 +82,14 @@ def _catalogue():
     return catalogue_par_defaut()
 
 
+_DEMARRAGE = time.time()
+
+
 @app.get("/api/sante")
 def sante() -> dict:
-    """Point de contrôle : le serveur répond."""
-    return {"statut": "ok", "version": __version__}
+    """Point de contrôle : le serveur répond. `demarrage` (secondes depuis 1970) permet au lanceur de
+    savoir si le code a changé depuis le démarrage (il redémarre alors le serveur)."""
+    return {"statut": "ok", "version": __version__, "demarrage": _DEMARRAGE}
 
 
 @app.get("/api/schema")
@@ -117,11 +123,13 @@ def rapport_validation():
 
 @app.post("/api/valider")
 def valider(t: Texte) -> dict:
+    """Erreurs bloquantes (`erreurs`) et avertissements non bloquants (mots-clés inconnus ignorés)."""
     try:
-        lire_script(t.texte)
+        s = lire_script(t.texte)
     except ScriptInvalide as e:
-        return {"ok": False, "erreurs": [x.vers_dict() for x in e.erreurs]}
-    return {"ok": True, "erreurs": []}
+        return {"ok": False, "erreurs": [x.vers_dict() for x in e.erreurs if x.niveau == "erreur"],
+                "avertissements": [x.vers_dict() for x in e.erreurs if x.niveau != "erreur"]}
+    return {"ok": True, "erreurs": [], "avertissements": [x.vers_dict() for x in s.avertissements_lecture]}
 
 
 def preparer(texte: str):
@@ -149,6 +157,7 @@ def _resultats_script(texte: str) -> dict:
     _STATS["calculs"] += 1
     r = serialiser(ex.resultat, ex.modele, ex.script.projet, _catalogue(), normes.charger())
     r["verifications"] = [v.vers_dict() for v in ex.verifications]
+    r["avertissements"] = [f"Script : {e}" for e in ex.script.avertissements_lecture] + r["avertissements"]
     r["suggestions"] = ex.suggestions
     r["jeux_eau"] = {j: {"complet": res.complet} for j, (_, res) in ex.jeux.items() if j is not None}
     from sout.maquette3d.generer import geometrie
@@ -168,7 +177,8 @@ def _resultats_script(texte: str) -> dict:
 
 def _erreur(e) -> dict:
     if isinstance(e, ScriptInvalide):
-        return {"ok": False, "erreurs": [x.vers_dict() for x in e.erreurs]}
+        return {"ok": False, "erreurs": [x.vers_dict() for x in e.erreurs if x.niveau == "erreur"],
+                "avertissements": [x.vers_dict() for x in e.erreurs if x.niveau != "erreur"]}
     return {"ok": False, "erreurs": [{"ligne": None, "chemin": "", "message": str(e)}]}
 
 

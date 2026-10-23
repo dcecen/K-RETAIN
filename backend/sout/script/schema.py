@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 
 class _Base(BaseModel):
@@ -343,7 +343,34 @@ Verification = Literal[
 
 
 class Script(_Base):
-    projet: str = Field(description="nom du projet")
+    projet: str = Field(description="nom du projet ; ou bloc d'informations libres (nom, affaire, client, lieu…), "
+                                    "dont le nom est affiché et les autres lignes conservées")
+    projet_infos: dict = Field(default_factory=dict, description="informations du projet (rempli automatiquement "
+                                                                 "quand projet est un bloc)")
+    _avertissements_lecture: list = PrivateAttr(default_factory=list)
+
+    @property
+    def avertissements_lecture(self) -> list:
+        """Avertissements de lecture (mots-clés inconnus ignorés), remplis par sout.script.lecteur."""
+        return self._avertissements_lecture
+
+    @avertissements_lecture.setter
+    def avertissements_lecture(self, v: list) -> None:
+        self._avertissements_lecture = list(v)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _projet_en_bloc(cls, d):
+        """`projet:` écrit comme un bloc : le nom affiché est `nom` (ou `titre`, `intitule`, `affaire`),
+        toutes les lignes sont gardées dans projet_infos."""
+        if isinstance(d, dict) and isinstance(d.get("projet"), dict):
+            infos = dict(d["projet"])
+            nom = next((str(infos[k]) for k in ("nom", "titre", "intitule", "affaire") if infos.get(k) not in (None, "")),
+                       "Projet sans nom")
+            d = {**d, "projet": nom, "projet_infos": infos}
+        elif isinstance(d, dict) and isinstance(d.get("projet"), (int, float)) and not isinstance(d.get("projet"), bool):
+            d = {**d, "projet": str(d["projet"])}
+        return d
     calcul: Calcul = Field(default_factory=Calcul)
     paroi: Paroi
     sol: list[Couche] = Field(min_length=1)

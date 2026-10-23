@@ -89,7 +89,7 @@ export function Editeur({ texte, onChange, erreurs, schema, references, ligneCib
         startColumn: 1,
         endColumn: model.getLineMaxColumn(Math.min(e.ligne ?? 1, model.getLineCount())),
         message: e.chemin ? `${e.chemin} : ${e.message}` : e.message,
-        severity: monaco.MarkerSeverity.Error,
+        severity: e.niveau === 'avertissement' ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error,
       })),
     )
   }, [erreurs])

@@ -4,6 +4,8 @@ export interface ErreurScript {
   ligne: number | null
   chemin: string
   message: string
+  /** « erreur » bloque le calcul ; « avertissement » (mot-clé inconnu ignoré) ne l'empêche pas. */
+  niveau?: 'erreur' | 'avertissement'
 }
 
 export interface Pressions {
@@ -298,6 +300,7 @@ export interface ProjetCoupes {
 export interface ReponseCalcul {
   ok: boolean
   erreurs: ErreurScript[]
+  avertissements?: ErreurScript[]
   resultats?: Resultats
   projet?: ProjetCoupes
   coupe?: CoupeRes
@@ -317,7 +320,7 @@ export const api = {
   calcul: (texte: string, coupe?: string) => post<ReponseCalcul>('/api/calcul', coupe === undefined ? { texte } : { texte, coupe }),
   coupesPreparer: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[]; unique: boolean; coupes: CoupeRes[]; avertissements: string[] }>('/api/coupes/preparer', { texte }),
   coupesSynthese: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[]; projet: ProjetCoupes }>('/api/coupes/synthese', { texte }),
-  valider: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[] }>('/api/valider', { texte }),
+  valider: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[]; avertissements?: ErreurScript[] }>('/api/valider', { texte }),
   schema: () => fetch('/api/schema').then((r) => r.json()),
   exemples: () => fetch('/api/exemples').then((r) => r.json() as Promise<Exemple[]>),
   references: () =>

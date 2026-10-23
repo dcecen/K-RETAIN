@@ -260,7 +260,8 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- | --- |
-| `projet` | texte | oui |  | nom du projet |
+| `projet` | texte | oui |  | nom du projet ; ou bloc d'informations libres (nom, affaire, client, lieu…), dont le nom est affiché et les autres lignes conservées |
+| `projet_infos` | <class 'dict'> |  |  | informations du projet (rempli automatiquement quand projet est un bloc) |
 | `calcul` | bloc |  |  |  |
 | `paroi` | bloc | oui |  |  |
 | `sol` | liste de bloc | oui |  |  |

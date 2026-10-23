@@ -28,6 +28,7 @@ const ecrireBrouillon = (t: string) => { try { localStorage.setItem(CLE_BROUILLO
 export default function App() {
   const [texte, setTexteBrut] = useState<string>(() => lireBrouillon() ?? '')
   const [erreurs, setErreurs] = useState<ErreurScript[]>([])
+  const [avertScript, setAvertScript] = useState<ErreurScript[]>([])
   const [res, setRes] = useState<Resultats | null>(null)
   const [resBase, setResBase] = useState<Resultats | null>(null)       // résultats de la première coupe
   const [projet, setProjet] = useState<ProjetCoupes | null>(null)      // coupes de calcul du projet
@@ -78,6 +79,7 @@ export default function App() {
       if (!texte.trim()) return
       api.valider(texte).then((r) => {
         setErreurs(r.erreurs)
+        setAvertScript(r.avertissements ?? [])
         if (r.erreurs.length) {
           const e = r.erreurs[0]
           setEtat({ genre: 'erreur', texte: e.ligne ? `Erreur ligne ${e.ligne}` : 'Script invalide', ligne: e.ligne })
@@ -257,7 +259,24 @@ export default function App() {
     { cle: 'script', lib: 'Script', icone: <IconeScript />, visible: true, badge: erreurs.length ? String(erreurs.length) : undefined, rouge: erreurs.length > 0 },
     { cle: 'materiaux', lib: 'Base matériaux', icone: <IconeBase />, visible: true },
   ]
-  const sansResultats = <div className="vide-centre"><b>Aucun résultat</b><span>Lancez le calcul avec « Recalculer » ou Ctrl+Entrée.</span></div>
+  const allerLigne = (l: number | null) => {
+    setOnglet('script')
+    if (l) setLigneCible(l === ligneCible ? l + 0.000001 : l)
+  }
+  const sansResultats = erreurs.length > 0 ? (
+    <div className="vide-centre bloque">
+      <b>Le calcul ne peut pas être lancé : {erreurs.length} erreur{erreurs.length > 1 ? 's' : ''} dans le script</b>
+      <span>Corrigez-les (clic : aller à la ligne) puis « Recalculer ». Les mots-clés inconnus, eux, sont ignorés et n'empêchent pas le calcul.</span>
+      <ul className="erreurs-bloquantes">
+        {erreurs.slice(0, 12).map((e, i) => (
+          <li key={i} onClick={() => allerLigne(e.ligne)}>
+            <b className="mono">{e.ligne ? `ligne ${e.ligne}` : 'script'}</b> <span>{e.chemin ? `${e.chemin} : ` : ''}{e.message}</span>
+          </li>
+        ))}
+        {erreurs.length > 12 && <li className="doux">… et {erreurs.length - 12} autre(s) (onglet Script)</li>}
+      </ul>
+    </div>
+  ) : <div className="vide-centre"><b>Aucun résultat</b><span>Lancez le calcul avec « Recalculer » ou Ctrl+Entrée.</span></div>
 
   const classes = ['appli', nav ? '' : 'sans-nav', insp ? '' : 'sans-insp', tiroirNav ? 'nav-ouvert' : '', tiroirInsp ? 'insp-ouvert' : ''].join(' ')
   return (
@@ -315,7 +334,7 @@ export default function App() {
           {onglet === 'script' && (
             <div className="vue-script">
               <div className="editeur">
-                <Editeur texte={texte} onChange={setTexte} erreurs={erreurs} schema={schema} references={references} ligneCible={ligneCible ? Math.floor(ligneCible) : null} />
+                <Editeur texte={texte} onChange={setTexte} erreurs={[...erreurs, ...avertScript]} schema={schema} references={references} ligneCible={ligneCible ? Math.floor(ligneCible) : null} />
               </div>
               {rapportRido && (
                 <div className="rapport-rido"><b>Rapport de conversion RIDO</b> <button className="btn discret" onClick={() => setRapportRido(null)}>Fermer</button>
@@ -323,11 +342,15 @@ export default function App() {
               )}
               <div className="liste-erreurs">
                 {erreurYaml ? <ul><li><b>YAML</b> {erreurYaml}</li></ul>
-                  : erreurs.length === 0 ? <div className="ok">Script valide.</div> : (
-                    <ul>{erreurs.map((e, i) => (
-                      <li key={i} onClick={() => { if (e.ligne) setLigneCible(e.ligne === ligneCible ? e.ligne + 0.000001 : e.ligne) }}>
-                        <b className="mono">{e.ligne ? `ligne ${e.ligne}` : 'script'}</b><span>{e.chemin ? `${e.chemin} : ` : ''}{e.message}</span>
-                      </li>))}</ul>
+                  : erreurs.length === 0 && avertScript.length === 0 ? <div className="ok">Script valide.</div> : (
+                    <ul>
+                      {erreurs.length === 0 && <li className="ok-ligne">Script calculable : les avertissements ci-dessous n'empêchent pas le calcul.</li>}
+                      {[...erreurs, ...avertScript].map((e, i) => (
+                        <li key={i} className={e.niveau === 'avertissement' ? 'avert' : ''}
+                          onClick={() => { if (e.ligne) setLigneCible(e.ligne === ligneCible ? e.ligne + 0.000001 : e.ligne) }}>
+                          <b className="mono">{e.ligne ? `ligne ${e.ligne}` : 'script'}</b><span>{e.chemin ? `${e.chemin} : ` : ''}{e.message}</span>
+                        </li>))}
+                    </ul>
                   )}
               </div>
             </div>
