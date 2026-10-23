@@ -25,7 +25,12 @@ from .ressorts import Ressorts
 class Appuis:
     """Appuis ponctuels (par mètre linéaire d'écran).
 
-    effort = F0 + k·(y − y_pose) ; force sur l'écran = −effort.
+    Ressort vers le sol : effort = F0 + k·(y − y_pose) ; force sur l'écran = −effort.
+    Lien entre deux nœuds (buton entre deux parois en vis-à-vis, noeud2 ≥ 0) :
+    effort = F0 + k·[(y₁ − y_pose) + (y₂ − y_pose2)] — chaque paroi qui avance vers la
+    fouille raccourcit le buton — avec k = EA/L sur la longueur **entière** ; la force
+    −effort s'applique aux deux nœuds (action = réaction). Pour deux parois symétriques
+    (y₁ = y₂), le lien équivaut au ressort vers le sol de raideur 2k, soit la règle L/2.
     Effort positif = appui qui retient l'écran côté fouille (buton comprimé,
     tirant tendu). Un appui unilatéral ne travaille pas en effort négatif.
     """
@@ -36,14 +41,40 @@ class Appuis:
     F0: np.ndarray = field(default_factory=lambda: np.zeros(0))      # kN/m
     y_pose: np.ndarray = field(default_factory=lambda: np.zeros(0))  # m
     unilateral: np.ndarray = field(default_factory=lambda: np.zeros(0, dtype=bool))
+    noeud2: np.ndarray = field(default_factory=lambda: np.zeros(0, dtype=int))   # −1 : ressort vers le sol
+    y_pose2: np.ndarray = field(default_factory=lambda: np.zeros(0))
+
+    def __post_init__(self):
+        n = len(self.nom)
+        if len(self.noeud2) != n:
+            self.noeud2 = np.full(n, -1, dtype=int)
+        if len(self.y_pose2) != n:
+            self.y_pose2 = np.zeros(n)
 
     def __len__(self) -> int:
         return len(self.nom)
 
+    @property
+    def liens(self) -> np.ndarray:
+        return self.noeud2 >= 0
+
     def efforts(self, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        eff = self.F0 + self.k * (y[self.noeud] - self.y_pose)
+        d = y[self.noeud] - self.y_pose
+        lien = self.liens
+        if lien.any():
+            d = d + np.where(lien, y[np.where(lien, self.noeud2, 0)] - self.y_pose2, 0.0)
+        eff = self.F0 + self.k * d
         actif = ~(self.unilateral & (eff < 0.0))
         return np.where(actif, eff, 0.0), actif
+
+    def forces_nodales(self, eff: np.ndarray, n: int) -> np.ndarray:
+        """Force exercée sur l'écran par nœud (kN par mètre, positive vers la fouille) : −effort
+        au nœud porteur et, pour un lien, au second nœud."""
+        f = -np.bincount(self.noeud, weights=eff, minlength=n)
+        lien = self.liens
+        if lien.any():
+            f = f - np.bincount(self.noeud2[lien], weights=eff[lien], minlength=n)
+        return f
 
 
 class RuptureEquilibre(Exception):
@@ -133,22 +164,34 @@ def resoudre_general(
                      float(appuis.k.max(initial=0.0)))
     diag = Kb.diagonal()
 
-    def residu_et_tangente(u_: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    lien = appuis.liens if len(appuis) else np.zeros(0, dtype=bool)
+
+    def residu_et_tangente(u_: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         y = u_[ddl_y]
         f_sol, k_sol = ressorts.forces_et_raideurs(y, n)
         eff, actif = appuis.efforts(y)
-        f_app = -np.bincount(appuis.noeud, weights=eff, minlength=n) if len(appuis) else np.zeros(n)
-        k_app = np.bincount(appuis.noeud, weights=np.where(actif, appuis.k, 0.0), minlength=n) if len(appuis) else np.zeros(n)
+        f_app = appuis.forces_nodales(eff, n) if len(appuis) else np.zeros(n)
+        ka = np.where(actif, appuis.k, 0.0) if len(appuis) else np.zeros(0)
+        k_app = np.bincount(appuis.noeud, weights=ka, minlength=n) if len(appuis) else np.zeros(n)
+        if lien.any():
+            k_app = k_app + np.bincount(appuis.noeud2[lien], weights=ka[lien], minlength=n)
         f_int = np.zeros(N)
         f_int[ddl_y] = f_sol + f_app
         R = Kb @ u_ - f_int - f_ext
-        return R, k_sol + k_app
+        return R, k_sol + k_app, ka
+
+    def couplages(ka: np.ndarray) -> sparse.csc_matrix | None:
+        """Termes hors diagonale des liens entre deux nœuds (k sur (n₁, n₂) et (n₂, n₁))."""
+        if not lien.any():
+            return None
+        i1, i2, kv = ddl_y[appuis.noeud[lien]], ddl_y[appuis.noeud2[lien]], ka[lien]
+        return sparse.csc_matrix((np.concatenate([kv, kv]), (np.concatenate([i1, i2]), np.concatenate([i2, i1]))), shape=(N, N))
 
     def statuts(u_: np.ndarray) -> np.ndarray:
         y = u_[ddl_y]
         return np.concatenate([ressorts.pressions(y)[1], appuis.efforts(y)[1].astype(int)])
 
-    R, kt = residu_et_tangente(u)
+    R, kt, ka = residu_et_tangente(u)
     nR = np.abs(R).max()
     st = statuts(u)
     it = 0
@@ -161,12 +204,15 @@ def resoudre_general(
         if nR < tol_it or pas_negligeable:
             break
         J = Kb + sparse.csc_matrix((kt + reg, (ddl_y, ddl_y)), shape=(N, N))
+        C = couplages(ka)
+        if C is not None:
+            J = J + C
         du = spsolve(J, -R)
         if not np.all(np.isfinite(du)):
             raise RuptureEquilibre("système singulier : aucun équilibre (mécanisme)")
         alpha = _recherche_lineaire(lambda a: float(residu_et_tangente(u + a * du)[0] @ du))
         u_new = u + alpha * du
-        R_new, kt_new = residu_et_tangente(u_new)
+        R_new, kt_new, ka = residu_et_tangente(u_new)
         n_new = np.abs(R_new).max()
         u, R, kt, nR = u_new, R_new, kt_new, n_new
         if np.abs(u[ddl_y]).max() > y_rupture:

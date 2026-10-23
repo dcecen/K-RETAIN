@@ -19,61 +19,7 @@ ICI = Path(__file__).resolve().parent
 RECTANGLE_DEFAUT = [[0.0, 0.0], [20.0, 0.0], [20.0, 12.0], [0.0, 12.0]]
 
 
-def _aire(c: list) -> float:
-    return 0.5 * sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(c, c[1:] + c[:1]))
-
-
-def _intersection(p, d, a, b):
-    """Distance t ≥ 0 le long du rayon p + t·d jusqu'au segment [a, b] (ou None)."""
-    ex, ey = b[0] - a[0], b[1] - a[1]
-    den = d[0] * ey - d[1] * ex
-    if abs(den) < 1e-12:
-        return None
-    wx, wy = a[0] - p[0], a[1] - p[1]
-    t = (wx * ey - wy * ex) / den
-    u = (wx * d[1] - wy * d[0]) / den
-    return t if t > 1e-6 and -1e-9 <= u <= 1 + 1e-9 else None
-
-
-def placer_appuis(contour: list, appuis: dict) -> list[dict]:
-    """Positions en plan par défaut : butons en travers de la fouille depuis le plus
-    long côté, tirants vers l'extérieur et bracons vers l'intérieur sur tous les côtés,
-    à l'espacement de chaque appui."""
-    sens = 1.0 if _aire(contour) > 0 else -1.0
-    aretes = list(zip(contour, contour[1:] + contour[:1]))
-    sorties = []
-    for nom, a in appuis.items():
-        esp = max(a.get("espacement", 1.0) or 1.0, 0.5)
-        if a["type"] == "buton":
-            choix = [max(aretes, key=lambda e: math.dist(*e))]
-        elif a["type"] in ("tirant", "bracon"):
-            choix = aretes
-        else:
-            continue
-        for A, B in choix:
-            L = math.dist(A, B)
-            if L < 1e-6:
-                continue
-            t = ((B[0] - A[0]) / L, (B[1] - A[1]) / L)
-            n_int = (-t[1] * sens, t[0] * sens)
-            n = int(L // esp)
-            for k in range(n):
-                s = (k + 0.5) * L / n if n else L / 2
-                p = (A[0] + t[0] * s, A[1] + t[1] * s)
-                if a["type"] == "buton":
-                    ds = [d for e in aretes if e != (A, B) for d in [_intersection(p, n_int, *e)] if d is not None]
-                    if not ds:
-                        continue
-                    q = (p[0] + n_int[0] * min(ds), p[1] + n_int[1] * min(ds))
-                elif a["type"] == "tirant":
-                    Lt = (a.get("longueur_libre") or 8.0) + (a.get("longueur_scellee") or 6.0)
-                    Lh = Lt * math.cos(math.radians(a.get("angle") or 0.0))
-                    q = (p[0] - n_int[0] * Lh, p[1] - n_int[1] * Lh)
-                else:
-                    Lh = (a.get("longueur") or 5.0) * math.cos(math.radians(a.get("angle") or 0.0))
-                    q = (p[0] + n_int[0] * Lh, p[1] + n_int[1] * Lh)
-                sorties.append({"appui": nom, "de": list(p), "a": list(q)})
-    return sorties
+from ..plan.geometrie import intersection_rayon as _intersection, placer_appuis  # noqa: E402  (géométrie partagée)
 
 
 def _l(a) -> list:

@@ -109,16 +109,9 @@ def _script_local(c, nom: str) -> dict | None:
 # géométrie en plan
 # ---------------------------------------------------------------------------
 def _aretes(contour: list[list[float]]) -> list[dict]:
-    n = len(contour)
-    aire = 0.5 * sum(contour[i][0] * contour[(i + 1) % n][1] - contour[(i + 1) % n][0] * contour[i][1] for i in range(n))
-    sens = 1.0 if aire > 0 else -1.0
-    out = []
-    for k in range(n):
-        A, B = contour[k], contour[(k + 1) % n]
-        L = math.dist(A, B)
-        t = ((B[0] - A[0]) / L, (B[1] - A[1]) / L) if L > 0 else (1.0, 0.0)
-        out.append({"k": k, "A": A, "B": B, "L": L, "t": t, "ni": (-t[1] * sens, t[0] * sens)})
-    return out
+    """Arêtes orientées du contour (géométrie partagée sout.plan.geometrie : k, A, B, L, t, ni, s0)."""
+    from ..plan.geometrie import aretes
+    return aretes(contour)
 
 
 def _trace_defaut(ar: dict, de: float, a: float, longueur: float) -> list[list[float]]:
