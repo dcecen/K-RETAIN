@@ -1,0 +1,43 @@
+# Projet fictif, valeurs d'illustration. Fouille fermée en pseudo-3D : la plaque parcourt tout le
+# contour (quatre angles à déplacement nul) et les butons relient les deux parois en vis-à-vis
+# (raideur EA/L sur la longueur entière) : les deux écrans interagissent (« double écran »).
+projet: Fouille fermée 30 × 14 m, paroi moulée butonnée (pseudo-3D, exemple)
+calcul:
+  mode: pseudo3d
+  pas: 0.25
+
+pseudo3d:
+  pas_horizontal: 1.0        # pas de longueur : la géométrie vient du bloc plan
+  largeur_appui: 1.0         # plaque d'appui / semelle de lierne : répartit chaque buton
+
+paroi:
+  type: paroi_moulee
+  epaisseur: 0.6
+  beton: C30/37
+  rapport_EI_fissure: 0.7    # choix d'illustration
+  enrobage: 0.07
+  longueur_panneau: 6.0      # joints de panneaux : pas de moment horizontal transmis
+  tete: 0.0
+  pied: -16.0
+
+sol:
+  - { nom: Remblai, toit: 0.0, gamma: 18, gamma_dejauge: 9, phi: 28, EM: 5000, alpha: 0.5 }
+  - { nom: Marne, toit: -3.0, gamma: 20, gamma_dejauge: 10, phi: 30, c: 15, EM: 30000, alpha: 0.5, pl: 2500 }
+
+eau:
+  service: { amont: -3.0, aval: -3.0 }
+
+appuis:
+  B1: { type: buton, element: modulaire_A, cote: -1.0, espacement: 6.0, longueur: 14.0, precharge: 100, lierne: HEB 400, acier: S355 }
+
+plan:
+  contour: [[0, 0], [30, 0], [30, 14], [0, 14]]
+  # sans plan.appuis : butons placés automatiquement tous les 6 m depuis le grand côté vers le côté d'en face
+
+phases:
+  - { nom: "Terrassement à -1,5", excaver: -1.5 }
+  - { nom: Pose des butons B1, poser: B1 }
+  - { nom: Terrassement final et pompage, excaver: -8.0, eau: { aval: -8.5 } }
+
+verifications: [butee, stabilite_generale, deplacements, structure]
+criteres: { deplacement_max_mm: 25 }

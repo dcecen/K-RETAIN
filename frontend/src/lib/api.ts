@@ -229,6 +229,9 @@ export interface Resultats {
     s: number[]
     z: number[]
     avertissements: string[]
+    /** Abscisses des angles (sommets du contour ou angle de la paroi droite) et mode fouille fermée. */
+    sommets?: number[]
+    fermee?: boolean
     phases: {
       nom: string
       ok: boolean
@@ -248,8 +251,9 @@ export interface Resultats {
       /** Réactions des lignes pénalisées (bords, angle), kN par ligne ; bilan d'équilibre (kN, kN·m). */
       reactions?: { s: number[]; total_kN: number[] }
       bilan?: Record<string, number>
-      /** Effort en kN par appui ponctuel ; espacement (m) et angle (°) pour revenir au kN/m et à l'effort axial. */
-      appuis?: { nom: string; s: number; effort: number; actif: boolean; espacement?: number; angle?: number }[]
+      /** Effort en kN par appui ponctuel ; espacement (m) et angle (°) pour revenir au kN/m et à l'effort axial ;
+       *  s2 : abscisse de l'autre extrémité d'un buton reliant deux parois (fouille fermée). */
+      appuis?: { nom: string; s: number; s2?: number | null; effort: number; actif: boolean; espacement?: number; angle?: number }[]
     }[]
   }
 }

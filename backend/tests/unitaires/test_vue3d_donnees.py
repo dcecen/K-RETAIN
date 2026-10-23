@@ -67,7 +67,7 @@ def test_geometrie_maquette_renvoyee_avec_le_calcul(exemple):
     assert g["assemblages"]["A1"]["appui"] == "B1"
 
 
-@pytest.mark.parametrize("nom", ["fouille_exemple", "fouille_ecoulement", "pseudo3d_angle", "berlinoise_tirants", "fouille_coupes"])
+@pytest.mark.parametrize("nom", ["fouille_exemple", "fouille_ecoulement", "pseudo3d_angle", "berlinoise_tirants", "fouille_coupes", "pseudo3d_fouille_fermee"])
 def test_jeux_figes_de_la_vue3d_a_jour(nom):
     """Les jeux figés des tests de l'interface reflètent le calcul actuel
     (sinon : `python -m outils.fixtures_vue3d` dans backend)."""

@@ -473,7 +473,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- | --- |
-| `longueur` | nombre | oui |  | longueur développée de la paroi modélisée (m) (> 0) |
+| `longueur` | nombre |  |  | paroi droite : longueur développée modélisée (m) ; absente avec un bloc plan : fouille fermée sur tout le contour, butons reliant les parois en vis-à-vis (double écran) (> 0) |
 | `pas_horizontal` | nombre |  | 0.5 | taille des éléments selon la longueur (m) (> 0.05) |
 | `bords` | libres / encastres / appuyes |  | libres | conditions aux extrémités |
 | `angle` | nombre |  |  | angle de la fouille au milieu de la paroi (degrés) ; seule sa présence compte : la paroi perpendiculaire impose w = 0 sur la ligne d'angle (appui simple, continuité du ferraillage d'angle négligée) (> 0, < 360) |

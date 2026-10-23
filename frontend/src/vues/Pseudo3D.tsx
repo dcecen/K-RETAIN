@@ -25,10 +25,17 @@ export function Pseudo3D({ res, phase }: { res: Resultats; phase: number }) {
     if (ph.Ms) data.push(carte(ph.Ms, 'x3', 'y2', 'Ms (kN·m/m)', 'Portland', 0.45, 0.22))
     if (ph.V) data.push(carte(ph.V, 'x4', 'y2', 'V (kN/m)', 'Picnic', 1.0, 0.22))
     const axeS = { title: { text: 'abscisse le long de la paroi s (m)' } }
+    // angles de la fouille : traits verticaux sur chaque carte
+    const sommets = (p3d.sommets ?? []).filter((x) => x > 1e-6 && x < p3d.s[p3d.s.length - 1] - 1e-6)
+    const shapes = sommets.flatMap((x) => ['x', 'x2', 'x3', 'x4'].map((xr) => ({
+      type: 'line', xref: xr, yref: xr === 'x3' || xr === 'x4' ? 'y2' : 'y', x0: x, x1: x,
+      y0: p3d.z[0], y1: p3d.z[p3d.z.length - 1], line: { color: '#333', width: 1, dash: 'dot' },
+    })))
     return {
       data,
       layout: {
-        title: { text: `Pseudo-3D — ${ph.nom} : déplacement y (positif vers la fouille), moments vertical Mz et horizontal Ms (positifs face fouille tendue), tranchant V (statique des lignes verticales)`, font: { size: 13 } },
+        shapes,
+        title: { text: `Pseudo-3D${p3d.fermee ? ' (fouille fermée, butons reliant les parois en vis-à-vis)' : ''} — ${ph.nom} : déplacement y (positif vers la fouille), moments vertical Mz et horizontal Ms (positifs face fouille tendue), tranchant V (statique des lignes verticales)`, font: { size: 13 } },
         xaxis: { domain: [0, 0.42], anchor: 'y', ...axeS },
         xaxis2: { domain: [0.55, 0.97], anchor: 'y', ...axeS },
         xaxis3: { domain: [0, 0.42], anchor: 'y2', ...axeS },
@@ -49,7 +56,7 @@ export function Pseudo3D({ res, phase }: { res: Resultats; phase: number }) {
         <div className="chiffre"><div className="lib">Moment vertical</div><div className="val">{ph.Mz_max?.toFixed(0)} / {ph.Mz_min?.toFixed(0)}</div><div className="sous">kN·m/m</div></div>
         <div className="chiffre"><div className="lib">|Moment horizontal| max</div><div className="val">{ph.Ms_absmax?.toFixed(0)}</div><div className="sous">kN·m/m</div></div>
         <div className="chiffre"><div className="lib">|Tranchant| max</div><div className="val">{ph.V_absmax?.toFixed(0) ?? '—'}</div><div className="sous">kN/m (au droit des appuis ponctuels : voir largeur_appui)</div></div>
-        <div className="chiffre"><div className="lib">Appuis ponctuels</div><div className="val">{ph.appuis?.length ?? 0}</div><div className="sous">effort max {Math.max(0, ...(ph.appuis ?? []).map((a) => a.effort)).toFixed(0)} kN</div></div>
+        <div className="chiffre"><div className="lib">{p3d.fermee ? 'Butons entre parois' : 'Appuis ponctuels'}</div><div className="val">{ph.appuis?.length ?? 0}</div><div className="sous">effort max {Math.max(0, ...(ph.appuis ?? []).map((a) => a.effort)).toFixed(0)} kN{p3d.fermee ? ' · angles à w = 0' : ''}</div></div>
       </div>
       <Graphique data={data} layout={layout} hauteur={ph.Ms || ph.V ? 900 : 560} nom={`pseudo3d_${ph.nom}`} />
     </div>

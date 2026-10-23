@@ -29,10 +29,15 @@ __all__ = ["largeurs_tributaires", "assembler", "moments", "torsion", "forces_tr
            "rigidite_element"]
 
 
-def largeurs_tributaires(x: np.ndarray) -> np.ndarray:
+def largeurs_tributaires(x: np.ndarray, fermeture: float | None = None) -> np.ndarray:
+    """Largeur tributaire de chaque nœud ; `fermeture` : longueur de l'élément qui referme la
+    boucle (dernier nœud → premier nœud) pour une fouille fermée."""
     t = np.zeros(len(x))
     t[1:] += 0.5 * np.diff(x)
     t[:-1] += 0.5 * np.diff(x)
+    if fermeture is not None:
+        t[0] += 0.5 * fermeture
+        t[-1] += 0.5 * fermeture
     return t
 
 
@@ -65,18 +70,20 @@ def _entrees(ddl: np.ndarray, k: np.ndarray) -> tuple[np.ndarray, np.ndarray, np
 
 def assembler(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarray,
               EI_h_sup: np.ndarray | None = None, coef_h: np.ndarray | None = None,
-              GJ_elem: np.ndarray | None = None) -> sparse.csc_matrix:
+              GJ_elem: np.ndarray | None = None, fermeture: float | None = None) -> sparse.csc_matrix:
     """Rigidité du grillage (assemblage vectorisé).
 
     Dz_elem, Ds_elem : rigidités par mètre pour chaque élément vertical (selon z).
     GJ_elem : rigidité de torsion par mètre de chaque élément vertical (défaut √(Ds·Dz), Huber).
-    EI_h_sup (ns−1, nz) : rigidité de flexion absolue (kN·m²) ajoutée à chaque élément
+    EI_h_sup (nh, nz) : rigidité de flexion absolue (kN·m²) ajoutée à chaque élément
     horizontal (i, j) — poutre réelle sur une rangée, par ex. une lierne.
-    coef_h (ns−1, nz) : facteur appliqué à la flexion et à la torsion des éléments
+    coef_h (nh, nz) : facteur appliqué à la flexion et à la torsion des éléments
     horizontaux (0 sur un joint qui ne transmet pas de moment horizontal).
+    fermeture : fouille fermée, longueur de l'élément horizontal qui relie le dernier nœud au
+    premier (nh = ns éléments horizontaux au lieu de ns−1 ; angles tous monolithiques).
     """
     ns, nz = len(s), len(z)
-    ds = largeurs_tributaires(s)
+    ds = largeurs_tributaires(s, fermeture)
     dz = largeurs_tributaires(z)
     Dz_noeud = _moyenne_noeuds(Dz_elem, nz)
     Ds_noeud = _moyenne_noeuds(Ds_elem, nz)
@@ -93,12 +100,15 @@ def assembler(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.nda
     kt = np.array([[1.0, -1.0], [-1.0, 1.0]])
     l1, c1, v1 = _entrees(ddl_v, _blocs_flexion(EIv, Lv))
     l2, c2, v2 = _entrees(ddl_tv, (GJv / Lv)[:, None, None] * kt[None])
-    # --- poutres horizontales : élément (i, j) entre les nœuds i·nz+j et (i+1)·nz+j
-    a = (np.arange(ns - 1)[:, None] * nz + np.arange(nz)[None, :]).ravel()
-    b = a + nz
-    Lh = np.repeat(np.diff(s), nz)
-    EIh = np.tile(Ds_noeud * dz, ns - 1)
-    GJh = np.tile(GJ_noeud * dz, ns - 1)
+    # --- poutres horizontales : élément (i, j) entre les nœuds i·nz+j et (i+1)·nz+j (et le dernier → le premier
+    # si la boucle est fermée)
+    nh = ns if fermeture is not None else ns - 1
+    a = (np.arange(nh)[:, None] * nz + np.arange(nz)[None, :]).ravel()
+    b = (((np.arange(nh) + 1) % ns)[:, None] * nz + np.arange(nz)[None, :]).ravel()
+    Ls = np.diff(s) if fermeture is None else np.concatenate([np.diff(s), [fermeture]])
+    Lh = np.repeat(Ls, nz)
+    EIh = np.tile(Ds_noeud * dz, nh)
+    GJh = np.tile(GJ_noeud * dz, nh)
     if coef_h is not None:
         EIh = EIh * np.asarray(coef_h, float).ravel()
         GJh = GJh * np.asarray(coef_h, float).ravel()
@@ -115,7 +125,7 @@ def assembler(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.nda
 
 
 def moments(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarray,
-            u: np.ndarray, coef_h: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+            u: np.ndarray, coef_h: np.ndarray | None = None, fermeture: float | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Moments par mètre aux nœuds : Mz (flexion verticale, convention du 2D :
     positif face fouille tendue) et Ms (flexion horizontale, même convention de signe).
     Moyenne des extrémités d'éléments adjacents. coef_h (ns−1, nz) : facteur de rigidité des
@@ -139,14 +149,16 @@ def moments(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.ndarr
     if ns > 1:
         Ds_noeud = _moyenne_noeuds(Ds_elem, nz)
         cs = np.zeros(ns)
-        for i in range(ns - 1):
-            L = s[i + 1] - s[i]
+        nh = ns if fermeture is not None else ns - 1
+        for i in range(nh):
+            i1 = (i + 1) % ns
+            L = (s[i + 1] - s[i]) if i < ns - 1 else fermeture
             for j in range(nz):
                 ke = rigidite_element(Ds_noeud[j] * (1.0 if coef_h is None else coef_h[i, j]), L)
-                fe = ke @ np.array([W[i, j], Ts[i, j], W[i + 1, j], Ts[i + 1, j]])
+                fe = ke @ np.array([W[i, j], Ts[i, j], W[i1, j], Ts[i1, j]])
                 Ms[i, j] += fe[1]
-                Ms[i + 1, j] += -fe[3]
-            cs[i] += 1; cs[i + 1] += 1
+                Ms[i1, j] += -fe[3]
+            cs[i] += 1; cs[i1] += 1
         Ms /= cs[:, None]
     return Mz, Ms
 

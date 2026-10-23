@@ -308,7 +308,9 @@ class CoupeScript(_Base):
 
 
 class Pseudo3D(_Base):
-    longueur: float = Field(gt=0, description="longueur développée de la paroi modélisée (m)")
+    longueur: float | None = Field(
+        None, gt=0, description="paroi droite : longueur développée modélisée (m) ; absente avec un bloc plan : fouille "
+                                "fermée sur tout le contour, butons reliant les parois en vis-à-vis (double écran)")
     pas_horizontal: float = Field(0.5, gt=0.05, description="taille des éléments selon la longueur (m)")
     bords: Literal["libres", "encastres", "appuyes"] = Field("libres", description="conditions aux extrémités")
     angle: float | None = Field(None, gt=0, lt=360, description="angle de la fouille au milieu de la paroi (degrés) ; "
