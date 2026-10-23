@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { api, type ErreurScript, type ProjetCoupes, type ReponseCalcul, type Resultats } from './lib/api'
+import { api, type ErreurScript, type Exemple, type ProjetCoupes, type ReponseCalcul, type Resultats } from './lib/api'
 import type { EtatCalcul, Onglet, Section, Selection } from './lib/etat'
 import { exporterImage, imprimerNote, telechargerTexte } from './lib/exporter'
+import { nomProjet } from './lib/format'
 import { IconeAppui, IconeBase, IconeCoupe, IconeCube, IconePlaque, IconeProjet, IconeScript, IconeTableau, IconeVerif } from './lib/icones'
 import * as sd from './lib/scriptDoc'
 import { appliquerTheme, themeInitial, type Theme } from './lib/theme'
@@ -41,7 +42,7 @@ export default function App() {
   const [selection, setSelection] = useState<Selection>(null)
   const [schema, setSchema] = useState<unknown>(null)
   const [references, setReferences] = useState<Record<string, string[]>>({})
-  const [exemples, setExemples] = useState<{ nom: string; texte: string }[]>([])
+  const [exemples, setExemples] = useState<Exemple[]>([])
   const [enCours, setEnCours] = useState(false)
   const [etat, setEtat] = useState<EtatCalcul>({ genre: 'aucun', texte: 'Aucun calcul' })
   const [ligneCible, setLigneCible] = useState<number | null>(null)
@@ -228,7 +229,7 @@ export default function App() {
     if (l) setLigneCible(l === ligneCible ? l + 0.000001 : l)
   }
   const enregistrer = () => {
-    const nom = (modele?.projet ? String(modele.projet) : 'projet').trim().replace(/[^\w-]+/g, '_')
+    const nom = (nomProjet(modele?.projet) || 'projet').trim().replace(/[^\w-]+/g, '_')
     telechargerTexte(texte, `${nom}.yaml`, 'text/yaml')
   }
   const importerRido = async (f: File) => {
@@ -261,7 +262,7 @@ export default function App() {
   const classes = ['appli', nav ? '' : 'sans-nav', insp ? '' : 'sans-insp', tiroirNav ? 'nav-ouvert' : '', tiroirInsp ? 'insp-ouvert' : ''].join(' ')
   return (
     <div className={classes}>
-      <BarreTitre projet={modele?.projet ? String(modele.projet) : ''} etat={etat} enCours={enCours} exemples={exemples} theme={theme}
+      <BarreTitre projet={nomProjet(modele?.projet)} etat={etat} enCours={enCours} exemples={exemples} theme={theme}
         imagePossible={!!res && (onglet === 'coupe' || onglet === '3d')} resultatsDisponibles={!!res}
         onRecalculer={() => void calculer()} onExemple={(t) => { setTexteBrut(t); setRes(null); setProjet(null); setEtat({ genre: 'aucun', texte: 'Exemple chargé — à calculer' }) }}
         onOuvrir={(f) => void f.text().then((t) => { setTexteBrut(t); setRes(null) })} onEnregistrer={enregistrer} onRido={(f) => void importerRido(f)}

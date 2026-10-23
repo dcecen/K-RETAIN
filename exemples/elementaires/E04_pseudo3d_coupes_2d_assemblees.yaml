@@ -1,0 +1,18 @@
+# VÉRIFICATION ÉLÉMENTAIRE E04 — pseudo-3D sans rigidité horizontale = coupes 2D assemblées
+# Paroi droite de 48 m, butons tous les 4 m, rigidité horizontale nulle (Ds = 0) : la plaque se réduit
+# à des poutres verticales indépendantes. Chaque ligne sans buton est l'écran 2D SANS appui ; chaque
+# buton ne retient que sa ligne de 1 m. C'est le comportement « RIDO 2D juxtaposé ».
+# ATTENDU : |y| max = déplacement de l'écran 2D sans appui (identique à 1e-6) ; forte ondulation
+# le long de la paroi (onglet Pseudo-3D). Comparer avec E05 (même paroi, vraie plaque).
+projet: E04 Pseudo-3D Ds = 0 — coupes 2D assemblées (référence)
+calcul: { mode: pseudo3d, kh: impose, pas: 0.25 }
+pseudo3d: { longueur: 48, pas_horizontal: 1.0, rapport_rigidite_horizontale: 0.0 }
+paroi: { type: paroi_moulee, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, kh: 20000 }
+appuis:
+  B: { type: buton, raideur: 30000, cote: -1.0, espacement: 4.0, precharge: 80 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose des butons, poser: B }
+  - { nom: "Terrassement à -6,0", excaver: -6.0 }

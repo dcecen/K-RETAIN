@@ -1,0 +1,14 @@
+# VÉRIFICATION ÉLÉMENTAIRE E01 — écran autostable rigide face à l'équilibre limite
+# Écran très raide (EI 1e9) de 10 m dans un sable φ = 30°, γ = 20 kN/m³, sans eau, δ = 0 (Rankine :
+# Ka = 1/3, Kp = 3). Équilibre limite rigide-plastique (rotation autour d'un point de la fiche,
+# Costet & Sanglerat ; Craig) : hauteur critique d'excavation h = 5,05 m.
+# ATTENDU : la phase « 0,97 × h critique » se calcule ; la phase « 1,03 × h critique » est signalée
+# en rupture (aucun équilibre). Rapport : docs/validation/rafale_elementaire (cas ecran_autostable_rigide).
+projet: E01 Écran autostable rigide — équilibre limite (h critique 5,05 m)
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: paroi_moulee, EI: 1.0e9, tete: 0.0, pied: -10.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 30, kh: 20000 }
+phases:
+  - { nom: "Excavation à 0,97 h critique (4,90 m)", excaver: -4.90 }
+  - { nom: "Excavation à 1,03 h critique (5,20 m) : rupture attendue", excaver: -5.20 }

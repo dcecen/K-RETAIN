@@ -1,0 +1,18 @@
+# VÉRIFICATION ÉLÉMENTAIRE E08 — flambement d'un buton tubulaire (EN 1993-1-1 § 6.3.1)
+# Tube 508 × 12,5 (A = 194,6 cm², I = 59 755 cm⁴, S355), longueur 16 m, articulé aux deux bouts.
+# Calcul manuel : N_cr = π²·E·I/L² = 4 838 kN ; N_pl = 6 908 kN ; λ̄ = 1,195 ; courbe a (α = 0,21) :
+# χ = 0,533 ; N_b,Rd = χ·N_pl/γM1 = 3 683 kN.
+# ATTENDU (onglet Vérifications, « Buton — flambement et flexion ») : χ = 0,53 et N_b,Rd = 3 683 kN
+# (indépendants de l'effort et de la température).
+projet: E08 Acier — flambement du buton 508 × 12,5 (N_b,Rd = 3 683 kN)
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, kh: 20000 }
+appuis:
+  B1: { type: buton, element: modulaire_A, cote: -1.0, espacement: 5.0, longueur: 16.0 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose du buton, poser: B1 }
+  - { nom: "Terrassement à -6,0", excaver: -6.0 }
+verifications: [structure]

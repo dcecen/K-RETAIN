@@ -258,6 +258,9 @@ export interface Resultats {
   }
 }
 
+/** Script du menu Fichier : exemple de projet ou vérification élémentaire (exemples/elementaires). */
+export interface Exemple { nom: string; texte: string; groupe?: string }
+
 /** Coupe de calcul d'un projet 2D (voir backend/sout/script/coupes.py). */
 export interface CoupeRes {
   nom: string
@@ -316,7 +319,7 @@ export const api = {
   coupesSynthese: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[]; projet: ProjetCoupes }>('/api/coupes/synthese', { texte }),
   valider: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[] }>('/api/valider', { texte }),
   schema: () => fetch('/api/schema').then((r) => r.json()),
-  exemples: () => fetch('/api/exemples').then((r) => r.json() as Promise<{ nom: string; texte: string }[]>),
+  exemples: () => fetch('/api/exemples').then((r) => r.json() as Promise<Exemple[]>),
   references: () =>
     fetch('/api/materiaux/references')
       .then((r) => (r.ok ? r.json() : {}))

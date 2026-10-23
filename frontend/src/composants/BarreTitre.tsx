@@ -1,3 +1,4 @@
+import type { Exemple } from '../lib/api'
 import type { EtatCalcul } from '../lib/etat'
 import {
   IconeCalcul, IconeChevronB, IconeExport, IconeFichier, IconeLogo, IconeLune, IconeMenu, IconePanneauD,
@@ -6,11 +7,22 @@ import {
 import type { Theme } from '../lib/theme'
 import { Menu } from './Menu'
 
+/** Titre d'un script élémentaire : sa ligne « projet: », à défaut son nom de fichier. */
+function libelleElementaire(e: Exemple): string {
+  const m = e.texte.match(/^projet:\s*(.+)$/m)
+  return m ? m[1].trim() : e.nom
+}
+
+/** En-tête de commentaires d'un script (ce qui est vérifié, résultat attendu, source) pour l'info-bulle. */
+function enTete(texte: string): string {
+  return texte.split('\n').filter((l) => l.startsWith('#')).map((l) => l.replace(/^#\s?/, '')).join('\n')
+}
+
 export function BarreTitre(p: {
   projet: string
   etat: EtatCalcul
   enCours: boolean
-  exemples: { nom: string; texte: string }[]
+  exemples: Exemple[]
   theme: Theme
   imagePossible: boolean
   resultatsDisponibles: boolean
@@ -44,9 +56,24 @@ export function BarreTitre(p: {
         {(fermer) => (
           <>
             <div className="titre-groupe">Exemples</div>
-            {p.exemples.map((e) => (
+            {p.exemples.filter((e) => (e.groupe ?? 'Exemples') === 'Exemples').map((e) => (
               <button key={e.nom} onClick={() => { p.onExemple(e.texte); fermer() }}>{e.nom}</button>
             ))}
+            {p.exemples.some((e) => e.groupe === 'Vérifications élémentaires') && (
+              <>
+                <hr />
+                <div className="titre-groupe">Vérifications élémentaires</div>
+                {p.exemples.filter((e) => e.groupe === 'Vérifications élémentaires').map((e) => (
+                  <button key={e.nom} onClick={() => { p.onExemple(e.texte); fermer() }} title={enTete(e.texte)}>
+                    {libelleElementaire(e)}
+                  </button>
+                ))}
+                <button onClick={() => { window.open('/api/validation/rapport', '_blank', 'noopener'); fermer() }}>
+                  Rapport de validation complet…
+                  <span className="detail-entree">45 cas : poutres RDM, Winkler, plaque, écran 2D, balayages, pseudo-3D</span>
+                </button>
+              </>
+            )}
             <hr />
             <button onClick={() => { choisirFichier('.yaml,.yml,.txt', p.onOuvrir); fermer() }}>Ouvrir un script…</button>
             <button onClick={() => { p.onEnregistrer(); fermer() }}>Enregistrer le script</button>

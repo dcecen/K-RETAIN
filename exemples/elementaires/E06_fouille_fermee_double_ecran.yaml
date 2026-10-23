@@ -1,0 +1,23 @@
+# VÉRIFICATION ÉLÉMENTAIRE E06 — fouille fermée : les deux parois en vis-à-vis interagissent
+# Fouille 20 × 12 m, paroi sur tout le contour (angles à déplacement nul), butons reliant les deux
+# grands côtés (raideur EA/L sur la longueur entière, action = réaction). Une grue de 3 000 kN est
+# posée 3 m derrière le milieu de la paroi sud.
+# ATTENDU : le buton au droit de la grue porte environ 13 % de plus que sans grue (comparer en
+# supprimant la surcharge) ; la paroi nord, en face, est repoussée vers sa terre ; équilibre global nul.
+projet: E06 Fouille fermée — double écran (grue derrière la paroi sud)
+calcul: { mode: pseudo3d, kh: impose, pas: 0.25 }
+pseudo3d: { pas_horizontal: 1.0 }
+paroi: { type: paroi_moulee, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, kh: 20000 }
+appuis:
+  B: { type: buton, raideur: 30000, cote: -1.0, espacement: 4.0, precharge: 80 }
+plan:
+  contour: [[0, 0], [20, 0], [20, 12], [0, 12]]
+  cotes: { sud: 0, est: 1, nord: 2, ouest: 3 }
+surcharges:
+  - { nom: grue, type: ponctuelle, q: 3000, position: [10, -3] }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose des butons, poser: B }
+  - { nom: "Terrassement à -6,0", excaver: -6.0 }

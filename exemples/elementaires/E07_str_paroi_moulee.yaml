@@ -1,0 +1,17 @@
+# VÉRIFICATION ÉLÉMENTAIRE E07 — section béton armé de paroi moulée (EN 1992-1-1)
+# Paroi 0,60 m en C30/37, axe des armatures à 0,07 m (d = 0,53 m), 20 cm²/m côté fouille.
+# Calcul manuel (diagramme rectangulaire λ = 0,8, η = 1, fcd = 20 MPa, fyd = 434,8 MPa) :
+# λx = 20e-4 × 434,8 / 20 = 0,0435 m ; M_Rd = 20 000 × 0,0435 × (0,53 − 0,0217) = 442 kN·m/m.
+# ATTENDU (onglet Vérifications, « Paroi moulée — flexion (face fouille) ») : M_Rd = 442 kN·m/m.
+projet: E07 Béton armé — M_Rd de la paroi moulée = 442 kN·m/m
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: paroi_moulee, epaisseur: 0.6, beton: C30/37, enrobage: 0.07, armatures_fouille: 20, armatures_terre: 10, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, kh: 20000 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -1.0, espacement: 5.0 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose du buton, poser: B1 }
+  - { nom: "Terrassement à -6,0", excaver: -6.0 }
+verifications: [structure]

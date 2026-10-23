@@ -94,7 +94,25 @@ def schema() -> dict:
 
 @app.get("/api/exemples")
 def exemples() -> list[dict]:
-    return [{"nom": p.stem, "texte": p.read_text(encoding="utf-8")} for p in sorted(EXEMPLES.glob("*.yaml"))]
+    """Scripts proposés dans le menu Fichier : exemples de projet (exemples/*.yaml) puis scripts de
+    vérification élémentaire (exemples/elementaires/*.yaml, résultat attendu et source en en-tête)."""
+    projets = [{"nom": p.stem, "groupe": "Exemples", "texte": p.read_text(encoding="utf-8")}
+               for p in sorted(EXEMPLES.glob("*.yaml"))]
+    elementaires = [{"nom": p.stem, "groupe": "Vérifications élémentaires", "texte": p.read_text(encoding="utf-8")}
+                    for p in sorted((EXEMPLES / "elementaires").glob("*.yaml"))]
+    return projets + elementaires
+
+
+@app.get("/api/validation/rapport")
+def rapport_validation():
+    """Rapport de la rafale d'exemples élémentaires (docs/validation, généré par
+    python -m outils.rafale_elementaire) : page HTML autonome."""
+    from fastapi.responses import HTMLResponse
+
+    chemin = RACINE / "docs" / "validation" / "rafale_elementaire.html"
+    if not chemin.exists():
+        raise HTTPException(404, "rapport absent : lancer python -m outils.rafale_elementaire dans backend")
+    return HTMLResponse(chemin.read_text(encoding="utf-8"))
 
 
 @app.post("/api/valider")
