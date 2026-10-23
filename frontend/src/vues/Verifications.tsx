@@ -94,7 +94,7 @@ function Groupe({ nom, liste }: { nom: string; liste: Verif[] }) {
         const couleur = v.etat === 'non_ok' ? 'var(--rouge)' : v.etat === 'attention' ? 'var(--orange)' : v.etat === 'ok' ? 'var(--vert)' : 'var(--texte-faible)'
         return (
           <tr key={i} title={v.detail + (v.manquants.length ? '\nValeurs manquantes : ' + v.manquants.join(', ') : '')}>
-            <td>{v.nom}{aConfirmer && <> <span className="etiquette-confirmer">À confirmer</span></>}</td>
+            <td>{v.nom.replace(' [pseudo-3D]', '')}{v.nom.endsWith(' [pseudo-3D]') && <> <span className="etiquette-confirmer" title="Efforts de la plaque pseudo-3D (moment vertical, horizontal, tranchant, appuis réels)">pseudo-3D</span></>}{aConfirmer && <> <span className="etiquette-confirmer">À confirmer</span></>}</td>
             <td>{v.element}</td>
             <td className="doux">{v.phase ?? '—'}</td>
             <td className="calc">{calc}</td>

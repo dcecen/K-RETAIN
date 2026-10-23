@@ -137,12 +137,11 @@ def _resultats_script(texte: str) -> dict:
 
     r["maquette"] = geometrie(ex)   # géométrie de la vue 3D (contour, paroi, appuis en plan)
     if ex.script.calcul.mode == "pseudo3d":
-        from sout.pseudo3d.calcul import depuis_script, serialiser as serialiser_p3d
+        from sout.pseudo3d.calcul import serialiser as serialiser_p3d
 
-        try:
-            r["pseudo3d"] = serialiser_p3d(depuis_script(ex), ex.resultat)
-        except ErreurModele as e:
-            r["avertissements"].append(f"Pseudo-3D non calculé : {e}")
+        if ex.pseudo3d is not None:          # calculé une seule fois, dans verifications.executer
+            r["pseudo3d"] = serialiser_p3d(ex.pseudo3d, ex.resultat)
+        r["avertissements"].extend(ex.avertissements)
     if len(_CACHE_COUPES) >= _CACHE_MAX:
         del _CACHE_COUPES[next(iter(_CACHE_COUPES))]
     _CACHE_COUPES[cle] = r

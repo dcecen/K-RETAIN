@@ -319,6 +319,8 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `armatures_fouille` | nombre |  |  | paroi moulée : armatures côté fouille (cm²/m) (> 0) |
 | `armatures_terre` | nombre |  |  | paroi moulée : armatures côté terre (cm²/m) (> 0) |
 | `armatures_pieu` | nombre |  |  | pieux : armatures longitudinales par pieu (cm²) (> 0) |
+| `armatures_horizontales` | nombre |  |  | paroi moulée (pseudo-3D) : armatures horizontales par face (cm²/m de hauteur), pour le moment horizontal Ms de la plaque (> 0) |
+| `enrobage_horizontal` | nombre |  |  | paroi moulée (pseudo-3D) : distance du parement à l'axe des armatures horizontales (m) ; défaut : enrobage (> 0) |
 | `longueur_panneau` | nombre |  |  | paroi moulée (pseudo-3D) : longueur des panneaux (m) ; un joint entre panneaux ne transmet ni moment ni torsion horizontaux (> 0) |
 | `origine_panneaux` | nombre |  | 0.0 | paroi moulée (pseudo-3D) : abscisse du premier joint le long de la paroi (m) (≥ 0) |
 

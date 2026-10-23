@@ -98,7 +98,12 @@ def classe_compression(sec: dict, lect: Lecteur) -> str | None:
 
 
 def _barre(sec: dict, N_k: float, L: float, angle: float, normes, cle: str) -> tuple[float | None, str, Lecteur]:
-    """Buton ou bracon : flambement + flexion sous poids propre + température (EC3)."""
+    """Buton ou bracon : flambement + flexion sous poids propre + température (EC3).
+
+    N_b,Rd avec γM1 (EN 1993-1-1 § 6.3.1.1), M_c,Rd = W·fy/γM0 (§ 6.2.5) ; interaction linéaire
+    N_Ed/N_b,Rd + M_Ed/M_c,Rd simplifiée (les formules 6.61-6.62 du § 6.3.3 avec k_yy de l'annexe B
+    ne sont pas implémentées : TODO-NORME). Flambement autour de l'axe faible (I = min(Iy, Iz),
+    barre bi-articulée), flexion du poids propre autour de l'axe fort (âme verticale)."""
     lect = Lecteur(normes)
     g = lect.v("nf_p94_282", f"combinaisons.{cle}.gamma_effets")
     gM0 = lect.v("ec3", "gamma_M0")
@@ -125,7 +130,7 @@ def _barre(sec: dict, N_k: float, L: float, angle: float, normes, cle: str) -> t
         return math.inf, detail_k + f" — N_Ed = {N_Ed:.0f} kN ≥ N_cr = {fl['N_cr']:.0f} kN : flambement (instabilité)", lect
     M_Ed = g * q * L**2 / 8 * ec3.amplification(N_Ed, fl["N_cr"])
     W = sec.get("W_cm3") or 0
-    M_Rd = ec3.m_rd(W, sec["fy"], gM1) if W else math.inf
+    M_Rd = ec3.m_rd(W, sec["fy"], gM0) if W else math.inf
     taux = N_Ed / fl["N_b_Rd"] + (M_Ed / M_Rd if M_Rd else 0)
     detail = (f"N_Ed = {N_Ed:.0f} kN (dont température {g * dN_T:.0f}), λ̄ = {fl['lambda']:.2f}, χ = {fl['chi']:.2f}, "
               f"N_b,Rd = {fl['N_b_Rd']:.0f} kN ; M poids propre = {M_Ed:.1f} kN·m ; {sec['ref']}"
@@ -148,9 +153,44 @@ def _efforts_appuis(m, r) -> dict:
     return sortie
 
 
-def verifier_appuis(s, m, r, catalogue, normes, cle: str, suffixe: str) -> list[Verif]:
+def _efforts_appuis_3d(m, res3d) -> dict:
+    """{nom: (H kN/m équivalent, N axial kN, phase)} depuis les appuis réels du pseudo-3D : l'effort
+    d'un point est déjà en kN par appui (pas de multiplication par l'espacement) ; le maximum sur
+    les phases et les points de même nom est retenu."""
+    sortie = {}
+    for ph in res3d.phases:
+        if not ph.ok:
+            continue
+        for a in ph.appuis:
+            d = m.appuis[a["nom"]]
+            esp, ang = d.infos.get("espacement", 1.0) or 1.0, d.infos.get("angle", 0.0) or 0.0
+            if d.type == "dalle":
+                esp = 1.0
+            N = a["effort"] / math.cos(math.radians(ang))
+            if a["nom"] not in sortie or N > sortie[a["nom"]][1]:
+                sortie[a["nom"]] = (a["effort"] / esp, N, ph.nom)
+    return sortie
+
+
+def _liernes_3d(res3d) -> dict:
+    """{nom: (|M| max kN·m, |V| max kN, phase)} des liernes modélisées en poutre dans la plaque."""
+    sortie = {}
+    for ph in res3d.phases:
+        if not ph.ok:
+            continue
+        for nom, li in ph.liernes.items():
+            M, V = float(np.abs(li["M"]).max()), float(np.abs(li["V"]).max())
+            if nom not in sortie or M > sortie[nom][0]:
+                sortie[nom] = (M, V, ph.nom)
+    return sortie
+
+
+def verifier_appuis(s, m, r, catalogue, normes, cle: str, suffixe: str, efforts: dict | None = None,
+                    liernes3d: dict | None = None, modele: str = "") -> list[Verif]:
+    """Vérifications des appuis ; `efforts` : enveloppe 2D par défaut, ou celle du pseudo-3D ;
+    `modele` : suffixe ajouté aux noms (« [pseudo-3D] ») pour distinguer les deux séries."""
     sorties: list[Verif] = []
-    efforts = _efforts_appuis(m, r)
+    efforts = _efforts_appuis(m, r) if efforts is None else efforts
     for nom, a in s.appuis.items():
         if nom not in efforts:
             continue
@@ -188,7 +228,9 @@ def verifier_appuis(s, m, r, catalogue, normes, cle: str, suffixe: str) -> list[
         elif a.type == "dalle":
             sorties += _dalle(nom, a, H, phase, catalogue, normes, cle)
         if a.lierne:
-            sorties += _lierne(nom, a, H, phase, catalogue, normes, cle)
+            sorties += _lierne(nom, a, H, phase, catalogue, normes, cle, (liernes3d or {}).get(nom))
+    for v in sorties:
+        v.nom += modele
     return sorties
 
 
@@ -241,7 +283,9 @@ def _dalle(nom, a, H, phase, catalogue, normes, cle) -> list[Verif]:
     return [resultat("Dalle — compression", nom, phase, taux, detail, SRC_EC2, lect, "structure")]
 
 
-def _lierne(nom, a, H, phase, catalogue, normes, cle) -> list[Verif]:
+def _lierne(nom, a, H, phase, catalogue, normes, cle, efforts_3d: tuple | None = None) -> list[Verif]:
+    """Lierne : poutre continue sur deux travées (M = q·e²/8, V = 0,625·q·e) ou, en pseudo-3D,
+    moments et tranchants de la lierne modélisée en poutre horizontale continue dans la plaque."""
     titre = "Lierne — flexion bi-axiale et cisaillement"
     try:
         p = catalogue.profil(a.lierne)
@@ -263,6 +307,10 @@ def _lierne(nom, a, H, phase, catalogue, normes, cle) -> list[Verif]:
         sorties.append(resultat(titre, f"{nom} ({a.lierne})", phase, None, detail, SRC_EC3, lect, "structure"))
     else:
         My, Mz, V = g * 0.125 * q * e**2, g * 0.125 * qv * e**2, g * 0.625 * q * e
+        source_lierne = SRC_EC3 + " ; poutre continue sur deux travées (cas défavorable) M = q·e²/8, V = 0,625·q·e"
+        if efforts_3d is not None:
+            My, V = g * efforts_3d[0], g * efforts_3d[1]
+            source_lierne = SRC_EC3 + " ; moments et tranchants de la lierne modélisée en poutre continue dans la plaque (pseudo-3D)"
         fy = ac["fy_MPa"]
         MyR, MzR = ec3.m_rd(p["Wpl_y_cm3"], fy, gM0), ec3.m_rd(p["Wpl_z_cm3"], fy, gM0)
         VR = ec3.v_pl_rd(p.get("Avz_cm2") or 0, fy, gM0)
@@ -271,7 +319,7 @@ def _lierne(nom, a, H, phase, catalogue, normes, cle) -> list[Verif]:
         detail += (f" ; My = {My:.0f}, Mz = {Mz:.1f} kN·m (M,Rd {MyR:.0f} / {MzR:.0f}) ; "
                    f"V = {V:.0f} kN (Vpl,Rd {VR:.0f})")
         sorties.append(resultat(titre, f"{nom} ({a.lierne})", phase, max(t_flex, t_cis), detail,
-                                SRC_EC3 + " ; poutre continue sur deux travées (cas défavorable) M = q·e²/8, V = 0,625·q·e", lect, "structure"))
+                                source_lierne, lect, "structure"))
     sorties.append(resultat("Lierne — raidisseurs", f"{nom} ({a.lierne})", phase, None, "", "EN 1993-1-5 § 6",
                             categorie="structure",
                             detail_non_verifiable=f"effort concentré au droit de chaque appui ≈ {q * e:.0f} kN (caractéristique) : "
@@ -289,6 +337,17 @@ def _efforts_paroi(r) -> dict:
     return {"M+": Mp, "M-": Mn, "V": V}
 
 
+def _efforts_paroi_3d(res3d) -> dict:
+    """Enveloppes sur toute la plaque pseudo-3D : Mz max et min (flexion verticale, kN·m/m), |V| max
+    (statique des lignes, 2 points par élément), |Ms| max (flexion horizontale, kN·m/m de hauteur)."""
+    oks = [ph for ph in res3d.phases if ph.ok]
+    Mp = max(((float(ph.Mz.max()), ph.nom) for ph in oks), default=(0.0, None))
+    Mn = min(((float(ph.Mz.min()), ph.nom) for ph in oks), default=(0.0, None))
+    V = max(((float(np.abs(ph.V_diag).max()), ph.nom) for ph in oks), default=(0.0, None))
+    Ms = max(((float(np.abs(ph.Ms).max()), ph.nom) for ph in oks), default=(0.0, None))
+    return {"M+": Mp, "M-": Mn, "V": V, "Ms": Ms}
+
+
 def _mat_ec2(lect: Lecteur, fck: float | None) -> ec2.Materiaux | None:
     vals = {k: lect.v("ec2", c) for k, c in (
         ("fyk", "fyk_armatures"), ("gamma_c", "gamma_c"), ("gamma_s", "gamma_s"), ("alpha_cc", "alpha_cc"),
@@ -299,10 +358,14 @@ def _mat_ec2(lect: Lecteur, fck: float | None) -> ec2.Materiaux | None:
     return ec2.Materiaux(fck=fck, **vals)
 
 
-def verifier_paroi(s, m, r, catalogue, normes, cle: str, suffixe: str) -> list[Verif]:
+def verifier_paroi(s, m, r, catalogue, normes, cle: str, suffixe: str, efforts: dict | None = None,
+                    modele: str = "") -> list[Verif]:
+    """Vérifications de la paroi ; `efforts` : enveloppe 2D par défaut, ou celle du pseudo-3D
+    (_efforts_paroi_3d) ; `modele` : suffixe des noms (« [pseudo-3D] »). Le blindage d'une berlinoise
+    (pressions du 2D) n'est vérifié qu'en 2D."""
     p = s.paroi
     inf = m.ecran.infos
-    ef = _efforts_paroi(r)
+    ef = _efforts_paroi(r) if efforts is None else efforts
     (Mp, php), (Mn, phn), (Vk, phv) = ef["M+"], ef["M-"], ef["V"]
     Mk = max(abs(Mp), abs(Mn))
     ph_M = php if abs(Mp) >= abs(Mn) else phn
@@ -324,7 +387,8 @@ def verifier_paroi(s, m, r, catalogue, normes, cle: str, suffixe: str) -> list[V
             lect.manquants.append("classe de section de la palplanche (catalogue ou paroi.classe_section)")
         elif int(classe) == 4:
             lect.manquants.append("palplanche de classe 4 : calcul de la section efficace non implémenté")
-        W = (sec["Wpl_cm3_m"] if classe in (1, 2, 1.0, 2.0) and sec.get("Wpl_cm3_m") else sec["Wel_cm3_m"]) * reduc
+        plastique = classe in (1, 2, 1.0, 2.0) and bool(sec.get("Wpl_cm3_m"))
+        W = (sec["Wpl_cm3_m"] if plastique else sec["Wel_cm3_m"]) * reduc
         detail = f"M_k = {Mk:.0f} kN·m/m, V_k = {Vk:.0f} kN/m ; {p.profil}" + (" (DEMO)" if inf.get("demo") else "")
         taux = None
         if not lect.manquants:
@@ -336,10 +400,11 @@ def verifier_paroi(s, m, r, catalogue, normes, cle: str, suffixe: str) -> list[V
                 rho = (2 * V_Ed / VR - 1) ** 2
                 MR *= (1 - rho)
             taux = max(M_Ed / MR, V_Ed / VR)
-            detail += (f" ; M_Ed = {M_Ed:.0f} pour M_c,Rd = {MR:.0f} kN·m/m (W {'pl' if W == sec.get('Wpl_cm3_m') else 'él'}"
+            detail += (f" ; M_Ed = {M_Ed:.0f} pour M_c,Rd = {MR:.0f} kN·m/m (W {'pl' if plastique else 'él'}"
                        f"{', corrosion' if reduc < 1 else ''}) ; V_Ed = {V_Ed:.0f} pour Vpl,Rd = {VR:.0f} kN/m")
         sorties.append(resultat("Palplanches — flexion et cisaillement", p.profil, ph_M and ph_M + suffixe, taux,
-                                detail, SRC_EC35, lect, "structure"))
+                                detail, SRC_EC35 + " ; Av = une âme par largeur de palplanche (hypothèse, EN 1993-5 § 5.2.2 à confirmer)",
+                                lect, "structure"))
     elif p.type == "berlinoise" and inf.get("section"):
         sec, fy, e = inf["section"], inf["acier"]["fy_MPa"], inf["entraxe"]
         gM0 = lect.v("ec3", "gamma_M0")
@@ -352,10 +417,53 @@ def verifier_paroi(s, m, r, catalogue, normes, cle: str, suffixe: str) -> list[V
             detail += f" ; M,Rd = {MR:.0f} kN·m, Vpl,Rd = {VR:.0f} kN"
         sorties.append(resultat("Profilés de berlinoise — flexion et cisaillement", p.profil, ph_M and ph_M + suffixe,
                                 taux, detail, SRC_EC3 + " (classe 1-2 supposée)", lect, "structure"))
-        sorties += _blindage(p, r, inf, normes, cle, suffixe)
+        if not modele:
+            sorties += _blindage(p, r, inf, normes, cle, suffixe)
     elif p.type in ("paroi_moulee", "pieux_secants", "pieux_disjoints"):
         sorties += _beton(p, inf, r, Mp, Mn, Vk, php, phn, phv, normes, cle, suffixe)
+    if modele and "Ms" in ef:
+        sorties += _flexion_horizontale(p, inf, ef["Ms"][0], ef["Ms"][1] and ef["Ms"][1] + suffixe, normes, cle)
+    for v in sorties:
+        v.nom += modele
     return sorties
+
+
+def _flexion_horizontale(p, inf, Ms: float, phase, normes, cle: str) -> list[Verif]:
+    """Moment horizontal Ms de la plaque (pseudo-3D). Paroi moulée : flexion simple d'une bande de
+    1 m de hauteur, d = e − enrobage_horizontal (EN 1992-1-1 § 6.1), As horizontal requis et M_Rd si
+    paroi.armatures_horizontales est donné. Autres parois : la résistance en flexion horizontale des
+    serrures (palplanches, EN 1993-5) ou des recouvrements (pieux) n'est pas définie : TODO-NORME."""
+    titre = "Flexion horizontale (moment Ms de la plaque)"
+    if p.type != "paroi_moulee":
+        return [resultat(titre, p.type, phase, None, "", "TODO-NORME : résistance en flexion horizontale des serrures "
+                         "(EN 1993-5) ou des recouvrements de pieux non définie", categorie="structure",
+                         detail_non_verifiable=f"|Ms| max = {Ms:.0f} kN·m/m de hauteur — non vérifié")]
+    lect = Lecteur(normes)
+    g = lect.v("nf_p94_282", f"combinaisons.{cle}.gamma_effets")
+    fck = (inf.get("beton") or {}).get("fck_MPa")
+    if fck is None:
+        lect.manquants.append("base matériaux : fck du béton de la paroi")
+    mat = _mat_ec2(lect, fck)
+    enr = p.enrobage_horizontal if p.enrobage_horizontal is not None else p.enrobage
+    if enr is None:
+        lect.manquants.append("script : paroi.enrobage_horizontal (ou enrobage)")
+    detail = f"|Ms| max = {Ms:.0f} kN·m/m de hauteur"
+    taux = None
+    det_nv = detail
+    if not lect.manquants:
+        d = p.epaisseur - enr
+        f = ec2.flexion_rectangulaire(g * Ms, 1.0, d, mat)
+        detail += f" ; As horizontal requis = {f['As_cm2']:.1f} cm²/m par face, μ = {f['mu']:.3f} (μ lim {f['mu_lim']:.3f})"
+        det_nv = detail
+        if p.armatures_horizontales:
+            MR = ec2.m_rd_rectangulaire(p.armatures_horizontales, 1.0, d, mat)
+            taux = g * Ms / MR
+            detail += f" ; As fourni {p.armatures_horizontales} cm²/m, M_Rd = {MR:.0f} kN·m/m"
+        else:
+            det_nv += " — armatures_horizontales absentes"
+            if f["mu"] > f["mu_lim"]:
+                taux = f["mu"] / f["mu_lim"]
+    return [resultat(titre, "paroi", phase, taux, detail, SRC_EC2, lect, "structure", detail_non_verifiable=det_nv)]
 
 
 def _blindage(p, r, inf, normes, cle, suffixe) -> list[Verif]:
@@ -396,6 +504,8 @@ def _beton(p, inf, r, Mp, Mn, Vk, php, phn, phv, normes, cle, suffixe) -> list[V
     lect = Lecteur(normes)
     g = lect.v("nf_p94_282", f"combinaisons.{cle}.gamma_effets")
     fck = (inf.get("beton") or {}).get("fck_MPa")
+    if fck is None:
+        lect.manquants.append("base matériaux : fck du béton de la paroi (EI imposé : classe de béton non lue)")
     mat = _mat_ec2(lect, fck)
     if p.enrobage is None:
         lect.manquants.append("script : paroi.enrobage (m, à l'axe des armatures)")
@@ -537,6 +647,18 @@ def executer(s, ex, catalogue, normes) -> tuple[list[Verif], list[dict]]:
         suffixe = f" [{jeu}]" if plusieurs and jeu else ""
         verifs += verifier_paroi(s, m, r, catalogue, normes, cle, suffixe)
         verifs += verifier_appuis(s, m, r, catalogue, normes, cle, suffixe)
+    res3d = getattr(ex, "pseudo3d", None)
+    if res3d is not None and res3d.complet:
+        # seconde série sur les efforts de la plaque (jeu d'eau principal, branche principale)
+        cle = _cle_combinaison(ex.jeu_principal)
+        m = ex.modele
+        v3 = verifier_paroi(s, m, ex.resultat, catalogue, normes, cle, "", efforts=_efforts_paroi_3d(res3d), modele=" [pseudo-3D]")
+        v3 += verifier_appuis(s, m, ex.resultat, catalogue, normes, cle, "", efforts=_efforts_appuis_3d(m, res3d),
+                              liernes3d=_liernes_3d(res3d), modele=" [pseudo-3D]")
+        if not res3d.appuis_repartis:
+            for v in v3:
+                v.source += " ; appuis ponctuels sur un nœud (pseudo3d.largeur_appui absente) : Ms et V à leur droit dépendent du maillage"
+        verifs += v3
     return verifs, suggestions(s, ex, catalogue, normes)
 
 

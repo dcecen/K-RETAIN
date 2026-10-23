@@ -26,6 +26,8 @@ class Execution:
     jeux: dict = field(default_factory=dict)          # jeu -> (modele, resultat)
     verifications: list[Verif] = field(default_factory=list)
     suggestions: list[dict] = field(default_factory=list)
+    pseudo3d: object | None = None                      # ResultatPseudo3D (calcul.mode pseudo3d)
+    avertissements: list[str] = field(default_factory=list)
 
 
 def _geotechniques(s: Script, m: Modele, r: ResultatCalcul, normes, jeu: str | None) -> list[Verif]:
@@ -62,6 +64,14 @@ def executer(s: Script, catalogue, normes) -> Execution:
         if jeu != principal:
             m = vers_modele(s, catalogue, normes, jeu)
             ex.jeux[jeu] = (m, calculer(m))
+    if s.calcul.mode == "pseudo3d":
+        # calculé ici, avant les vérifications, pour que les STR puissent lire la plaque ; l'API le réutilise
+        from .noyau.phasage import ErreurModele
+        from .pseudo3d.calcul import depuis_script
+        try:
+            ex.pseudo3d = depuis_script(ex)
+        except ErreurModele as e:
+            ex.avertissements.append(f"Pseudo-3D non calculé : {e}")
     plusieurs = len(ex.jeux) > 1
     verifs: list[Verif] = []
     for jeu, (m, r) in ex.jeux.items():

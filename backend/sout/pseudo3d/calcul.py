@@ -74,6 +74,11 @@ class ResultatPseudo3D:
     sommets: list = field(default_factory=list)   # abscisses s des angles (sommets du contour ou angle)
     fermee: bool = False
     longueur: float = 0.0                         # longueur développée (périmètre si fermée)
+    appuis_repartis: bool = False                 # largeur_appui donnée (Ms et V au droit des appuis convergés)
+
+    @property
+    def complet(self) -> bool:
+        return bool(self.phases) and all(ph.ok for ph in self.phases)
 
 
 class MoteurPseudo3D:
@@ -526,7 +531,7 @@ class MoteurPseudo3D:
                 **champs))
         return ResultatPseudo3D(self.s, self.z, sorties, self.avertissements,
                                 sommets=[float(self.s[i]) for i in self.i_angles], fermee=self.aretes is not None,
-                                longueur=self.longueur)
+                                longueur=self.longueur, appuis_repartis=self.largeur_appui is not None)
 
 
 def chaine_principale(phases: list) -> list:
@@ -616,5 +621,7 @@ def serialiser(res: ResultatPseudo3D, res2d=None) -> dict:
 
 
 def champ_pour_maquette(ex) -> dict:
-    """Champ pseudo-3D au format attendu par la maquette (abscisse s le long du contour)."""
-    return serialiser(depuis_script(ex))
+    """Champ pseudo-3D au format attendu par la maquette (abscisse s le long du contour) ; réutilise le
+    résultat déjà calculé par verifications.executer quand il existe."""
+    res = getattr(ex, "pseudo3d", None)
+    return serialiser(res if res is not None else depuis_script(ex))

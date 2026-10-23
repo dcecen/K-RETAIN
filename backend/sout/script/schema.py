@@ -67,6 +67,12 @@ class Paroi(_Base):
     armatures_fouille: float | None = Field(None, gt=0, description="paroi moulée : armatures côté fouille (cm²/m)")
     armatures_terre: float | None = Field(None, gt=0, description="paroi moulée : armatures côté terre (cm²/m)")
     armatures_pieu: float | None = Field(None, gt=0, description="pieux : armatures longitudinales par pieu (cm²)")
+    armatures_horizontales: float | None = Field(
+        None, gt=0, description="paroi moulée (pseudo-3D) : armatures horizontales par face (cm²/m de hauteur), pour le "
+                                "moment horizontal Ms de la plaque")
+    enrobage_horizontal: float | None = Field(
+        None, gt=0, description="paroi moulée (pseudo-3D) : distance du parement à l'axe des armatures horizontales (m) ; "
+                                "défaut : enrobage")
     longueur_panneau: float | None = Field(
         None, gt=0, description="paroi moulée (pseudo-3D) : longueur des panneaux (m) ; un joint entre panneaux ne transmet "
                                 "ni moment ni torsion horizontaux")
