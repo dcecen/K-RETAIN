@@ -12,3 +12,6 @@ backend/data/*.sqlite
 backend/data/utilisateurs.json
 sorties/
 backend/data/*.tmp
+# Profils Chrome des captures de fumee
+docs/captures/**/profil-chrome/
+docs/captures/fumee/
