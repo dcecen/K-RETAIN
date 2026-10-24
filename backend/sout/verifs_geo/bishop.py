@@ -170,15 +170,9 @@ def recherche(p: Profil, z_tete: float, z_pied: float, gphi=1.0, gc=1.0, gQ=1.0,
 
 
 def profil_de(modele: Modele, ph, largeur: float | None) -> Profil:
+    from .surcharges_stabilite import charges_amont
     H = modele.ecran.tete - modele.ecran.pied
-    charges = []
-    for s in modele.surcharges:
-        if s.cote_ecran != "amont":
-            continue
-        if s.type == "repartie":
-            charges.append((-1e6, 0.0, s.q))
-        elif s.type == "bande":
-            charges.append((-(s.distance + s.largeur), -s.distance, s.q))
+    charges, _ = charges_amont(modele)
     return Profil(trier(modele.couches), ph.terrain_amont, ph.terrain_aval, largeur or 2.0 * H,
                   ph.eau_amont, ph.eau_aval, modele.gamma_w, charges)
 
@@ -198,9 +192,14 @@ def verifier(modele: Modele, res: ResultatCalcul, normes, largeur: float | None 
     if cercle_k is None:
         return [resultat("Stabilité générale (Bishop)", "massif", ph.nom, None, "aucun cercle pertinent trouvé",
                          SOURCE, detail_non_verifiable="aucun cercle passant sous le pied et ressortant dans la fouille")]
+    from .surcharges_stabilite import charges_amont, mention
+    _, ignorees = charges_amont(modele)
+    if modele.beta_amont:
+        ignorees.append(f"terrain en pente côté terre (β = {modele.beta_amont:g}°, profil pris horizontal)")
     detail_k = (f"F caractéristique = {Fk:.2f} (centre x = {cercle_k[0]:.1f}, z = {cercle_k[1]:.1f}, "
                 f"R = {cercle_k[2]:.1f} m) ; largeur de fouille {p.largeur:.1f} m"
-                + ("" if largeur else " (par défaut 2 × hauteur de paroi : précisez calcul.largeur_fouille)"))
+                + ("" if largeur else " (par défaut 2 × hauteur de paroi : précisez calcul.largeur_fouille)")
+                + mention(ignorees))
     taux = None
     detail = detail_k
     if not lect.manquants:

@@ -654,6 +654,10 @@ def executer(s, ex, catalogue, normes) -> tuple[list[Verif], list[dict]]:
         if not r.complet:
             continue
         cle = _cle_combinaison(jeu)
+        if cle == "ELU_accidentel":
+            msg = f"Jeu d'eau « {jeu} » : combinaison ELU accidentelle retenue d'après son nom (contient « except » ou « accid »)."
+            if msg not in ex.avertissements:
+                ex.avertissements.append(msg)
         suffixe = f" [{jeu}]" if plusieurs and jeu else ""
         verifs += verifier_paroi(s, m, r, catalogue, normes, cle, suffixe)
         verifs += verifier_appuis(s, m, r, catalogue, normes, cle, suffixe)

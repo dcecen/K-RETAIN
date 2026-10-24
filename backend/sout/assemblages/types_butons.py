@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 
-from .base import (Contexte, Param, TypeAssemblage, enregistrer, grille_boulons, p_boulons, p_soudure, v_ame_lierne,
+from .base import (lierne_de, TUBE_REPLI, Contexte, Param, TypeAssemblage, enregistrer, grille_boulons, p_boulons, p_soudure, v_ame_lierne,
                    v_boulons_cisaillement, v_boulons_traction, v_plaque_flexion, v_section, v_soudure)
 from .geometrie import Cote, Effort, Schema, Soudure, Vue, boite, boulons, prisme, tube
 
@@ -17,7 +17,7 @@ from .geometrie import Cote, Effort, Schema, Soudure, Vue, boite, boulons, prism
 # ----------------------------------------------------------------------------- aides géométriques
 def lierne(s: Schema, ctx: Contexte, L: float = 900.0, rep: int = 1, params=()) -> dict:
     """Lierne à âme horizontale entre x = 0 et x = h ; renvoie ses dimensions."""
-    p = ctx.lierne or {"h_mm": 300, "b_mm": 300, "tw_mm": 11, "tf_mm": 19, "r_mm": 27}
+    p = lierne_de(ctx)
     h, b, tw, tf = p["h_mm"], p["b_mm"], p["tw_mm"], p["tf_mm"]
     s.ajouter(boite(rep, "Lierne " + str(ctx.lierne.get("ref", "") if ctx.lierne else "(profil)"), [tf / 2, 0, 0], [tf, L, b], "acier", params))
     s.ajouter(boite(rep, "Lierne", [h - tf / 2, 0, 0], [tf, L, b], "acier", params, masque=True))
@@ -27,8 +27,8 @@ def lierne(s: Schema, ctx: Contexte, L: float = 900.0, rep: int = 1, params=()) 
 
 
 def tube_buton(ctx: Contexte, p: dict) -> tuple[float, float]:
-    D = p.get("D_tube") or (ctx.buton or {}).get("D_mm") or 508.0
-    t = p.get("t_tube") or (ctx.buton or {}).get("t_mm") or 12.5
+    D = p.get("D_tube") or (ctx.buton or {}).get("D_mm") or ctx.repli("tube du buton (clé buton : référence de la base, ou D_tube)", TUBE_REPLI[0])
+    t = p.get("t_tube") or (ctx.buton or {}).get("t_mm") or ctx.repli("épaisseur du tube du buton (clé buton, ou t_tube)", TUBE_REPLI[1])
     return float(D), float(t)
 
 
@@ -90,7 +90,7 @@ def v_platine(p: dict, e: dict, ctx: Contexte) -> list:
     q = N / (bp * hp)                          # kN/mm² sous la platine
     c = max((bp - D) / 2, (hp - D) / 2)
     out.append(v_plaque_flexion("Platine d'about — flexion en console", tp, bp, q * c * c / 2, ctx, [2], f"pression q = {q * 1000:.2f} MPa, porte-à-faux c = {c:.0f} mm"))
-    L = ctx.lierne or {"b_mm": 300, "tf_mm": 19, "tw_mm": 11}
+    L = lierne_de(ctx)
     porte = (L["b_mm"] - L["tw_mm"]) / 2
     out.append(v_plaque_flexion("Aile de lierne — flexion locale", L["tf_mm"], bp, q * porte * porte / 2, ctx, [1], f"aile en console de {porte:.0f} mm de part et d'autre de l'âme"))
     out.append(v_ame_lierne("Âme de lierne sous le buton", N, tp + hp, ctx, [1]))
@@ -111,7 +111,7 @@ P_BOULONNE = P_PLATINE[:6] + p_boulons(n=4, d=20) + [Param("angle", "Inclinaison
 
 def g_boulonne(p: dict, e: dict, ctx: Contexte) -> Schema:
     s = g_platine({**p, "n_nervures": 0, "t_nervure": 10, "l_nervure": 100}, e, ctx)
-    L = ctx.lierne or {"h_mm": 300, "tf_mm": 19}
+    L = lierne_de(ctx)
     h, tp, bp, hp = L["h_mm"], p["t_platine"], p["b_platine"], p["h_platine"]
     pos = [[h - L["tf_mm"] / 2 + (tp + L["tf_mm"]) / 2, u, v] for u, v in grille_boulons(int(p["n_boulons"]), p["p1"], hp - 2 * p["e2"])]
     boulons(s, 5, f"Boulon M{int(p['d_boulon'])} cl. {p['classe_boulon']}", pos, p["d_boulon"], tp + L["tf_mm"], "x", ["n_boulons", "d_boulon", "classe_boulon", "e1", "e2", "p1"])
@@ -125,7 +125,7 @@ def v_boulonne(p: dict, e: dict, ctx: Contexte) -> list:
     out = v_platine({**p, "n_nervures": 0}, e, ctx)
     N = e.get("N", 0.0)
     V = abs(e.get("V", 0.0)) + abs(N * math.sin(math.radians(p["angle"])))
-    L = ctx.lierne or {"tf_mm": 19}
+    L = lierne_de(ctx)
     n, d, cl = int(p["n_boulons"]), p["d_boulon"], p["classe_boulon"]
     out += v_boulons_cisaillement("Liaison boulonnée", n, d, cl, V, min(p["t_platine"], L["tf_mm"]), p["e1"], p["e2"], p["p1"], ctx, [5], Ft=p["traction_acc"])
     if p["traction_acc"] > 0:
@@ -230,7 +230,7 @@ def v_biais(p: dict, e: dict, ctx: Contexte) -> list:
            v_section("Taquet de butée — cisaillement", "taquet", 0, Nt, Nt * 30, p["t_taquet"] * p["h_taquet"], p["t_taquet"] * p["h_taquet"], p["t_taquet"] * p["h_taquet"] ** 2 / 4, ctx, [3]),
            v_soudure("Soudure taquet / lierne", 2 * p["h_taquet"], p["a_soudure"], Nt, ctx, [3, 1])]
     q = Nn / (bd * hd)
-    L = ctx.lierne or {"b_mm": 300, "tf_mm": 19, "tw_mm": 11}
+    L = lierne_de(ctx)
     porte = (L["b_mm"] - L["tw_mm"]) / 2
     out.append(v_plaque_flexion("Aile de lierne — flexion locale sous le dé", L["tf_mm"], bd, q * porte * porte / 2, ctx, [1], f"pression {q * 1000:.2f} MPa"))
     out.append(v_ame_lierne("Âme de lierne sous le dé", Nn, hd, ctx, [1]))
@@ -390,7 +390,7 @@ def v_angle(p: dict, e: dict, ctx: Contexte) -> list:
     out = [v_soudure("Soudures gousset / lierne (par lierne, 2 goussets)", 2 * lg, p["a_soudure"], F, ctx, [2, 1]),
            v_section("Gousset d'angle — cisaillement et flexion", "gousset", N, F, F * lg / 4, 2 * tg * lg * 0.7, 2 * tg * lg * 0.7, 2 * tg * (0.7 * lg) ** 2 / 4, ctx, [2],
                      "EN 1993-1-1 § 6.2 (section efficace 70 % de la longueur, hypothèse)")]
-    L = ctx.lierne or {"b_mm": 300, "tf_mm": 19, "tw_mm": 11}
+    L = lierne_de(ctx)
     q = F / (lg * hg)
     out.append(v_plaque_flexion("Aile de lierne — flexion locale sous le gousset", L["tf_mm"], lg, q * ((L["b_mm"] - L["tw_mm"]) / 2) ** 2 / 2, ctx, [1]))
     out.append(v_ame_lierne("Âme de lierne au droit du gousset", F, lg, ctx, [1]))
@@ -432,7 +432,7 @@ def g_raid(p: dict, e: dict, ctx: Contexte) -> Schema:
 
 def v_raid(p: dict, e: dict, ctx: Contexte) -> list:
     N = e.get("N", 0.0)
-    L = ctx.lierne or {"h_mm": 300, "b_mm": 300, "tw_mm": 11, "tf_mm": 19, "r_mm": 27}
+    L = lierne_de(ctx)
     n, tr = int(p["n_raidisseurs"]), p["t_raidisseur"]
     A_raid = 2 * n * tr * (L["b_mm"] - L["tw_mm"]) / 2
     A_ame = L["tw_mm"] * (p["t_platine"] + 2 * (L["tf_mm"] + (L.get("r_mm") or 0)) + 2 * n * 15 * L["tw_mm"] / 10)

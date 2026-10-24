@@ -159,9 +159,10 @@ def verifier(modele: Modele, res: ResultatCalcul, normes) -> list[Verif]:
         Fmin = lect.v("hydraulique", "fond_argile.F_min")
         H_exc = ph.terrain_amont - ph.terrain_aval
         sv_tot, u_h = contraintes_verticales([ph.terrain_aval], ph.terrain_amont, ph.eau_amont, couches, gw)
-        q = sum(s.q for s in modele.surcharges if s.type == "repartie" and s.cote_ecran == "amont")
+        from ..verifs_geo.surcharges_stabilite import mention, q_uniforme_amont
+        q, ignorees = q_uniforme_amont(modele)
         charge = float(sv_tot[0] + u_h[0]) + q
-        detail = f"cu = {c_fond.cu:.0f} kPa ({c_fond.nom}), γ·H + q = {charge:.0f} kPa"
+        detail = f"cu = {c_fond.cu:.0f} kPa ({c_fond.nom}), γ·H + q = {charge:.0f} kPa" + mention(ignorees)
         taux = None
         if not lect.manquants and charge > 0:
             F = Nc * c_fond.cu / charge

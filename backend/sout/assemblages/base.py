@@ -37,6 +37,23 @@ class Contexte:
     buton: dict | None = None          # tube du buton (D_mm, t_mm)
     fck: float | None = None
     demo: bool = False
+    replis: list = field(default_factory=list)   # données remplacées par une valeur de repli (dessin seulement)
+
+    def repli(self, quoi: str, valeur):
+        """Enregistre l'emploi d'une valeur de repli (non normative, non issue de la base) et la renvoie.
+        Une vérification qui en a eu besoin est rendue « non vérifiable » par service.verifier."""
+        if quoi not in self.replis:
+            self.replis.append(quoi)
+        return valeur
+
+
+LIERNE_REPLI = {"h_mm": 300, "b_mm": 300, "tw_mm": 11, "tf_mm": 19, "r_mm": 27}   # gabarit de dessin seulement
+TUBE_REPLI = (508.0, 12.5)                                                       # idem (D_mm, t_mm)
+
+
+def lierne_de(ctx: "Contexte") -> dict:
+    """Profilé de lierne du contexte, ou gabarit de repli (signalé)."""
+    return ctx.lierne or ctx.repli("profilé de lierne (clé lierne : référence de la base matériaux)", dict(LIERNE_REPLI))
 
 
 @dataclass

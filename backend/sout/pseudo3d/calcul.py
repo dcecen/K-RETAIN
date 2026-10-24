@@ -570,8 +570,27 @@ def moteur_depuis_script(ex) -> "MoteurPseudo3D":
     return mo
 
 
+def avertissements_simplifications(modele, res: ResultatPseudo3D, n_jeux: int = 1) -> list[str]:
+    """Ce que le pseudo-3D ne fait pas (et que le 2D fait), dit explicitement."""
+    out = []
+    regime = (modele.hydraulique or {}).get("regime", "hydrostatique")
+    if regime != "hydrostatique":
+        out.append(f"Pseudo-3D : l'écoulement (hydraulique.regime = {regime}) n'est pas pris en compte, pressions d'eau hydrostatiques.")
+    if len(chaine_principale(modele.phases)) < len(modele.phases):
+        out.append("Pseudo-3D : seule la branche de phases menant à la dernière phase est calculée (variantes `depuis` ignorées).")
+    if n_jeux > 1:
+        out.append("Pseudo-3D : jeu d'eau principal seul (les autres jeux ne sont calculés qu'en 2D).")
+    if res.phases and not res.complet:
+        ph = next(p for p in res.phases if not p.ok)
+        out.append(f"Pseudo-3D : calcul interrompu à la phase « {ph.nom} » ({ph.message}) ; phases suivantes non calculées, "
+                   "vérifications structurelles [pseudo-3D] omises.")
+    return out
+
+
 def depuis_script(ex) -> ResultatPseudo3D:
-    return moteur_depuis_script(ex).calculer()
+    res = moteur_depuis_script(ex).calculer()
+    res.avertissements.extend(avertissements_simplifications(ex.modele, res, len(ex.jeux)))
+    return res
 
 
 def _sous_echantillon(n: int, max_n: int) -> np.ndarray:

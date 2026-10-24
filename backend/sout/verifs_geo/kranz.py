@@ -31,6 +31,7 @@ from ..noyau.phasage import ResultatCalcul
 from ..sol import coefficients as coef
 from ..sol.couches import indice_couche, trier
 from ..verifs import Lecteur, Verif, resultat
+from .surcharges_stabilite import mention, q_uniforme_amont
 
 SOURCE = "Kranz (1953), NF P 94-282 — stabilité du massif d'ancrage"
 
@@ -146,7 +147,7 @@ def verifier(modele: Modele, res: ResultatCalcul, normes) -> list[Verif]:
             dessus = am["z"] > zB
             Fh = float(np.sum(am["L"][dessus] * am["p"][dessus]))
             Fv = float(np.sum(am["L"][dessus] * am["p"][dessus] * am["tan_delta"][dessus]))
-            q = sum(s.q for s in modele.surcharges if s.type == "repartie" and s.cote_ecran == "amont")
+            q, ignorees = q_uniforme_amont(modele)
             Tm, info = t_max(modele.couches, ph.terrain_amont, ph.eau_amont, zB, x_A, z_A, ang, Fh, Fv, q)
             rapport = T / Tm if Tm > 0 else float("inf")
             if pire_cas is None or rapport > pire_cas[0]:
@@ -155,7 +156,8 @@ def verifier(modele: Modele, res: ResultatCalcul, normes) -> list[Verif]:
             continue
         rapport, nom, T, Tm, info = pire_cas
         detail = (f"T = {T:.0f} kN/m, T_max = {Tm:.0f} kN/m (B à z = {info['z_B']:.2f} m, "
-                  f"poids du massif {info['W']:.0f} kN/m), T/T_max = {rapport:.2f} (caractéristique)")
+                  f"poids du massif {info['W']:.0f} kN/m), T/T_max = {rapport:.2f} (caractéristique)"
+                  + mention(ignorees))
         taux = None if lect.manquants else ge * gR * rapport
         sorties.append(resultat("Stabilité du massif d'ancrage (Kranz)", d.nom, nom, taux, detail, SOURCE, lect))
     return sorties

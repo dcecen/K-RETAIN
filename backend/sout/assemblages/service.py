@@ -28,12 +28,15 @@ def type_de(cle: str) -> TypeAssemblage:
 def contexte(params: dict, catalogue, normes, fck: float | None = None) -> Contexte:
     nuance = params.get("acier") or "S355"
     fy, fu, demo = 355.0, 490.0, True
-    if catalogue is not None:
-        try:
-            a = catalogue.acier(nuance)
-            fy, fu, demo = a["fy_MPa"], a["fu_MPa"], bool(a.get("demo"))
-        except KeyError:
-            pass
+    replis: list[str] = []
+    try:
+        if catalogue is None:
+            raise KeyError(nuance)
+        a = catalogue.acier(nuance)
+        fy, fu, demo = a["fy_MPa"], a["fu_MPa"], bool(a.get("demo"))
+    except KeyError:
+        # fy, fu de repli pour dessiner ; la vérification sera « non vérifiable » (service.verifier)
+        replis.append(f"nuance d'acier « {nuance} » absente de la base matériaux (fy, fu)")
     lierne = None
     if params.get("lierne") and catalogue is not None:
         try:
@@ -48,7 +51,7 @@ def contexte(params: dict, catalogue, normes, fck: float | None = None) -> Conte
             demo = demo or bool(buton.get("demo"))
         except KeyError:
             buton = None
-    return Contexte(normes, catalogue, fy, fu, nuance, lierne, buton, fck, demo)
+    return Contexte(normes, catalogue, fy, fu, nuance, lierne, buton, fck, demo, replis)
 
 
 def completer(t: TypeAssemblage, params: dict) -> dict:
@@ -96,6 +99,12 @@ def verifier(cle: str, params: dict, efforts: dict, catalogue=None, normes=None,
     p = completer(t, params)
     ctx = contexte(p, catalogue, normes, fck)
     vs = t.verifications(p, efforts, ctx)
+    if ctx.replis:
+        # une donnée a été remplacée par un gabarit (règle 1 du CLAUDE.md : pas de valeur inventée dans un
+        # résultat) : la vérification est rendue « non vérifiable » et nomme ce qui manque
+        vs = [Verif(v.nom, v.categorie, v.element, v.phase, "non_verifiable", None,
+                    v.detail + " — calculé avec des dimensions de repli : " + " ; ".join(ctx.replis),
+                    v.source, list(dict.fromkeys(ctx.replis + v.manquants)), v.reperes) for v in vs]
     for v in vs:
         v.categorie = "structure"
         if element:

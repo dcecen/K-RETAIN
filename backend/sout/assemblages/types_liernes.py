@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from ..verifs import Lecteur, resultat
-from .base import (Contexte, Param, TypeAssemblage, enregistrer, grille_boulons, p_boulons, p_soudure, v_boulons_cisaillement,
+from .base import (lierne_de, Contexte, Param, TypeAssemblage, enregistrer, grille_boulons, p_boulons, p_soudure, v_boulons_cisaillement,
                    v_compression_beton, v_plaque_flexion, v_section, v_soudure)
 from .geometrie import Cote, Effort, Schema, Soudure, Vue, boite, boulons, prisme
 from .types_butons import lierne
@@ -112,7 +112,7 @@ def g_eclisse(p: dict, e: dict, ctx: Contexte) -> Schema:
 
 
 def v_eclisse(p: dict, e: dict, ctx: Contexte) -> list:
-    L = ctx.lierne or {"h_mm": 300, "b_mm": 300, "tw_mm": 11, "tf_mm": 19}
+    L = lierne_de(ctx)
     h = L["h_mm"] / 1000
     M, V, N = abs(e.get("M", 0.0)), abs(e.get("V", 0.0)), abs(e.get("N", 0.0))
     F = M / h + N / 2 if h else 0

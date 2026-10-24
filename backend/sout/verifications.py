@@ -77,6 +77,8 @@ def executer(s: Script, catalogue, normes) -> Execution:
     for jeu, (m, r) in ex.jeux.items():
         if r.complet:
             verifs += _geotechniques(s, m, r, normes, jeu if plusieurs else None)
+        else:
+            verifs.append(verif_rupture(jeu if plusieurs else None, r))
     if "deplacements" in s.verifications and res.complet:
         verifs += deplacements.verifier(res, s.criteres)
     if "structure" in s.verifications:
@@ -94,13 +96,22 @@ def executer(s: Script, catalogue, normes) -> Execution:
     return ex
 
 
-def efforts_assemblage(s: Script, ex: Execution, a) -> dict:
-    """Efforts (kN, kN·m) transmis à un assemblage depuis l'appui calculé, ou imposés."""
+def efforts_assemblage(s: Script, ex: Execution, a, normes=None) -> tuple[dict, list[str]]:
+    """Efforts de calcul (kN, kN·m) transmis à un assemblage.
+
+    - `efforts:` imposés dans le script : pris tels quels (efforts de calcul, déjà pondérés).
+    - depuis un appui : effort caractéristique maximal H (kN/m) de toutes les phases et de tous les
+      jeux d'eau, ramené à l'appui (× espacement / cos θ) puis **multiplié par gamma_effets de la
+      combinaison ELU fondamentale** (nf_p94_282.yaml → combinaisons.ELU_fondamental.gamma_effets),
+      même convention que sout.verifs_struct.elements (effets caractéristiques × γ). Si le coefficient
+      manque, les efforts sont renvoyés non pondérés et la liste `manquants` le signale : la
+      vérification doit alors être « non vérifiable ».
+    Renvoie (efforts, manquants)."""
     if a.efforts:
-        return dict(a.efforts)
+        return dict(a.efforts), []
     e = {"N": 0.0, "V": 0.0, "M": 0.0, "T": 0.0}
     if a.appui is None:
-        return e
+        return e, []
     app = s.appuis[a.appui]
     H = 0.0
     for _, (m, r) in ex.jeux.items():
@@ -110,13 +121,27 @@ def efforts_assemblage(s: Script, ex: Execution, a) -> dict:
                     if x["nom"] == a.appui:
                         H = max(H, x["effort"])
     import math
-    N = H * app.espacement / math.cos(math.radians(app.angle))
+    from .verifs import Lecteur
+    lect = Lecteur(normes)
+    g = lect.v("nf_p94_282", "combinaisons.ELU_fondamental.gamma_effets")
+    H_d = H * (g if g is not None else 1.0)
+    N = H_d * app.espacement / math.cos(math.radians(app.angle))
     e["N"] = e["T"] = N
     e["V"] = N * abs(math.sin(math.radians(app.angle)))
     # lierne : poutre continue sur deux travées (comme sout.verifs_struct) : M = q·e²/8, V = 0,625·q·e
-    e["M"] = 0.125 * H * app.espacement ** 2
-    e["V_lierne"] = 0.625 * H * app.espacement
-    return e
+    e["M"] = 0.125 * H_d * app.espacement ** 2
+    e["V_lierne"] = 0.625 * H_d * app.espacement
+    return e, list(lect.manquants)
+
+
+def verif_rupture(jeu: str | None, r: ResultatCalcul) -> Verif:
+    """Résultat « non_ok » explicite pour un jeu d'eau dont le calcul s'est interrompu (rupture du sol,
+    non-convergence) : sans lui, le jeu disparaissait des vérifications en silence."""
+    ph = next((p for p in r.phases if not p.ok), None)
+    quoi = f"jeu d'eau « {jeu} »" if jeu else "calcul"
+    return Verif("Calcul — équilibre de l'écran", "geotechnique", "écran", ph.nom if ph else None, "non_ok", None,
+                 f"{quoi} : {ph.message if ph else 'calcul incomplet'} — aucune vérification n'est possible sur les phases suivantes",
+                 "sout.noyau.solveur (rupture détectée par le calcul)")
 
 
 def parametres_assemblage(s: Script, a) -> dict:
@@ -138,11 +163,18 @@ def verifier_assemblages(s: Script, ex: Execution, catalogue, normes) -> list[Ve
     if beton:
         fck = beton.get("fck_MPa")
     for nom, a in s.assemblages.items():
-        e = efforts_assemblage(s, ex, a)
+        e, manquants = efforts_assemblage(s, ex, a, normes)
         if a.type == "eclisse_lierne":
             e = {**e, "V": e.get("V_lierne", e["V"])}
         try:
-            out += verifier_assemblage(a.type, parametres_assemblage(s, a), e, catalogue, normes, fck, element=nom)
+            vs = verifier_assemblage(a.type, parametres_assemblage(s, a), e, catalogue, normes, fck, element=nom)
         except KeyError as err:
             out.append(Verif(f"Assemblage {nom}", "structure", nom, None, "non_verifiable", None, str(err), "", [str(err)]))
+            continue
+        if manquants:
+            # efforts non pondérés : aucun taux ne peut être affiché comme un taux de calcul
+            vs = [Verif(v.nom, v.categorie, v.element, v.phase, "non_verifiable", None,
+                        v.detail + " — efforts d'appui non pondérés (coefficient gamma_effets manquant)",
+                        v.source, manquants + v.manquants, v.reperes) for v in vs]
+        out += vs
     return out

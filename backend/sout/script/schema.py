@@ -127,7 +127,8 @@ class Hydraulique(_Base):
 class AssemblageScript(_Base):
     type: str = Field(description="type d'assemblage (clé du registre : platine_about, chaise_buton, tete_tirant_lierne…)")
     appui: str | None = Field(None, description="appui dont les efforts sont repris (bloc appuis) ; sinon donner efforts")
-    efforts: dict[str, float] | None = Field(None, description="efforts imposés (kN, kN·m) : N, V, M, T ; remplacent ceux du calcul")
+    efforts: dict[str, float] | None = Field(None, description="efforts de calcul imposés, déjà pondérés (kN, kN·m) : N, V, M, T ; "
+                                              "remplacent ceux déduits de l'appui (effort caractéristique × gamma_effets)")
     acier: str | None = Field(None, description="nuance des pièces d'assemblage (base matériaux)")
     lierne: str | None = Field(None, description="profilé de lierne (défaut : celui de l'appui)")
     buton: str | None = Field(None, description="élément de buton (défaut : celui de l'appui)")

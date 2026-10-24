@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 
 from ..verifs import Lecteur, resultat
-from .base import (Contexte, Param, TypeAssemblage, enregistrer, grille_boulons, p_soudure, v_ame_lierne, v_boulons_cisaillement,
+from .base import (lierne_de, Contexte, Param, TypeAssemblage, enregistrer, grille_boulons, p_soudure, v_ame_lierne, v_boulons_cisaillement,
                    v_compression_beton, v_plaque_flexion, v_section, v_soudure)
 from . import ec3_assemblages as ec3
 from .geometrie import Cote, Effort, Schema, Soudure, Vue, boite, boulons, cylindre, prisme, tube
@@ -53,7 +53,7 @@ def v_tete_lierne(p: dict, e: dict, ctx: Contexte) -> list:
     out = [v_plaque_flexion("Plaque d'appui — flexion autour de la tête", tp, bp, q * c * c / 2, ctx, [3], f"porte-à-faux {c:.0f} mm, pression {q * 1000:.2f} MPa")]
     out.append(v_soudure("Soudure cale / lierne (composante tangentielle T·sin α)", 2 * (bp + hp), p["a_soudure"], T * math.sin(a), ctx, [2, 1]))
     Tn = T * math.cos(a)
-    L = ctx.lierne or {"b_mm": 300, "tf_mm": 19, "tw_mm": 11}
+    L = lierne_de(ctx)
     qa = Tn / (p["b_lierne_eff"] * hp)
     out.append(v_plaque_flexion("Aile de lierne — flexion locale", L["tf_mm"], p["b_lierne_eff"], qa * ((L["b_mm"] - L["tw_mm"]) / 2) ** 2 / 2, ctx, [1]))
     out.append(v_ame_lierne("Âme de lierne sous la tête", Tn, p["b_lierne_eff"], ctx, [1]))
