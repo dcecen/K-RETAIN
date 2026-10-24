@@ -1,7 +1,8 @@
-// Thème clair / sombre : attribut data-theme sur <html>, préférence mémorisée si possible.
+// Thème clair (par défaut) ou sombre (option) : attribut data-theme sur <html>, préférence mémorisée si possible.
+// Le thème ne suit pas le réglage du système : un logiciel de calcul s'ouvre sur fond clair.
 
 export type Theme = 'clair' | 'sombre'
-const CLE = 'retainwall.theme'
+const CLE = 'retainwall.theme.choix'   // mémorisé seulement quand l'utilisateur change de thème
 
 export function themeInitial(): Theme {
   try {
@@ -10,11 +11,15 @@ export function themeInitial(): Theme {
   } catch {
     /* stockage indisponible */
   }
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'sombre' : 'clair'
+  return 'clair'
 }
 
 export function appliquerTheme(t: Theme) {
   document.documentElement.dataset.theme = t
+}
+
+/** Thème choisi explicitement par l'utilisateur (bouton de la barre de titre) : mémorisé. */
+export function choisirTheme(t: Theme) {
   try {
     localStorage.setItem(CLE, t)
   } catch {

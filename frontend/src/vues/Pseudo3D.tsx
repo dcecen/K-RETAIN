@@ -52,13 +52,16 @@ export function Pseudo3D({ res, phase }: { res: Resultats; phase: number }) {
       {p3d.avertissements.map((a, i) => (
         <div key={i} className="alerte orange">{a}</div>
       ))}
-      <div className="chiffres" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
-        <div className="chiffre"><div className="lib">|y| max pseudo-3D</div><div className="val">{nb(ph.y_max_mm, 1)} mm</div><div className="sous">2D : {nb(ph.y_max_2d_mm, 1)} mm</div></div>
-        <div className="chiffre"><div className="lib">Moment vertical</div><div className="val">{nb(ph.Mz_max, 0)} / {nb(ph.Mz_min, 0)}</div><div className="sous">kN·m/m</div></div>
-        <div className="chiffre"><div className="lib">|Moment horizontal| max</div><div className="val">{nb(ph.Ms_absmax, 0)}</div><div className="sous">kN·m/m</div></div>
-        <div className="chiffre"><div className="lib">|Tranchant| max</div><div className="val">{nb(ph.V_absmax, 0)}</div><div className="sous">kN/m (au droit des appuis ponctuels : voir largeur_appui)</div></div>
-        <div className="chiffre"><div className="lib">{p3d.fermee ? 'Butons entre parois' : 'Appuis ponctuels'}</div><div className="val">{ph.appuis?.length ?? 0}</div><div className="sous">effort max {nb((ph.appuis ?? []).reduce((m, a) => Math.max(m, a.effort), 0), 0)} kN{p3d.fermee ? ' · angles à w = 0' : ''}</div></div>
-      </div>
+      <table className="tableau" style={{ width: 'auto', marginBottom: 10 }}>
+        <thead><tr><th>Grandeur</th><th className="num">Pseudo-3D</th><th className="num">2D</th><th>Unité</th></tr></thead>
+        <tbody>
+          <tr><td>|y| max</td><td className="num">{nb(ph.y_max_mm, 1)}</td><td className="num">{nb(ph.y_max_2d_mm, 1)}</td><td>mm</td></tr>
+          <tr><td>Moment vertical Mz max / min</td><td className="num">{nb(ph.Mz_max, 0)} / {nb(ph.Mz_min, 0)}</td><td /><td>kN·m/m</td></tr>
+          <tr><td>|Moment horizontal Ms| max</td><td className="num">{nb(ph.Ms_absmax, 0)}</td><td /><td>kN·m/m</td></tr>
+          <tr><td>|Tranchant V| max</td><td className="num">{nb(ph.V_absmax, 0)}</td><td /><td>kN/m (au droit des appuis ponctuels : voir largeur_appui)</td></tr>
+          <tr><td>{p3d.fermee ? 'Butons entre parois' : 'Appuis ponctuels'}</td><td className="num">{ph.appuis?.length ?? 0}</td><td /><td>effort max {nb((ph.appuis ?? []).reduce((m, a) => Math.max(m, a.effort), 0), 0)} kN{p3d.fermee ? ', angles à w = 0' : ''}</td></tr>
+        </tbody>
+      </table>
       <Graphique data={data} layout={layout} hauteur={ph.Ms || ph.V ? 900 : 560} nom={`pseudo3d_${ph.nom}`} />
     </div>
   )

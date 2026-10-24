@@ -71,11 +71,11 @@ export function ArbrePhases({ phases, res, actif, selection, onChoisir, onInsere
             <div key={n.index} className={`ligne-phase ${sel ? 'sel' : ''} ${act ? 'act' : ''}`} style={{ height: RH }} onClick={() => onChoisir(n.index)}>
               <span className="mono faible" style={{ width: 22 }}>{n.index >= 0 ? n.index + 1 : ''}</span>
               <span style={{ fontWeight: act || sel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{n.nom}</span>
-              {n.index >= 0 && p?.depuis && <span className="pastille non_verifiable" title={`branche depuis « ${p.depuis} »`}>variante</span>}
+              {n.index >= 0 && p?.depuis && <span className="mention" title={`branche depuis « ${p.depuis} »`}>variante</span>}
               <span className="doux" style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11.5, minWidth: 0 }}>
                 {(n.index < 0 ? [{ type: 'initial', texte: 'sol au repos' }] : resume(p)).map((a, k) => <span key={k} title={a.texte} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{ICONES[a.type]}<span className="masquer-etroit">{a.texte}</span></span>)}
               </span>
-              {r && !r.ok && <span className="pastille non_ok" title={r.message}>échec</span>}
+              {r && !r.ok && <span className="statut non_ok" title={r.message}>rupture</span>}
               <span style={{ display: 'flex', gap: 2 }} onClick={(e) => e.stopPropagation()}>
                 <button className="btn icone discret" title="Insérer une phase après celle-ci" onClick={() => onInserer(n.index)}><IconePlus taille={14} /></button>
                 <button className="btn icone discret" title="Créer une variante (branche) à partir de cette phase" onClick={() => onBrancher(n.index)}>

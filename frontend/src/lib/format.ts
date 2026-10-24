@@ -44,3 +44,11 @@ export function nomProjet(v: unknown): string {
   if (v && typeof v === 'object' && !Array.isArray(v) && typeof (v as { nom?: unknown }).nom === 'string') return (v as { nom: string }).nom
   return ''
 }
+
+/** Unité des cotes affichée dans les en-têtes : « m NGF » par défaut, ou « m <système> » si le bloc
+ *  `projet:` du script précise `systeme_cotes` (ex. « projet », « IGN69 »). */
+export function uniteCote(modele: unknown): string {
+  const p = modele && typeof modele === 'object' ? (modele as { projet?: unknown }).projet : null
+  const s = p && typeof p === 'object' && !Array.isArray(p) ? (p as { systeme_cotes?: unknown }).systeme_cotes : null
+  return typeof s === 'string' && s.trim() ? `m ${s.trim()}` : 'm NGF'
+}

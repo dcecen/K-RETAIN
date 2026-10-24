@@ -1,7 +1,7 @@
 import type { Resultats } from '../lib/api'
 import { couleurEtat, etatHydraulique } from '../lib/verifs'
 import type { Selection } from '../lib/etat'
-import { cote, nb, pourcent } from '../lib/format'
+import { cote, nb, pourcent, uniteCote } from '../lib/format'
 import { IconeAlerte, IconeFermer, IconeInfo } from '../lib/icones'
 import type { Modele } from '../lib/scriptDoc'
 import { COULEURS_SOL } from '../lib/theme'
@@ -15,9 +15,9 @@ export function Inspecteur({ res, phase, selection, modele, onSelection }: {
   onSelection: (s: Selection) => void
 }) {
   return (
-    <aside className="panneau" aria-label="Inspecteur">
+    <aside className="panneau" aria-label="Phase et résultats">
       <div className="panneau-entete">
-        Inspecteur
+        Phase et résultats
         <span className="espace" />
         {selection && (
           <button className="btn icone discret" title="Revenir à la phase active" onClick={() => onSelection(null)}>
@@ -42,7 +42,6 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
   const s = ph.synthese
   const butons = (ph.appuis ?? []).filter((a) => a.type === 'buton' || a.type === 'bracon')
   const maxButon = butons.reduce<null | (typeof butons)[number]>((m, a) => (!m || a.effort_axial_kN > m.effort_axial_kN ? a : m), null)
-  const Mabs = s ? (Math.abs(s.M_max) >= Math.abs(s.M_min) ? s.M_max : s.M_min) : null
   const alertes = (res.verifications ?? []).filter((v) => v.etat === 'non_ok' || v.etat === 'attention')   // états fixés par le calcul
   return (
     <>
@@ -62,27 +61,23 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
         <div className="insp-section"><div className="alerte rouge"><IconeAlerte />{ph.message}</div></div>
       ) : (
         <div className="insp-section">
-          <div className="insp-titre">Chiffres clés</div>
-          <div className="chiffres">
-            <div className="chiffre"><div className="lib">Déplacement max</div>
-              <div className="val">{nb(s?.y_max_mm)}<small>mm</small></div><div className="sous">à {nb(s?.z_y_max, 2)} m</div></div>
-            <div className="chiffre"><div className="lib">Moment max</div>
-              <div className="val">{nb(Mabs, 0)}<small>kN·m/m</small></div><div className="sous">{Mabs !== null && Mabs >= 0 ? 'face fouille tendue' : 'face terre tendue'}</div></div>
-            <div className="chiffre"><div className="lib">Effort max par buton</div>
-              <div className="val">{maxButon ? nb(maxButon.effort_axial_kN, 0) : '—'}<small>{maxButon ? 'kN' : ''}</small></div>
-              <div className="sous">{maxButon ? maxButon.nom : 'aucun buton posé'}</div></div>
-            <div className="chiffre"><div className="lib">Butée mobilisée</div>
-              <div className="val">{pourcent(s?.butee_mobilisee)}</div><div className="sous">Bm/Bt caractéristique</div></div>
+          <div className="insp-titre">Résultats de la phase</div>
+          <dl className="lignes-cle">
+            <dt>Déplacement max</dt><dd>{nb(s?.y_max_mm)} mm à {nb(s?.z_y_max, 2)} m</dd>
+            <dt>Moment max</dt><dd>{nb(s?.M_max, 0)} kN·m/m</dd>
+            <dt>Moment min</dt><dd>{nb(s?.M_min, 0)} kN·m/m</dd>
+            <dt>Tranchant max</dt><dd>{nb(s?.V_absmax, 0)} kN/m</dd>
+            <dt title="Bm / Bt, valeurs caractéristiques">Butée mobilisée Bm/Bt</dt><dd>{pourcent(s?.butee_mobilisee)}</dd>
+            {maxButon && <><dt>Effort max par buton</dt><dd>{nb(maxButon.effort_axial_kN, 0)} kN ({maxButon.nom})</dd></>}
             {ph.hydro && ph.hydro.regime !== 'hydrostatique' && (
               <>
-                <div className="chiffre"><div className="lib">Gradient de sortie</div>
-                  <div className="val" style={{ color: couleurEtat(etatHydraulique(res, ph.nom)) }}>{nb(ph.hydro.gradient_sortie_max, 3)}</div>
-                  <div className="sous">{ph.hydro.bouchon ? `bouchon ${ph.hydro.bouchon.type} : i = ${nb(ph.hydro.gradient_bouchon, 2)}` : 'au fond de fouille, contre l’écran'}</div></div>
-                <div className="chiffre"><div className="lib">Débit de pompage</div>
-                  <div className="val">{nb(ph.hydro.debit_m3_h_m, 3)}<small>m³/h/m</small></div><div className="sous">{ph.hydro.regime === 'differences_finies' ? 'réseau d’écoulement 2D' : 'régime simplifié'}</div></div>
+                <dt>Gradient de sortie max</dt>
+                <dd style={{ color: couleurEtat(etatHydraulique(res, ph.nom)) }}>{nb(ph.hydro.gradient_sortie_max, 3)}{ph.hydro.bouchon ? ` (bouchon ${ph.hydro.bouchon.type} : i = ${nb(ph.hydro.gradient_bouchon, 2)})` : ''}</dd>
+                <dt>Débit de pompage</dt><dd>{nb(ph.hydro.debit_m3_h_m, 3)} m³/h/m ({ph.hydro.regime === 'differences_finies' ? 'écoulement 2D' : 'régime simplifié'})</dd>
               </>
             )}
-          </div>
+          </dl>
+          <div className="note" style={{ marginTop: 6 }}>Signes : y positif vers la fouille ; M positif quand la face côté fouille est tendue.</div>
         </div>
       )}
       <div className="insp-section">
@@ -127,7 +122,7 @@ function Couche({ modele, index }: { modele: Modele; index: number }) {
       <div className="insp-titre"><span className="puce-sol" style={{ background: COULEURS_SOL[index % COULEURS_SOL.length] }} /> Couche {index + 1}</div>
       <div className="insp-nom">{c.nom}</div>
       <dl className="lignes-cle">
-        {ligne('Toit', c.toit, 'm')}{ligne('γ', c.gamma, 'kN/m³')}{ligne('γ′', c.gamma_dejauge, 'kN/m³')}
+        {ligne('Cote du toit', c.toit, uniteCote(modele))}{ligne('γ', c.gamma, 'kN/m³')}{ligne('γ′', c.gamma_dejauge, 'kN/m³')}
         {ligne('φ′', c.phi, '°')}{ligne('c′', c.c ?? 0, 'kPa')}{ligne('EM', c.EM, 'kPa')}{ligne('α', c.alpha)}
         {ligne('pl', c.pl, 'kPa')}{ligne('qc', c.qc, 'kPa')}{ligne('kh imposé', c.kh, 'kN/m³')}
         {ligne('δa/φ′', c.delta_a_sur_phi ?? 0)}{ligne('δp/φ′', c.delta_p_sur_phi ?? 0)}{ligne('K0', c.K0)}
@@ -147,7 +142,7 @@ function Appui({ res, modele, nom, phase }: { res: Resultats | null; modele: Mod
         <div className="insp-titre">Appui</div>
         <div className="insp-nom">{nom} <span className="doux" style={{ fontWeight: 400 }}>{a?.type}</span></div>
         <dl className="lignes-cle">
-          {ligne('Élément', a?.element)}{ligne('Cote', a?.cote, 'm')}{ligne('Espacement', a?.espacement ?? 1, 'm')}
+          {ligne('Élément', a?.element)}{ligne('Cote', a?.cote, uniteCote(modele))}{ligne('Espacement', a?.espacement ?? 1, 'm')}
           {ligne('Longueur', a?.longueur, 'm')}{ligne('Angle', a?.angle ?? 0, '°')}{ligne('Précharge', a?.precharge ?? 0, 'kN')}
           {ligne('Lierne', a?.lierne)}{ligne('Raideur', def ? Math.round(def.raideur) : null, 'kN/m/m')}
         </dl>

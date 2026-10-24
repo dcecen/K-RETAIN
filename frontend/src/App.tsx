@@ -5,7 +5,7 @@ import { exporterImage, imprimerNote, telechargerTexte } from './lib/exporter'
 import { nomProjet } from './lib/format'
 import { IconeAppui, IconeBase, IconeCoupe, IconeCube, IconePlaque, IconeProjet, IconeScript, IconeTableau, IconeVerif } from './lib/icones'
 import * as sd from './lib/scriptDoc'
-import { appliquerTheme, themeInitial, type Theme } from './lib/theme'
+import { appliquerTheme, choisirTheme, themeInitial, type Theme } from './lib/theme'
 import { BarreTitre } from './composants/BarreTitre'
 import { FrisePhases } from './composants/FrisePhases'
 import { Inspecteur } from './composants/Inspecteur'
@@ -276,16 +276,16 @@ export default function App() {
   }
 
   const nNonOk = res?.verifications?.filter((v) => v.etat === 'non_ok').length ?? 0
-  const ONGLETS: { cle: Onglet; lib: string; icone: ReactNode; visible: boolean; badge?: string; rouge?: boolean }[] = [
+  const ONGLETS: { cle: Onglet; lib: string; icone: ReactNode; visible: boolean; compteur?: string; rouge?: boolean }[] = [
     { cle: 'coupe', lib: 'Coupe & diagrammes', icone: <IconeCoupe />, visible: true },
     { cle: '3d', lib: 'Maquette 3D', icone: <IconeCube />, visible: true },
     { cle: 'efforts', lib: 'Efforts', icone: <IconeTableau />, visible: true },
     { cle: 'verifications', lib: 'Vérifications', icone: <IconeVerif />, visible: true,
-      badge: res?.verifications?.length ? String(nNonOk || res.verifications.length) : undefined, rouge: nNonOk > 0 },
+      compteur: nNonOk ? `${nNonOk} non vérifiée${nNonOk > 1 ? 's' : ''}` : undefined, rouge: nNonOk > 0 },
     { cle: 'pseudo3d', lib: 'Pseudo-3D', icone: <IconePlaque />, visible: !!res?.pseudo3d },
     { cle: 'assemblages', lib: 'Assemblages', icone: <IconeAppui />, visible: true },
     { cle: 'saisie', lib: 'Saisie', icone: <IconeProjet />, visible: true },
-    { cle: 'script', lib: 'Script', icone: <IconeScript />, visible: true, badge: erreurs.length ? String(erreurs.length) : undefined, rouge: erreurs.length > 0 },
+    { cle: 'script', lib: 'Script', icone: <IconeScript />, visible: true, compteur: erreurs.length ? `${erreurs.length} erreur${erreurs.length > 1 ? 's' : ''}` : undefined, rouge: erreurs.length > 0 },
     { cle: 'materiaux', lib: 'Base matériaux', icone: <IconeBase />, visible: true },
   ]
   const allerLigne = (l: number | null) => {
@@ -315,19 +315,20 @@ export default function App() {
         onRecalculer={() => void calculer()} onExemple={(t) => { setTexteBrut(t); setRes(null); setProjet(null); setEtat({ genre: 'aucun', texte: 'Exemple chargé — à calculer' }) }}
         onOuvrir={(f) => void f.text().then((t) => { setTexteBrut(t); setRes(null) })} onEnregistrer={enregistrer} onRido={(f) => void importerRido(f)}
         onMateriaux={() => setOnglet('materiaux')} onImage={exporterImage} onNote={() => res && imprimerNote(res)} onMaquette={() => void exporterMaquette()}
-        onTheme={() => setTheme(theme === 'sombre' ? 'clair' : 'sombre')} onAllerErreur={allerErreur}
+        onTheme={() => { const t: Theme = theme === 'sombre' ? 'clair' : 'sombre'; choisirTheme(t); setTheme(t) }} onAllerErreur={allerErreur}
         onBasculeNav={() => { if (window.innerWidth <= 768) setTiroirNav(!tiroirNav); else setNav(!nav) }}
         onBasculeInsp={() => { if (window.innerWidth <= 1100) setTiroirInsp(!tiroirInsp); else setInsp(!insp) }} />
 
       <div className="zone-nav">
-        <Navigation modele={modele} erreurs={erreurs} section={onglet === 'saisie' ? section : null} selection={onglet === 'saisie' ? selection : null} onChoisir={choisirSection} />
+        <Navigation modele={modele} erreurs={erreurs} section={onglet === 'saisie' ? section : null} selection={onglet === 'saisie' ? selection : null}
+          onglet={onglet} resultats={!!res} onChoisir={choisirSection} onOnglet={(o) => { setOnglet(o); setTiroirNav(false) }} />
       </div>
 
       <main className="zone-centre">
         <nav className="onglets" role="tablist">
           {ONGLETS.filter((o) => o.visible).map((o) => (
             <button key={o.cle} role="tab" aria-selected={onglet === o.cle} className={`onglet ${onglet === o.cle ? 'actif' : ''}`} onClick={() => setOnglet(o.cle)}>
-              {o.icone} {o.lib} {o.badge && <span className={`badge ${o.rouge ? 'rouge' : ''}`}>{o.badge}</span>}
+              {o.icone} {o.lib} {o.compteur && <span className={`compteur ${o.rouge ? 'rouge' : ''}`}>({o.compteur})</span>}
             </button>
           ))}
           <span className="espace" />

@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from 'react'
 import type { ErreurScript } from '../lib/api'
-import type { Section, Selection } from '../lib/etat'
+import type { Onglet, Section, Selection } from '../lib/etat'
 import { nb } from '../lib/format'
 import {
-  IconeAppui, IconeChevronB, IconeChevronD, IconeEau, IconeParoi, IconePhases, IconeProjet, IconeSol,
-  IconeSurcharge, IconeVerif,
+  IconeAppui, IconeChevronB, IconeChevronD, IconeCoupe, IconeEau, IconeParoi, IconePhases, IconeProjet, IconeSol,
+  IconeSurcharge, IconeTableau, IconeVerif,
 } from '../lib/icones'
 import type { Modele } from '../lib/scriptDoc'
 import { COULEURS_SOL } from '../lib/theme'
@@ -14,13 +14,24 @@ const NOMS_PAROI: Record<string, string> = {
   pieux_disjoints: 'Pieux disjoints', berlinoise: 'Berlinoise',
 }
 
-/** Arborescence du modèle ; un clic ouvre le formulaire de saisie correspondant. */
-export function Navigation({ modele, erreurs, section, selection, onChoisir }: {
+/** Onglets de résultats accessibles depuis l'arborescence. */
+const RESULTATS: { cle: Onglet; libelle: string }[] = [
+  { cle: 'coupe', libelle: 'Coupe et diagrammes' },
+  { cle: 'efforts', libelle: "Efforts d'appui" },
+  { cle: 'verifications', libelle: 'Vérifications' },
+  { cle: '3d', libelle: 'Maquette 3D' },
+]
+
+/** Arborescence du projet : données d'entrée (un clic ouvre le formulaire de saisie) et résultats (un clic ouvre l'onglet). */
+export function Navigation({ modele, erreurs, section, selection, onglet, resultats, onChoisir, onOnglet }: {
   modele: Modele
   erreurs: ErreurScript[]
   section: Section | null
   selection: Selection
+  onglet: Onglet
+  resultats: boolean
   onChoisir: (s: Section, sel?: Selection) => void
+  onOnglet: (o: Onglet) => void
 }) {
   const [replies, setReplies] = useState<Record<string, boolean>>({})
   const m = modele ?? {}
@@ -48,12 +59,12 @@ export function Navigation({ modele, erreurs, section, selection, onChoisir }: {
   }
 
   return (
-    <nav className="panneau" aria-label="Modèle">
-      <div className="panneau-entete">Modèle</div>
+    <nav className="panneau" aria-label="Projet">
+      <div className="panneau-entete">Données</div>
       <div className="panneau-corps">
         <ul className="arbre">
           {groupe('projet', <IconeProjet />, 'Projet', null)}
-          {groupe('sol', <IconeSol />, 'Sol', String(sol.length), sol.map((c, i) => (
+          {groupe('sol', <IconeSol />, 'Sols', String(sol.length), sol.map((c, i) => (
             <li key={i}>
               <button className={`noeud enfant ${selection?.type === 'couche' && selection.index === i ? 'actif' : ''}`}
                 onClick={() => onChoisir('sol', { type: 'couche', index: i })}>
@@ -63,7 +74,7 @@ export function Navigation({ modele, erreurs, section, selection, onChoisir }: {
               </button>
             </li>
           )))}
-          {groupe('paroi', <IconeParoi />, 'Paroi', NOMS_PAROI[m.paroi?.type] ?? null)}
+          {groupe('paroi', <IconeParoi />, 'Écran', NOMS_PAROI[m.paroi?.type] ?? null)}
           {groupe('eau', <IconeEau />, 'Eau', m.hydraulique?.regime && m.hydraulique.regime !== 'hydrostatique' ? (m.hydraulique.regime === 'differences_finies' ? 'écoulement 2D' : 'simplifié') : (m.eau ? String(Object.keys(m.eau).length) : '0'))}
           {groupe('surcharges', <IconeSurcharge />, 'Surcharges', String(Array.isArray(m.surcharges) ? m.surcharges.length : 0))}
           {groupe('appuis', <IconeAppui />, 'Appuis', String(appuis.length), appuis.map(([nom, a]) => (
@@ -84,7 +95,22 @@ export function Navigation({ modele, erreurs, section, selection, onChoisir }: {
               </button>
             </li>
           )))}
-          {groupe('verifications', <IconeVerif />, 'Vérifications', String(Array.isArray(m.verifications) ? m.verifications.length : 0))}
+          {groupe('verifications', <IconeVerif />, 'Vérifications demandées', String(Array.isArray(m.verifications) ? m.verifications.length : 0))}
+        </ul>
+      </div>
+      <div className="panneau-entete">Résultats</div>
+      <div className="panneau-corps" style={{ flex: '0 0 auto' }}>
+        <ul className="arbre">
+          {RESULTATS.map((r) => (
+            <li key={r.cle}>
+              <button className={`noeud ${onglet === r.cle && section === null ? 'actif' : ''}`} onClick={() => onOnglet(r.cle)}
+                disabled={!resultats} title={resultats ? undefined : 'Disponible après le calcul'}>
+                <span className="chevron" />
+                {r.cle === 'coupe' ? <IconeCoupe /> : r.cle === 'efforts' ? <IconeTableau /> : r.cle === 'verifications' ? <IconeVerif /> : <IconeCoupe />}
+                <span className="libelle">{r.libelle}</span>
+              </button>
+            </li>
+          ))}
         </ul>
       </div>
     </nav>

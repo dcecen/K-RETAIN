@@ -4,7 +4,7 @@ import { nb } from '../lib/format'
 
 type Tri = { cle: string; sens: 1 | -1 }
 
-/** Tableau phases × appuis avec carte de chaleur, phase active surlignée, tri par colonne. */
+/** Tableau phases × appuis, phase active surlignée, tri par colonne. */
 export function Efforts({ res, phase, onPhase, onAppui }: {
   res: Resultats
   phase: number
@@ -18,9 +18,6 @@ export function Efforts({ res, phase, onPhase, onAppui }: {
     const a = res.phases[i].appuis?.find((x) => x.nom === nom)
     return a ? (unite === 'kN' ? a.effort_axial_kN : a.effort_kN_m) : null
   }
-  const maxi = useMemo(() => Math.max(1e-9, ...res.phases.flatMap((_, i) => noms.map((n) => Math.abs(val(i, n) ?? 0)))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [res, unite])
   const ordre = useMemo(() => {
     const idx = res.phases.map((_, i) => i)
     if (tri.cle === 'phase') return tri.sens === 1 ? idx : idx.reverse()
@@ -66,11 +63,8 @@ export function Efforts({ res, phase, onPhase, onAppui }: {
                   {noms.map((n) => {
                     const v = val(i, n)
                     const a = p.appuis?.find((x) => x.nom === n)
-                    const t = v === null ? 0 : Math.abs(v) / maxi
                     return (
-                      <td key={n} className={`num ${a && !a.actif ? 'inactif' : ''}`}
-                        style={v === null ? undefined : { background: `color-mix(in srgb, var(--accent) ${Math.round(t * 38)}%, transparent)` }}
-                        title={a && !a.actif ? 'Appui décollé' : undefined}>
+                      <td key={n} className={`num ${a && !a.actif ? 'inactif' : ''}`} title={a && !a.actif ? 'Appui décollé' : undefined}>
                         {v === null ? '' : nb(v, unite === 'kN' ? 0 : 1)}
                       </td>
                     )

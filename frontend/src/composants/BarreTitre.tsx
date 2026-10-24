@@ -84,14 +84,14 @@ export function BarreTitre(p: {
         )}
       </Menu>
       <div className="projet" title={p.projet}><span className="nom">{p.projet || 'Sans titre'}</span></div>
-      <span className="bandeau-demo" title="Aucun résultat ne doit servir à un projet réel avant comparaison à K-Réa ou RIDO et visa d'un ingénieur.">
-        Démonstrateur — calculs non validés
+      <span className="bandeau-demo masquer-etroit" title="Aucun résultat ne doit servir à un projet réel avant comparaison à K-Réa ou RIDO sur plusieurs cas et visa d'un ingénieur.">
+        Version non validée
       </span>
       <span className="espace" />
-      <span className={`pastille-etat ${p.enCours ? 'calcul' : p.etat.genre === 'rupture' ? 'erreur' : p.etat.genre}`}
+      <span className={`etat-calcul ${p.enCours ? 'calcul' : p.etat.genre === 'rupture' ? 'erreur' : p.etat.genre}`}
         onClick={p.etat.genre === 'erreur' ? p.onAllerErreur : undefined}
         title={p.etat.genre === 'erreur' ? 'Aller à l’erreur dans le script' : undefined}>
-        {p.enCours ? 'Calcul en cours…' : p.etat.texte}
+        {p.enCours ? 'Calcul en cours' : p.etat.texte}
       </span>
       <span className="espace" />
       <button className="btn principal" onClick={p.onRecalculer} disabled={p.enCours} title="Recalculer (Ctrl+Entrée)">

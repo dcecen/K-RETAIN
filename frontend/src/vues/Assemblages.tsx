@@ -227,10 +227,10 @@ export function Assemblages({ res, modele, references, theme, onEnregistrer }: {
               <tbody>
                 {verifs.map((v, i) => (
                   <tr key={i} className={`cliquable ${v.reperes.some((r) => reperes.has(r)) ? 'actif' : ''}`} onClick={() => setReperes(new Set(v.reperes))} title={v.source + (v.manquants.length ? '\nValeurs manquantes : ' + v.manquants.join(', ') : '')}>
-                    <td>{v.nom}{/simplifi|hypoth|confirm/i.test(v.source + v.detail) && <> <span className="etiquette-confirmer">À confirmer</span></>}</td>
+                    <td>{v.nom}{/simplifi|hypoth|confirm/i.test(v.source + v.detail) && <> <span className="mention">(hypothèse à confirmer)</span></>}</td>
                     <td className="doux">{v.element}</td>
                     <td className="num">{v.taux === null ? '—' : pourcent(v.taux)}</td>
-                    <td><span className={`pastille ${v.etat}`}>{LIBELLE[v.etat]}</span></td>
+                    <td className={`statut ${v.etat}`}>{LIBELLE[v.etat]}</td>
                     <td className="doux" style={{ fontSize: 11.5 }}>{v.detail}{v.manquants.length > 0 && <div className="manquants faible">manque : {v.manquants.slice(0, 3).join(', ')}{v.manquants.length > 3 ? '…' : ''}</div>}</td>
                   </tr>
                 ))}

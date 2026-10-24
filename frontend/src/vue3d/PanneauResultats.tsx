@@ -48,7 +48,7 @@ function TableVerifs({ liste }: { liste: Verif[] }) {
         {liste.map((v, i) => (
           <tr key={i} className={`etat-${v.etat}`} title={v.detail}>
             <td>{v.nom}</td><td>{v.element}</td><td className="doux">{v.phase ?? '—'}</td>
-            <td className="num">{v.taux === null ? '—' : pourcent(v.taux)}</td><td><span className={`pastille ${v.etat}`}>{LIBELLE[v.etat]}</span></td>
+            <td className="num">{v.taux === null ? '—' : pourcent(v.taux)}</td><td className={`statut ${v.etat}`}>{LIBELLE[v.etat]}</td>
           </tr>
         ))}
       </tbody>
@@ -308,7 +308,7 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
         <table className="tableau compact">
           <thead><tr><th>Vérification</th><th>Élément</th><th>Pire coupe</th><th className="num">Taux</th><th>État</th></tr></thead>
           <tbody>{projet.synthese.verifications.map((v, i) => (
-            <tr key={i} className={`etat-${v.etat}`}><td>{v.nom}</td><td>{v.element}</td><td>{v.coupe.split(' — ')[0]}</td><td className="num">{v.taux === null ? '—' : pourcent(v.taux)}</td><td><span className={`pastille ${v.etat}`}>{LIBELLE[v.etat]}</span></td></tr>
+            <tr key={i} className={`etat-${v.etat}`}><td>{v.nom}</td><td>{v.element}</td><td>{v.coupe.split(' — ')[0]}</td><td className="num">{v.taux === null ? '—' : pourcent(v.taux)}</td><td className={`statut ${v.etat}`}>{LIBELLE[v.etat]}</td></tr>
           ))}</tbody>
         </table>
       )

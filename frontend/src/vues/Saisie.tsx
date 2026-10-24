@@ -3,6 +3,7 @@ import type { ErreurScript, Resultats } from '../lib/api'
 import { ArbrePhases } from '../composants/ArbrePhases'
 import type { Section, Selection } from '../lib/etat'
 import { IconeCorbeille, IconeDescendre, IconeMonter, IconePlus } from '../lib/icones'
+import { nb, uniteCote } from '../lib/format'
 import { cheminErreur, type Chemin, type Modele } from '../lib/scriptDoc'
 import { COULEURS_SOL } from '../lib/theme'
 
@@ -89,6 +90,12 @@ function enumDe(schema: Schema, bloc: string, cle: string): string[] {
 const Th = ({ t, u, titre }: { t: ReactNode; u?: string; titre?: string }) => <th title={titre}>{t}{u && <span className="unite">{u}</span>}</th>
 
 // ---------------------------------------------------------------- sections
+/** Clés du bloc `projet:` reprises dans le cartouche de la note de calcul. */
+const CARTOUCHE: Record<string, string> = {
+  affaire: 'Affaire', client: 'Client', lieu: 'Lieu', indice: 'Indice', redacteur: 'Rédacteur', verificateur: 'Vérificateur',
+  date: 'Date (vide = date du jour)', systeme_cotes: 'Système de cotes (vide = NGF)',
+}
+
 function Projet({ ctx }: { ctx: Ctx }) {
   const m = ctx.modele
   const c = m.calcul ?? {}
@@ -102,7 +109,11 @@ function Projet({ ctx }: { ctx: Ctx }) {
       <div className="bloc"><div className="bloc-titre">Projet</div>
         <div className="grille-form">
           <label>Nom du projet<Champ ctx={ctx} chemin={projetBloc ? ['projet', 'nom'] : ['projet']} valeur={projetBloc ? projetBloc.nom : m.projet} type="text" large /></label>
-          {infos.map(([k, v]) => <label key={k}>{k}<Champ ctx={ctx} chemin={['projet', k]} valeur={v} type={typeof v === 'number' ? 'number' : 'text'} large /></label>)}
+          {infos.map(([k, v]) => <label key={k}>{CARTOUCHE[k] ?? k}<Champ ctx={ctx} chemin={['projet', k]} valeur={v} type={typeof v === 'number' ? 'number' : 'text'} large /></label>)}
+          {projetBloc && Object.keys(CARTOUCHE).filter((k) => !(k in projetBloc)).map((k) => (
+            <label key={k} className="doux">{CARTOUCHE[k]}<input className="champ champ-bloc" placeholder="—" onBlur={(e) => { if (e.target.value.trim()) ctx.actions.ajouterCle(['projet'], k, e.target.value.trim()) }} /></label>
+          ))}
+          {!projetBloc && <span className="note" style={{ alignSelf: 'end' }}>Pour renseigner le cartouche de la note (affaire, indice, rédacteur, vérificateur, système de cotes), écrivez le bloc <span className="mono">projet:</span> du script avec une clé <span className="mono">nom</span>.</span>}
         </div>
       </div>
       <div className="bloc"><div className="bloc-titre">Calcul</div>
@@ -126,14 +137,21 @@ function Projet({ ctx }: { ctx: Ctx }) {
   )
 }
 
+/** Colonnes saisies : clé du script, en-tête, unité (COTE = unité des cotes du projet). */
 const COLS_SOL: [string, string, string][] = [
-  ['nom', 'Nom', ''], ['toit', 'Toit', 'm'], ['gamma', 'γ', 'kN/m³'], ['gamma_dejauge', "γ'", 'kN/m³'], ['phi', "φ'", '°'],
-  ['c', "c'", 'kPa'], ['EM', 'EM', 'kPa'], ['alpha', 'α', ''], ['pl', 'pl', 'kPa'], ['kh', 'kh imposé', 'kN/m³'],
-  ['delta_a_sur_phi', "δa/φ'", ''], ['delta_p_sur_phi', "δp/φ'", ''], ['k_h', 'k_h', 'm/s'], ['k_v', 'k_v', 'm/s'], ['cu', 'cu', 'kPa'],
+  ['nom', 'Nom', ''], ['toit', 'Cote du toit', 'COTE'], ['gamma', 'γ', 'kN/m³'], ['gamma_dejauge', "γ'", 'kN/m³'], ['c', "c'", 'kPa'], ['phi', "φ'", '°'],
+  ['delta_a_sur_phi', "δa/φ'", '-'], ['delta_p_sur_phi', "δp/φ'", '-'], ['EM', 'EM', 'kPa'], ['alpha', 'α', '-'], ['pl', 'pl', 'kPa'], ['kh', 'kh imposé', 'kN/m³'],
+  ['k_h', 'k_h', 'm/s'], ['k_v', 'k_v', 'm/s'], ['cu', 'cu', 'kPa'],
 ]
 
-function Sol({ ctx, selection }: { ctx: Ctx; selection: Selection }) {
+function Sol({ ctx, selection, res }: { ctx: Ctx; selection: Selection; res: Resultats | null }) {
   const sol: Modele[] = Array.isArray(ctx.modele.sol) ? ctx.modele.sol : []
+  const unite = uniteCote(ctx.modele)
+  const methodeK = ctx.modele.calcul?.coefficients === 'kerisel_absi' ? 'Kérisel-Absi' : 'Coulomb (Rankine si δ = 0)'
+  const methodeKh = ctx.modele.calcul?.kh === 'impose' ? 'kh imposé' : 'Schmitt (EM, α, EI)'
+  /** Coefficients du dernier calcul, par nom de couche (— si le script a changé depuis). */
+  const calc = (c: Modele) => res?.couches.find((x) => x.nom === c?.nom)
+  const val = (v: number | null | undefined, d: number) => (v === null || v === undefined ? '—' : nb(v, d))
   const nouvelle = () => {
     const dernier = sol[sol.length - 1]
     ctx.actions.ajouter(['sol'], { nom: `Couche ${sol.length + 1}`, toit: typeof dernier?.toit === 'number' ? dernier.toit - 3 : 0, gamma: 20, gamma_dejauge: 10, phi: 30, c: 0, EM: 10000, alpha: 0.5 })
@@ -141,21 +159,25 @@ function Sol({ ctx, selection }: { ctx: Ctx; selection: Selection }) {
   return (
     <div className="saisie">
       <h2>Couches de sol</h2>
-      <p className="aide">Chaque couche est définie par la cote de son toit ; la dernière se prolonge sous le pied. Le coefficient de réaction vient de Schmitt (EM, α) ou de kh imposé. Avec Coulomb, δp/φ' est limité à 1/3.</p>
+      <p className="aide">Couches du haut vers le bas, chacune définie par la cote de son toit ({unite}) ; la dernière se prolonge sous le pied de l'écran. Poussée et butée : {methodeK}. Coefficient de réaction : {methodeKh}. Avec Coulomb, δp/φ' est limité à 1/3. Les colonnes Ka, Kp, K0 et kh sont les valeurs utilisées par le dernier calcul.</p>
       <div className="bloc">
         <table className="tableau">
           <thead>
-            <tr><th style={{ width: 28 }} />{COLS_SOL.map(([k, t, u]) => <Th key={k} t={t} u={u} titre={doc(ctx.schema, 'Couche', k)} />)}<th /></tr>
+            <tr><th style={{ width: 28 }} />{COLS_SOL.map(([k, t, u]) => <Th key={k} t={t} u={u === 'COTE' ? unite : u} titre={doc(ctx.schema, 'Couche', k)} />)}
+              <Th t="Ka" u="-" titre={`Coefficient de poussée horizontale utilisé par le calcul (${methodeK})`} /><Th t="Kp" u="-" titre={`Coefficient de butée horizontale utilisé par le calcul (${methodeK})`} />
+              <Th t="K0" u="-" titre="Coefficient de pression des terres au repos (saisi, sinon Jaky)" /><Th t="kh" u="kN/m³" titre={`Coefficient de réaction utilisé par le calcul (${methodeKh})`} /><th /></tr>
           </thead>
           <tbody>
             {sol.map((c, i) => (
               <tr key={i} className={selection?.type === 'couche' && selection.index === i ? 'actif' : ''}>
                 <td><span className="puce-sol" style={{ background: COULEURS_SOL[i % COULEURS_SOL.length], display: 'inline-block' }} /></td>
                 {COLS_SOL.map(([k]) => (
-                  <td key={k} style={{ minWidth: k === 'nom' ? 140 : 76 }}>
+                  <td key={k} style={{ minWidth: k === 'nom' ? 120 : 58 }}>
                     <Champ ctx={ctx} chemin={['sol', i, k]} valeur={c?.[k]} type={k === 'nom' ? 'text' : 'number'} bloc="Couche" cle={k} />
                   </td>
                 ))}
+                <td className="num doux">{val(calc(c)?.kah, 3)}</td><td className="num doux">{val(calc(c)?.kph, 2)}</td>
+                <td className="num doux">{val(calc(c)?.k0, 3)}</td><td className="num doux">{val(calc(c)?.kh, 0)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button className="btn icone discret" title="Monter" disabled={i === 0} onClick={() => ctx.actions.deplacer(['sol'], i, i - 1)}><IconeMonter taille={14} /></button>
                   <button className="btn icone discret" title="Descendre" disabled={i === sol.length - 1} onClick={() => ctx.actions.deplacer(['sol'], i, i + 1)}><IconeDescendre taille={14} /></button>
@@ -195,7 +217,7 @@ function Paroi({ ctx }: { ctx: Ctx }) {
       <div className="bloc"><div className="bloc-titre">Type et géométrie</div>
         <div className="grille-form">
           <label>Type de paroi<Choix ctx={ctx} chemin={ch('type')} valeur={t} options={enumDe(ctx.schema, 'Paroi', 'type')} /></label>
-          {champ('tete', 'Cote de tête (m)')}{champ('pied', 'Cote du pied (m)')}{champ('EI', 'EI imposé (kN·m²/m)')}
+          {champ('tete', `Cote de tête (${uniteCote(ctx.modele)})`)}{champ('pied', `Cote du pied (${uniteCote(ctx.modele)})`)}{champ('EI', 'EI imposé (kN·m²/m)')}
         </div>
       </div>
       <div className="bloc"><div className="bloc-titre">Matériaux et section</div>
@@ -244,7 +266,7 @@ function Eau({ ctx }: { ctx: Ctx }) {
       <p className="aide">Chaque jeu de niveaux (service, exceptionnel…) est calculé ; les vérifications retiennent le cas le plus défavorable. Un jeu dont le nom contient « except » ou « accid » est vérifié en combinaison accidentelle. Seul le régime hydrostatique est modélisé.</p>
       <div className="bloc"><div className="bloc-titre">Jeux de niveaux d'eau</div>
         <table className="tableau">
-          <thead><tr><Th t="Jeu" /><Th t="Nappe amont" u="m" /><Th t="Nappe aval" u="m" /><th /></tr></thead>
+          <thead><tr><Th t="Jeu" /><Th t="Nappe amont" u={uniteCote(ctx.modele)} /><Th t="Nappe aval" u={uniteCote(ctx.modele)} /><th /></tr></thead>
           <tbody>
             {Object.entries(eau).map(([nom, n]) => (
               <tr key={nom}>
@@ -287,8 +309,8 @@ function Eau({ ctx }: { ctx: Ctx }) {
       </div>
       <div className="bloc"><div className="bloc-titre">Terrain initial</div>
         <div className="grille-form">
-          <label>Cote du terrain amont (m)<Champ ctx={ctx} chemin={['terrain', 'amont']} valeur={terrain.amont} placeholder="toit de la 1re couche" large /></label>
-          <label>Cote du terrain aval (m)<Champ ctx={ctx} chemin={['terrain', 'aval']} valeur={terrain.aval} placeholder="= amont" large /></label>
+          <label>Cote du terrain amont ({uniteCote(ctx.modele)})<Champ ctx={ctx} chemin={['terrain', 'amont']} valeur={terrain.amont} placeholder="toit de la 1re couche" large /></label>
+          <label>Cote du terrain aval ({uniteCote(ctx.modele)})<Champ ctx={ctx} chemin={['terrain', 'aval']} valeur={terrain.aval} placeholder="= amont" large /></label>
         </div>
       </div>
     </div>
@@ -365,7 +387,7 @@ function Appuis({ ctx, selection, onSelection }: { ctx: Ctx; selection: Selectio
             <label>Nom<input className="champ champ-bloc" value={nom} onChange={(e) => setNom(e.target.value)}
               onBlur={() => { const n = nom.trim(); if (n && n !== actif && !(n in appuis)) { ctx.actions.renommerAppui(actif, n); onSelection({ type: 'appui', nom: n }) } else setNom(actif) }} /></label>
             <label>Type<Choix ctx={ctx} chemin={ch('type')} valeur={a.type} options={enumDe(ctx.schema, 'Appui', 'type')} /></label>
-            <label>Cote sur la paroi (m)<Champ ctx={ctx} chemin={ch('cote')} valeur={a.cote} bloc="Appui" cle="cote" large /></label>
+            <label>Cote sur la paroi ({uniteCote(ctx.modele)})<Champ ctx={ctx} chemin={ch('cote')} valeur={a.cote} bloc="Appui" cle="cote" large /></label>
             <label>Élément (base matériaux)
               <select className="champ champ-bloc" value={a.element ?? ''} onChange={(e) => ctx.actions.fixer(ch('element'), e.target.value)}>
                 <option value="">— (donner E et A)</option>
@@ -457,13 +479,13 @@ function Phases({ ctx, selection, onSelection, phaseActive, onPhaseActive, res }
                   <option value="">— précédente —</option>
                   {phases.slice(0, sel).map((p, k) => <option key={k} value={String(p?.nom ?? '')}>{k + 1}. {p?.nom}</option>)}
                 </select></label>
-              <label>Excaver à (m)<Champ ctx={ctx} chemin={['phases', sel, 'excaver']} valeur={ph.excaver} placeholder="—" bloc="Phase" cle="excaver" large /></label>
+              <label>Excaver à ({uniteCote(ctx.modele)})<Champ ctx={ctx} chemin={['phases', sel, 'excaver']} valeur={ph.excaver} placeholder="—" bloc="Phase" cle="excaver" large /></label>
               <label>Poser (appuis, virgules)<input className="champ champ-bloc" key={`p${sel}${listeStr(ph.poser)}`} defaultValue={listeStr(ph.poser)} list="liste-appuis" placeholder="—"
                 onBlur={(e) => { if (e.target.value.trim() !== listeStr(ph.poser)) fixerListe(['phases', sel, 'poser'], e.target.value) }} /></label>
               <label>Déposer<input className="champ champ-bloc" key={`d${sel}${listeStr(ph.deposer)}`} defaultValue={listeStr(ph.deposer)} list="liste-appuis" placeholder="—"
                 onBlur={(e) => { if (e.target.value.trim() !== listeStr(ph.deposer)) fixerListe(['phases', sel, 'deposer'], e.target.value) }} /></label>
-              <label>Nappe aval (m)<Champ ctx={ctx} chemin={['phases', sel, 'eau', 'aval']} valeur={ph.eau?.aval} placeholder="inchangée" large /></label>
-              <label>Nappe amont (m)<Champ ctx={ctx} chemin={['phases', sel, 'eau', 'amont']} valeur={ph.eau?.amont} placeholder="inchangée" large /></label>
+              <label>Nappe aval ({uniteCote(ctx.modele)})<Champ ctx={ctx} chemin={['phases', sel, 'eau', 'aval']} valeur={ph.eau?.aval} placeholder="inchangée" large /></label>
+              <label>Nappe amont ({uniteCote(ctx.modele)})<Champ ctx={ctx} chemin={['phases', sel, 'eau', 'amont']} valeur={ph.eau?.amont} placeholder="inchangée" large /></label>
               <label>Remblai aval à (m)<Champ ctx={ctx} chemin={['phases', sel, 'remblayer', 'aval']} valeur={ph.remblayer?.aval} placeholder="—" large /></label>
               <label>Remblai amont à (m)<Champ ctx={ctx} chemin={['phases', sel, 'remblayer', 'amont']} valeur={ph.remblayer?.amont} placeholder="—" large /></label>
               <label style={{ gridColumn: '1 / -1' }}>Retirer des surcharges (noms, virgules){surcharges.length ? ` — définies : ${surcharges.join(', ')}` : ''}
@@ -519,7 +541,7 @@ export function Saisie(p: Ctx & { section: Section; selection: Selection; onSele
   }
   switch (p.section) {
     case 'projet': return <Projet ctx={ctx} />
-    case 'sol': return <Sol ctx={ctx} selection={p.selection} />
+    case 'sol': return <Sol ctx={ctx} selection={p.selection} res={p.res} />
     case 'paroi': return <Paroi ctx={ctx} />
     case 'eau': return <Eau ctx={ctx} />
     case 'surcharges': return <Surcharges ctx={ctx} />
