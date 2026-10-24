@@ -560,3 +560,56 @@ en conditions réelles (premier lancement, « déjà lancé », version périmé
 autre programme → refus) ; test de fumée Chrome sans affichage sur l'interface reconstruite (calcul, 3D, saisie,
 vérifications : aucune erreur console).
 
+
+
+## Aspect « logiciel d'ingénierie » (25 octobre 2026)
+
+Demande : que RetainWall ait l'aspect et le comportement d'un logiciel de calcul professionnel (K-Réa, RIDO,
+GEO5), sans toucher au moteur ni aux résultats numériques. Audit (lecture seule), plan validé, puis un commit
+par chantier : `fccbd1c` (lot 0), `5e0ca9d` (A), `6117c74` (B), `ab58703` (C), `7eaee2e` (D), `eb27e9a` (E), `ba6fce8` (F).
+Captures avant / après : `docs/captures/aspect_2026-10-25/`.
+
+### Non-régression
+- `tests/unitaires/test_non_regression_aspect.py` + `donnees/non_regression_aspect.json` : relevé figé AVANT
+  toute modification (fouille_exemple, berlinoise_tirants, fouille_ecoulement) ; par phase y max et sa cote,
+  M max, M min, |V| max, butée mobilisée, efforts d'appui ; taux et état de chaque vérification ; tolérance 1e-6.
+  Identique avant et après chaque lot. Les jeux figés de la vue 3D et les cas élémentaires E01 à E08 passent aussi.
+- Seuls ajouts côté serveur (aucune valeur existante modifiée) : `iterations` par phase, `Bm_kN_m` / `Bt_kN_m`
+  dans la synthèse, `methode_k` / `methode_kh` / `k0_source` / φ' / c' / δ par couche, point d'API `/api/normes`.
+
+### Fait
+- A. Interface : palette gris / blanc / un bleu (rouge réservé aux non-conformités), police système, thème clair
+  par défaut (le sombre reste un choix explicite, plus de suivi du réglage Windows), tableaux clé/valeur à la place
+  des tuiles, statuts en texte, plus de barres de taux, de carte de chaleur, de badges ni d'animation ; arborescence
+  Données (Projet, Sols, Écran, Eau, Surcharges, Appuis, Phases, Vérifications demandées) et Résultats ; tableau
+  des sols avec unités en en-tête (cote en m NGF, γ, γ', c', φ', kh) et colonnes Ka, Kp, K0, kh du calcul ;
+  champs du cartouche dans le bloc projet (affaire, indice, rédacteur, vérificateur, système de cotes).
+- B. Vocabulaire : « Calcul terminé : n phases, convergence atteinte (au plus k itérations) », statuts
+  Vérifié / Non vérifié / Non vérifiable avec taux de travail en colonne, aucun symbole ni point de suspension.
+- C. Traçabilité : onglet « Hypothèses et référentiel » (méthode, approche de calcul et coefficients partiels lus
+  dans docs/normes avec leur source, conventions et origine des cotes, écran et EI, coefficients de sol utilisés,
+  extrêmes de la phase avec leur cote, Bm, Bt, itérations, profil des pressions exportable en CSV).
+- D. Graphiques : coupe hachurée et cotée (toits de couches, fond, nappes, tête, pied, appuis), extrêmes annotés
+  « valeur à cote », axe des cotes dans l'unité du projet, couleurs neutres, conventions dans la figure.
+- E. Note de calcul (HTML imprimable ou fichier) : cartouche, plan en huit parties, virgule décimale, kN/ml et
+  kN.m/ml, vérifications ELU géotechnique / ELU structure / ELS avec taux, conclusion en points factuels.
+- F. Code : symboles retirés (messages, rapport de validation régénéré, maquette HTML, lanceur de tests), flèches en ASCII.
+
+### Décisions prises par défaut (à confirmer)
+- Cotes étiquetées « m NGF » sauf clé `systeme_cotes` dans le bloc `projet:` du script.
+- kN/ml et kN.m/ml dans la note seulement ; l'interface garde kN/m et kN·m/m (CLAUDE.md).
+- Bandeau « Version non validée » conservé (texte sobre) et réserves reprises au § 3.8 de la note.
+- Onglets conservés (pas de panneau bas de saisie) ; menu Fichier inchangé.
+- État « attention » (taux entre 90 et 100 %) affiché « Vérifié » avec son taux ; il reste listé dans les avertissements.
+
+### Reste à faire / non traité
+- Hachures des lithologies : motifs génériques (pas de charte lithologique normalisée).
+- Export PNG de la coupe : fond du thème courant (clair par défaut) ; pas de forçage du fond blanc en thème sombre.
+- Note : pas de figure (coupe, diagrammes) insérée ; impression par le navigateur (PDF via la boîte d'impression) ;
+  pas de DOCX.
+- Commentaires longs du code inchangés (sobres mais détaillés).
+
+### Testé
+`lancer_tests.ps1` : pytest 334 réussis, 6 ignorés ; ruff 0 ; tsc 0 ; eslint 0 ; vitest 78 (13 fichiers).
+Interface reconstruite et parcourue par Chrome sans affichage (calcul, coupe, efforts, vérifications, saisie,
+maquette 3D, script, hypothèses, note) : aucune erreur console.
