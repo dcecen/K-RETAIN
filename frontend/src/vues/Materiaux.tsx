@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { MESSAGE_INJOIGNABLE, messageErreur } from '../lib/api'
 import { IconeAlerte } from '../lib/icones'
 
 type Ligne = Record<string, string | number | null>
@@ -14,20 +15,35 @@ export function Materiaux({ surImport }: { surImport: () => void }) {
   const [table, setTable] = useState('profiles')
   const [message, setMessage] = useState<string | null>(null)
 
-  const charger = () => fetch('/api/materiaux').then((r) => r.json()).then(setDonnees).catch(() => setMessage('base matériaux injoignable'))
+  const charger = () => fetch('/api/materiaux')
+    .then((r) => { if (!r.ok) throw new Error(`erreur ${r.status}`); return r.json() })
+    .then((d) => setDonnees(d && typeof d === 'object' ? d : {}))
+    .catch((e) => setMessage(`Base matériaux indisponible : ${messageErreur(e)}`))
   useEffect(() => { void charger() }, [])
 
-  const importer = async (f: File | undefined) => {
+  const importer = async (f: File | undefined, champ: HTMLInputElement | null) => {
     if (!f) return
     const corps = new FormData()
     corps.append('fichier', f)
-    const r = await fetch('/api/materiaux/import', { method: 'POST', body: corps })
-    const d = await r.json()
-    if (r.ok) {
-      setMessage(`Import réussi : ${Object.entries(d.lignes).map(([t, n]) => `${t} ${n}`).join(', ')}`)
-      void charger()
-      surImport()
-    } else setMessage(`Import refusé : ${d.detail}`)
+    try {
+      let r: Response
+      try { r = await fetch('/api/materiaux/import', { method: 'POST', body: corps }) } catch { throw new Error(MESSAGE_INJOIGNABLE) }
+      const d = (await r.json().catch(() => null)) as { lignes?: Record<string, number>; detail?: unknown; erreurs?: { message?: string }[] } | null
+      if (r.ok && d?.lignes) {
+        setMessage(`Import réussi : ${Object.entries(d.lignes).map(([t, n]) => `${t} ${n}`).join(', ')}`)
+        void charger()
+        surImport()
+      } else {
+        const detail = typeof d?.detail === 'string' ? d.detail
+          : Array.isArray(d?.detail) ? d.detail.map((x) => (typeof x === 'string' ? x : (x as { msg?: string }).msg ?? JSON.stringify(x))).join(' ; ')
+          : d?.erreurs?.[0]?.message ?? `erreur ${r.status}`
+        setMessage(`Import refusé : ${detail}`)
+      }
+    } catch (e) {
+      setMessage(`Import impossible : ${messageErreur(e)}`)
+    } finally {
+      if (champ) champ.value = ''   // permet de réimporter le même fichier après correction
+    }
   }
 
   const lignes = donnees[table] ?? []
@@ -38,7 +54,7 @@ export function Materiaux({ surImport }: { surImport: () => void }) {
       <div className="barre-outils">
         <label className="btn">
           Importer un catalogue (CSV / Excel)
-          <input type="file" accept=".csv,.xlsx" hidden onChange={(e) => void importer(e.target.files?.[0])} />
+          <input type="file" accept=".csv,.xlsx" hidden onChange={(e) => void importer(e.target.files?.[0], e.target)} />
         </label>
         <span className="note">En-têtes modèles : docs/catalogues/modele_*.csv. CSV : le nom du fichier commence par la table ; Excel : une feuille par table.</span>
         <span className="espace" />

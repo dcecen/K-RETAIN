@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { api, type ErreurScript, type Exemple, type ProjetCoupes, type ReponseCalcul, type Resultats } from './lib/api'
+import { api, ErreurServeur, messageErreur, type ErreurScript, type Exemple, type ProjetCoupes, type ReponseCalcul, type Resultats } from './lib/api'
 import type { EtatCalcul, Onglet, Section, Selection } from './lib/etat'
 import { exporterImage, imprimerNote, telechargerTexte } from './lib/exporter'
 import { nomProjet } from './lib/format'
@@ -22,6 +22,7 @@ import { Onglet3D } from './vue3d/Onglet3D'
 import { decoderAncre, encoderAncre } from './vue3d/navigation'
 
 const CLE_BROUILLON = 'retainwall.brouillon'
+const COTES_VIDES: Record<string, number> = {}
 const lireBrouillon = () => { try { return localStorage.getItem(CLE_BROUILLON) } catch { return null } }
 const ecrireBrouillon = (t: string) => { try { localStorage.setItem(CLE_BROUILLON, t) } catch { /* stockage indisponible */ } }
 
@@ -56,8 +57,11 @@ export default function App() {
   const [serveur, setServeur] = useState('')
   const minuterie = useRef<number | undefined>(undefined)
   const texteCalcule = useRef<string>('')
+  const enCoursRef = useRef(false)              // Ctrl+Entrée pendant un calcul : ignoré (pas de second calcul concurrent)
+  const numeroValidation = useRef(0)            // seule la dernière validation lancée met à jour l'affichage
 
   const { modele, erreur: erreurYaml } = useMemo(() => sd.lire(texte), [texte])
+  const cotesPlan = useMemo<Record<string, number>>(() => (modele?.plan?.cotes && typeof modele.plan.cotes === 'object' ? modele.plan.cotes : COTES_VIDES), [modele])
 
   useEffect(() => { appliquerTheme(theme) }, [theme])
 
@@ -76,8 +80,10 @@ export default function App() {
     ecrireBrouillon(texte)
     window.clearTimeout(minuterie.current)
     minuterie.current = window.setTimeout(() => {
-      if (!texte.trim()) return
+      if (!texte.trim()) { setErreurs([]); setAvertScript([]); return }
+      const numero = ++numeroValidation.current
       api.valider(texte).then((r) => {
+        if (numero !== numeroValidation.current) return   // réponse périmée (une frappe plus récente a relancé la validation)
         setErreurs(r.erreurs)
         setAvertScript(r.avertissements ?? [])
         if (r.erreurs.length) {
@@ -95,7 +101,8 @@ export default function App() {
   const setTexte = useCallback((t: string) => setTexteBrut(t), [])
 
   const calculer = useCallback(async () => {
-    if (!texte.trim()) return
+    if (!texte.trim() || enCoursRef.current) return
+    enCoursRef.current = true
     setEnCours(true)
     const t0 = performance.now()
     try {
@@ -128,18 +135,23 @@ export default function App() {
         setResBase(r.resultats)
         setProjet(r.projet ?? null)
         setCoupeActive(0)
-        setPhase(r.resultats.phases.length - 1)
+        const nPhases = r.resultats.phases.length
+        setPhase(Math.max(0, nPhases - 1))
+        const derniere = nPhases ? r.resultats.phases[nPhases - 1] : null
+        const rompue = r.resultats.phases.find((p) => !p.ok)
         setEtat(r.resultats.complet
-          ? { genre: 'ok', texte: `Calculé · ${r.resultats.phases.length} phases · ${ms} ms` }
-          : { genre: 'rupture', texte: `Calcul interrompu — ${r.resultats.phases[r.resultats.phases.length - 1].nom}` })
+          ? { genre: 'ok', texte: `Calculé · ${nPhases} phases · ${ms} ms` }
+          : { genre: 'rupture', texte: `Calcul interrompu — ${(rompue ?? derniere)?.nom ?? 'aucune phase'}` })
         if (onglet === 'script' || onglet === 'saisie') setOnglet('coupe')
       } else {
         const e = r.erreurs[0]
         setEtat({ genre: 'erreur', texte: e?.ligne ? `Erreur ligne ${e.ligne}` : `Erreur : ${e?.message ?? 'script invalide'}`, ligne: e?.ligne })
       }
     } catch (e) {
-      setEtat({ genre: 'erreur', texte: `Serveur de calcul injoignable (${String(e)})` })
+      // ErreurServeur : le serveur a répondu (erreur interne traduite en français) ; sinon il est injoignable
+      setEtat({ genre: 'erreur', texte: e instanceof ErreurServeur ? `Erreur du serveur de calcul : ${e.message}` : messageErreur(e) })
     } finally {
+      enCoursRef.current = false
       setEnCours(false)
     }
   }, [texte, onglet])
@@ -235,15 +247,27 @@ export default function App() {
     telechargerTexte(texte, `${nom}.yaml`, 'text/yaml')
   }
   const importerRido = async (f: File) => {
-    const r = await fetch('/api/rido', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ texte: await f.text(), nom: f.name }) })
-    const d = (await r.json()) as { texte: string; rapport: string[] }
-    setTexteBrut(d.texte)
-    setRapportRido(d.rapport)
-    setOnglet('script')
+    try {
+      const d = await api.rido(await f.text(), f.name)
+      if (typeof d?.texte !== 'string') throw new Error('réponse du serveur sans script converti')
+      setTexteBrut(d.texte)
+      setRes(null)
+      setProjet(null)
+      setRapportRido(Array.isArray(d.rapport) ? d.rapport : [])
+      setOnglet('script')
+      setEtat({ genre: 'aucun', texte: 'Fichier RIDO converti — relisez le rapport puis calculez' })
+    } catch (e) {
+      setEtat({ genre: 'erreur', texte: `Import RIDO impossible : ${messageErreur(e)}` })
+    }
   }
   const exporterMaquette = async () => {
-    try { telechargerTexte(await api.maquette(texte), 'maquette_retainwall.html', 'text/html') } catch (e) { alert(String(e)) }
+    try { telechargerTexte(await api.maquette(texte), 'maquette_retainwall.html', 'text/html') } catch (e) { alert(`Export de la maquette impossible : ${messageErreur(e)}`) }
+  }
+  /** Ajout depuis la maquette : refusé si le script n'est pas lisible (sinon l'ajout serait perdu en silence). */
+  const ajouterDepuis3d = (chemin: sd.Chemin, valeur: unknown, message: string) => {
+    if (erreurYaml) { setEtat({ genre: 'erreur', texte: `Script YAML illisible (${erreurYaml}) : corrigez-le avant d'ajouter depuis la maquette` }); return }
+    actions.ajouter(chemin, valeur)
+    setEtat({ genre: 'modifie', texte: message })
   }
 
   const nNonOk = res?.verifications?.filter((v) => v.etat === 'non_ok').length ?? 0
@@ -317,9 +341,10 @@ export default function App() {
             <div className="barre-retour"><button className="btn" onClick={() => { setOnglet('3d'); setRetour3d(false) }}>← Retour à la maquette 3D</button>
               {selection3d && <span className="doux">Ouvert depuis la maquette · {selection3d}</span>}</div>
           )}
-          {onglet === '3d' && (res ? <Onglet3D res={res} texte={texteCalcule.current} phase={phase} theme={theme} projet={projet} coupeActive={coupeActive} onCoupe={changerCoupe} cotes={modele?.plan?.cotes ?? {}} onEpingler={(e) => actions.ajouter(['coupes'], e)} onAjouterSurcharge={(e) => { actions.ajouter(['surcharges'], e); setEtat({ genre: 'modifie', texte: 'Surcharge ajoutée au script — à recalculer' }) }} onAjouterRisberme={(e) => { actions.ajouter(['fouille', 'risbermes'], e); setEtat({ genre: 'modifie', texte: 'Risberme ajoutée au script — à recalculer' }) }}
+          {onglet === '3d' && (res ? (res.maquette ? <Onglet3D res={res} texte={texteCalcule.current} phase={phase} theme={theme} projet={projet} coupeActive={coupeActive} onCoupe={changerCoupe} cotes={cotesPlan} onEpingler={(e) => ajouterDepuis3d(['coupes'], e, 'Coupe épinglée dans le script — à recalculer')} onAjouterSurcharge={(e) => ajouterDepuis3d(['surcharges'], e, 'Surcharge ajoutée au script — à recalculer')} onAjouterRisberme={(e) => ajouterDepuis3d(['fouille', 'risbermes'], e, 'Risberme ajoutée au script — à recalculer')}
             selection={selection3d} onSelection={selectionner3d} modele={erreurYaml ? null : modele} onPhase={setPhase}
-            onOuvrir={(o) => { setOnglet(o); setRetour3d(true) }} prereglageInitial={ancreInitiale.current?.prereglage ?? prereglage} onPrereglage={setPrereglage} /> : sansResultats)}
+            onOuvrir={(o) => { setOnglet(o); setRetour3d(true) }} prereglageInitial={ancreInitiale.current?.prereglage ?? prereglage} onPrereglage={setPrereglage} />
+            : <div className="vide-centre"><b>Maquette non disponible</b><span>Le serveur n’a pas renvoyé la géométrie de la maquette pour ce calcul.</span></div>) : sansResultats)}
           {onglet === 'efforts' && (res ? <Efforts res={res} phase={phase} onPhase={setPhase} onAppui={(n) => { setSelection({ type: 'appui', nom: n }); setTiroirInsp(true) }} /> : sansResultats)}
           {onglet === 'verifications' && (res ? <Verifications res={res} projet={projet} filtre={retour3d ? selection3d : null} onRetour={() => { setOnglet('3d'); setRetour3d(false) }} /> : sansResultats)}
           {onglet === 'pseudo3d' && res?.pseudo3d && <Pseudo3D res={res} phase={phase} />}

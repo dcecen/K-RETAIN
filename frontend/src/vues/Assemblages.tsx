@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Resultats, Verif } from '../lib/api'
+import { MESSAGE_INJOIGNABLE, type Resultats, type Verif } from '../lib/api'
 import type { ParamDef, Schema, TypeAssemblage } from '../lib/assemblages'
 import { nb, pourcent } from '../lib/format'
 import type { Modele } from '../lib/scriptDoc'
@@ -11,8 +11,19 @@ type Params = Record<string, number | string>
 const LIBELLE: Record<string, string> = { ok: 'Vérifié', attention: 'Limite', non_ok: 'Non vérifié', non_verifiable: 'Prévu' }
 
 async function post<T>(url: string, corps: unknown): Promise<T> {
-  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
-  if (!r.ok) throw new Error((await r.json().catch(() => ({})) as { detail?: string }).detail ?? `erreur ${r.status}`)
+  let r: Response
+  try {
+    r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
+  } catch {
+    throw new Error(MESSAGE_INJOIGNABLE)
+  }
+  if (!r.ok) {
+    const d = (await r.json().catch(() => null)) as { detail?: unknown; erreurs?: { message?: string }[] } | null
+    const detail = typeof d?.detail === 'string' ? d.detail
+      : Array.isArray(d?.detail) ? d.detail.map((x) => (typeof x === 'string' ? x : (x as { msg?: string }).msg ?? JSON.stringify(x))).join(' ; ')
+      : d?.erreurs?.[0]?.message
+    throw new Error(detail ?? `erreur ${r.status} du serveur`)
+  }
   return r.json() as Promise<T>
 }
 
@@ -56,7 +67,8 @@ export function Assemblages({ res, modele, references, theme, onEnregistrer }: {
   const type = types.find((t) => t.cle === cle)
 
   useEffect(() => {
-    fetch('/api/assemblages/types').then((r) => r.json()).then((ts: TypeAssemblage[]) => {
+    fetch('/api/assemblages/types').then((r) => { if (!r.ok) throw new Error(`erreur ${r.status}`); return r.json() }).then((ts: TypeAssemblage[]) => {
+      if (!Array.isArray(ts)) throw new Error('réponse inattendue')
       setTypes(ts)
       // vignettes : schéma par défaut de chaque type
       ts.forEach((t) => {

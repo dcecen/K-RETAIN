@@ -306,13 +306,46 @@ export interface ReponseCalcul {
   coupe?: CoupeRes
 }
 
+/** Erreur renvoyée par le serveur de calcul (code HTTP et message en français du serveur). */
+export class ErreurServeur extends Error {
+  statut: number
+  constructor(message: string, statut: number) {
+    super(message)
+    this.name = 'ErreurServeur'
+    this.statut = statut
+  }
+}
+
+export const MESSAGE_INJOIGNABLE = 'Serveur de calcul injoignable : vérifiez qu’il est lancé (fenêtre « Lancer RetainWall »).'
+
+/** Message lisible d'une erreur quelconque, sans le préfixe technique « Error: ». */
+export function messageErreur(e: unknown): string {
+  if (e instanceof Error) return e.message || e.name
+  return String(e)
+}
+
+/** Message d'une réponse en erreur : `erreurs[0].message` (réponses du calcul), `detail` texte ou liste (FastAPI). */
+async function messageReponse(r: Response): Promise<string> {
+  const d = (await r.json().catch(() => null)) as { erreurs?: { message?: string }[]; detail?: unknown } | null
+  const m = d?.erreurs?.[0]?.message
+  if (typeof m === 'string' && m) return m
+  if (typeof d?.detail === 'string') return d.detail
+  if (Array.isArray(d?.detail)) return d.detail.map((x) => (typeof x === 'string' ? x : (x as { msg?: string }).msg ?? JSON.stringify(x))).join(' ; ')
+  return `erreur ${r.status} du serveur de calcul`
+}
+
 async function post<T>(url: string, corps: unknown): Promise<T> {
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(corps),
-  })
-  if (!r.ok) throw new Error(`${url} : erreur ${r.status}`)
+  let r: Response
+  try {
+    r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corps),
+    })
+  } catch {
+    throw new Error(MESSAGE_INJOIGNABLE)
+  }
+  if (!r.ok) throw new ErreurServeur(await messageReponse(r), r.status)
   return r.json() as Promise<T>
 }
 
@@ -327,16 +360,19 @@ export const api = {
     fetch('/api/materiaux/references')
       .then((r) => (r.ok ? r.json() : {}))
       .catch(() => ({})) as Promise<Record<string, string[]>>,
+  rido: (texte: string, nom: string) => post<{ texte: string; rapport: string[] }>('/api/rido', { texte, nom }),
   maquette: async (texte: string) => {
-    const r = await fetch('/api/maquette', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ texte }),
-    })
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({}))
-      throw new Error(d.detail ?? `erreur ${r.status}`)
+    let r: Response
+    try {
+      r = await fetch('/api/maquette', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texte }),
+      })
+    } catch {
+      throw new Error(MESSAGE_INJOIGNABLE)
     }
+    if (!r.ok) throw new ErreurServeur(await messageReponse(r), r.status)
     return r.text()
   },
 }

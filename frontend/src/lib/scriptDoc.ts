@@ -9,9 +9,19 @@ export type Chemin = (string | number)[]
 export type Modele = any
 
 export function lire(texte: string): { doc: Document | null; modele: Modele; erreur: string | null } {
-  const doc = parseDocument(texte)
+  let doc: Document
+  try {
+    doc = parseDocument(texte)
+  } catch (e) {
+    return { doc: null, modele: null, erreur: (e as Error).message ?? String(e) }
+  }
   if (doc.errors.length) return { doc: null, modele: null, erreur: doc.errors[0].message }
-  return { doc, modele: doc.toJS() ?? {}, erreur: null }
+  try {
+    // toJS lève sur certains documents acceptés par l'analyseur (alias non défini, par exemple)
+    return { doc, modele: doc.toJS() ?? {}, erreur: null }
+  } catch (e) {
+    return { doc: null, modele: null, erreur: `lecture impossible : ${(e as Error).message ?? String(e)}` }
+  }
 }
 
 function ecrire(doc: Document, origine: string): string {
@@ -118,7 +128,7 @@ export function supprimer(texte: string, chemin: Chemin): string {
 export function deplacer(texte: string, chemin: Chemin, i: number, j: number): string {
   return modifier(texte, (doc) => {
     const seq = doc.getIn(chemin, true)
-    if (isSeq(seq) && j >= 0 && j < seq.items.length) {
+    if (isSeq(seq) && i >= 0 && i < seq.items.length && j >= 0 && j < seq.items.length && i !== j) {
       const t = seq.items[i]
       seq.items[i] = seq.items[j]
       seq.items[j] = t
@@ -126,8 +136,10 @@ export function deplacer(texte: string, chemin: Chemin, i: number, j: number): s
   })
 }
 
-/** Renomme un appui et met à jour les références dans les phases (poser, déposer). */
+/** Renomme un appui et met à jour toutes ses références : phases (poser, déposer), assemblages (appui)
+ *  et positions en plan (plan.appuis[].appui). */
 export function renommerAppui(texte: string, ancien: string, nouveau: string): string {
+  if (!nouveau || ancien === nouveau) return texte
   return modifier(texte, (doc) => {
     const bloc = doc.getIn(['appuis'], true)
     if (!isMap(bloc) || bloc.has(nouveau)) return
@@ -144,6 +156,19 @@ export function renommerAppui(texte: string, ancien: string, nouveau: string): s
             if (liste.includes(ancien)) doc.setIn(['phases', k, cle], liste.map((x) => (x === ancien ? nouveau : x)))
           }
         }
+      })
+    }
+    const assemblages = doc.getIn(['assemblages'], true)
+    if (isMap(assemblages)) {
+      for (const it of assemblages.items) {
+        const nom = (it.key as Scalar)?.value as string
+        if (doc.getIn(['assemblages', nom, 'appui']) === ancien) doc.setIn(['assemblages', nom, 'appui'], nouveau)
+      }
+    }
+    const enPlan = doc.getIn(['plan', 'appuis'], true)
+    if (isSeq(enPlan)) {
+      enPlan.items.forEach((_, k) => {
+        if (doc.getIn(['plan', 'appuis', k, 'appui']) === ancien) doc.setIn(['plan', 'appuis', k, 'appui'], nouveau)
       })
     }
   })

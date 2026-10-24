@@ -92,13 +92,17 @@ const Th = ({ t, u, titre }: { t: ReactNode; u?: string; titre?: string }) => <t
 function Projet({ ctx }: { ctx: Ctx }) {
   const m = ctx.modele
   const c = m.calcul ?? {}
+  // `projet:` peut être un texte ou un bloc (nom, affaire, client…) : on n'écrase jamais le bloc par un texte
+  const projetBloc = m.projet && typeof m.projet === 'object' && !Array.isArray(m.projet) ? (m.projet as Record<string, unknown>) : null
+  const infos = projetBloc ? Object.entries(projetBloc).filter(([k, v]) => k !== 'nom' && (typeof v === 'string' || typeof v === 'number')) : []
   return (
     <div className="saisie">
       <h2>Projet et options de calcul</h2>
       <p className="aide">Le script YAML reste la référence : chaque champ modifié met à jour la ligne correspondante du script, et inversement.</p>
       <div className="bloc"><div className="bloc-titre">Projet</div>
         <div className="grille-form">
-          <label>Nom du projet<Champ ctx={ctx} chemin={['projet']} valeur={m.projet} type="text" large /></label>
+          <label>Nom du projet<Champ ctx={ctx} chemin={projetBloc ? ['projet', 'nom'] : ['projet']} valeur={projetBloc ? projetBloc.nom : m.projet} type="text" large /></label>
+          {infos.map(([k, v]) => <label key={k}>{k}<Champ ctx={ctx} chemin={['projet', k]} valeur={v} type={typeof v === 'number' ? 'number' : 'text'} large /></label>)}
         </div>
       </div>
       <div className="bloc"><div className="bloc-titre">Calcul</div>
