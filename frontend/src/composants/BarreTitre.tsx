@@ -34,6 +34,7 @@ export function BarreTitre(p: {
   onMateriaux: () => void
   onImage: () => void
   onNote: () => void
+  onNoteFichier: () => void
   onMaquette: () => void
   onTheme: () => void
   onAllerErreur: () => void
@@ -101,7 +102,8 @@ export function BarreTitre(p: {
         {(fermer) => (
           <>
             <button disabled={!p.imagePossible} onClick={() => { p.onImage(); fermer() }}>Image PNG de la vue active</button>
-            <button disabled={!p.resultatsDisponibles} onClick={() => { p.onNote(); fermer() }}>Note de calcul (HTML imprimable)</button>
+            <button disabled={!p.resultatsDisponibles} onClick={() => { p.onNote(); fermer() }}>Note de calcul : imprimer ou enregistrer en PDF</button>
+            <button disabled={!p.resultatsDisponibles} onClick={() => { p.onNoteFichier(); fermer() }}>Note de calcul : fichier HTML</button>
             <button disabled={!p.resultatsDisponibles} onClick={() => { p.onMaquette(); fermer() }}>Maquette 3D (fichier HTML autonome)</button>
             <hr />
             <button onClick={() => { p.onEnregistrer(); fermer() }}>Script de calcul (.yaml)</button>

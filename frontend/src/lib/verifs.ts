@@ -24,3 +24,19 @@ export function couleurEtat(etat: Verif['etat'] | null): string | undefined {
   if (etat === 'attention') return 'var(--orange)'
   return undefined
 }
+
+/** Extraction « valeur de calcul / valeur limite » depuis le détail, quand il les contient. */
+export function valeurs(v: Verif): [string, string] {
+  const d = v.detail
+  const m = d.match(/([A-Za-zÀ-ÿ_,.' ]*?= ?[-\d.,]+ ?[^;,(]*?)\s+pour\s+([^;,(]+)/) ?? d.match(/([^;]*?= ?[-\d.,]+ ?[kKMPa·Nm/°%]*)[^;]*?;\s*([^;]*?Rd[^;]*)/)
+  if (m) return [m[1].trim(), m[2].trim()]
+  const premier = d.split(';')[0].trim()
+  return [premier, '']
+}
+
+/** Référence courte de la source (premier article cité) ; le texte complet reste au survol. */
+export function sourceCourte(s: string): string {
+  const premier = s.split(/\s*;\s*/)[0] ?? s
+  return premier.replace(/\s*—\s*de mémoire, à confirmer/i, '').replace(/\s*\(coefficients\s*:.*\)$/i, '').trim()
+}
+

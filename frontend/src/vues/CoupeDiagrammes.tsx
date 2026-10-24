@@ -86,7 +86,7 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
     }
     annotations.push({ text: ch.nom, xref: 'x', yref: 'y', x: -L * 0.97, y: (Math.min(ch.toit, ph.terrain_amont) + bas) / 2, xanchor: 'left', showarrow: false, font: { size: 10, color: c.texte } })
     // cote du toit de la couche, en marge gauche de la coupe
-    if (ch.toit <= ph.terrain_amont + 1e-9) annotations.push({ text: nb(ch.toit, 2), xref: 'x', yref: 'y', x: -L, y: ch.toit, xanchor: 'right', yanchor: 'middle', showarrow: false, font: { size: 9, color: c.doux } })
+    if (i > 0 && ch.toit <= ph.terrain_amont + 1e-9) annotations.push({ text: `toit ${nb(ch.toit, 2)}`, xref: 'x', yref: 'y', x: -L * 0.98, y: ch.toit, xanchor: 'left', yanchor: 'top', showarrow: false, font: { size: 9, color: c.doux } })
   })
   // réseau d'écoulement (régime simplifié ou différences finies)
   const hy = ph.hydro
@@ -213,7 +213,7 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
   titre(0, `Coupe (cotes en ${unite})`)
   titre(1, 'Déplacement y (mm)')
   titre(2, 'Moment M (kN·m/m)')
-  titre(3, 'Effort tranchant V (kN/m)')
+  titre(3, 'Tranchant V (kN/m)')
   titre(4, 'Pressions horizontales (kPa)')
   // conventions de signe et légende des pressions dans la figure elle-même (donc dans le PNG exporté)
   annotations.push({ text: `Phase ${indexPhase + 1} : ${ph.nom}. y > 0 vers la fouille ; M > 0 : face côté fouille tendue ; V = dM/dz ; valeurs extrêmes annotées avec leur cote.`,

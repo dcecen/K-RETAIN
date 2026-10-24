@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api, ErreurServeur, messageErreur, type ErreurScript, type Exemple, type ProjetCoupes, type ReponseCalcul, type Resultats } from './lib/api'
 import type { EtatCalcul, Onglet, Section, Selection } from './lib/etat'
-import { exporterImage, imprimerNote, telechargerTexte } from './lib/exporter'
+import { exporterImage, imprimerNote, telechargerNote, telechargerTexte } from './lib/exporter'
 import { nomProjet, uniteCote } from './lib/format'
 import { IconeAppui, IconeBase, IconeCoupe, IconeCube, IconeFichier, IconePlaque, IconeProjet, IconeScript, IconeTableau, IconeVerif } from './lib/icones'
 import * as sd from './lib/scriptDoc'
@@ -317,7 +317,7 @@ export default function App() {
         imagePossible={!!res && (onglet === 'coupe' || onglet === '3d')} resultatsDisponibles={!!res}
         onRecalculer={() => void calculer()} onExemple={(t) => { setTexteBrut(t); setRes(null); setProjet(null); setEtat({ genre: 'aucun', texte: 'Exemple chargé, non calculé' }) }}
         onOuvrir={(f) => void f.text().then((t) => { setTexteBrut(t); setRes(null) })} onEnregistrer={enregistrer} onRido={(f) => void importerRido(f)}
-        onMateriaux={() => setOnglet('materiaux')} onImage={exporterImage} onNote={() => res && imprimerNote(res)} onMaquette={() => void exporterMaquette()}
+        onMateriaux={() => setOnglet('materiaux')} onImage={exporterImage} onNote={() => res && void imprimerNote(res, erreurYaml ? null : modele, serveur)} onNoteFichier={() => res && void telechargerNote(res, erreurYaml ? null : modele, serveur)} onMaquette={() => void exporterMaquette()}
         onTheme={() => { const t: Theme = theme === 'sombre' ? 'clair' : 'sombre'; choisirTheme(t); setTheme(t) }} onAllerErreur={allerErreur}
         onBasculeNav={() => { if (window.innerWidth <= 768) setTiroirNav(!tiroirNav); else setNav(!nav) }}
         onBasculeInsp={() => { if (window.innerWidth <= 1100) setTiroirInsp(!tiroirInsp); else setInsp(!insp) }} />

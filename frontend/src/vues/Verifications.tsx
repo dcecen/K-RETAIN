@@ -1,6 +1,7 @@
 import type { ProjetCoupes, Resultats, Verif } from '../lib/api'
 import { analyserSelection, verifsPour } from '../vue3d/navigation'
 import { pourcent } from '../lib/format'
+import { sourceCourte, valeurs } from '../lib/verifs'
 
 const LIBELLE: Record<Verif['etat'], string> = { ok: 'Vérifié', attention: 'Vérifié', non_ok: 'Non vérifié', non_verifiable: 'Non vérifiable' }
 
@@ -12,21 +13,6 @@ function famille(v: Verif): string {
   if (n.startsWith('tirant')) return 'Tirants'
   if (n.startsWith('dalle')) return 'Dalles'
   return 'Paroi'
-}
-
-/** Extraction « valeur de calcul / valeur limite » depuis le détail, quand il les contient. */
-function valeurs(v: Verif): [string, string] {
-  const d = v.detail
-  const m = d.match(/([A-Za-zÀ-ÿ_,.' ]*?= ?[-\d.,]+ ?[^;,(]*?)\s+pour\s+([^;,(]+)/) ?? d.match(/([^;]*?= ?[-\d.,]+ ?[kKMPa·Nm/°%]*)[^;]*?;\s*([^;]*?Rd[^;]*)/)
-  if (m) return [m[1].trim(), m[2].trim()]
-  const premier = d.split(';')[0].trim()
-  return [premier, '']
-}
-
-/** Référence courte de la source (premier article cité) ; le texte complet reste au survol. */
-function sourceCourte(s: string): string {
-  const premier = s.split(/\s*;\s*/)[0] ?? s
-  return premier.replace(/\s*—\s*de mémoire, à confirmer/i, '').replace(/\s*\(coefficients\s*:.*\)$/i, '').trim()
 }
 
 export function Verifications({ res, projet, filtre, onRetour }: { res: Resultats; projet?: ProjetCoupes | null; filtre?: string | null; onRetour?: () => void }) {
