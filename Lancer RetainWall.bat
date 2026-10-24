@@ -26,6 +26,7 @@ exit /b 0
 
 :mise_a_jour
 echo RetainWall tourne avec une version perimee : redemarrage sur la version a jour...
+type nul > "%DOSSIER_JOURNAL%edemarrage_demande"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; Start-Sleep -Seconds 1"
 
 :lancement
@@ -110,6 +111,11 @@ cd backend
 .venv\Scripts\python.exe -m uvicorn sout.api:app --host 127.0.0.1 --port 8000
 set "CODE=%ERRORLEVEL%"
 cd ..
+if exist "%DOSSIER_JOURNAL%edemarrage_demande" (
+  rem arret provoque par un lanceur plus recent (mise a jour) : cette fenetre se ferme simplement
+  del "%DOSSIER_JOURNAL%edemarrage_demande" >nul 2>&1
+  goto fin
+)
 if not "%CODE%"=="0" (
   echo.
   echo  Le serveur de calcul s'est arrete avec le code %CODE% ^(lisez les messages ci-dessus^).
