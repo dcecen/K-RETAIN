@@ -56,11 +56,33 @@ def lire_fichier(chemin: Path) -> list[tuple[str, list[dict]]]:
     raise ValueError(f"{chemin.name} : format non pris en charge (CSV ou XLSX)")
 
 
+def valider_fichier(chemin: Path) -> dict[str, int]:
+    """Lit le fichier et insère toutes ses lignes dans une base en mémoire : toute valeur non numérique
+    est signalée (fichier, table, ligne, colonne) avant qu'il ne touche docs/catalogues."""
+    import sqlite3
+
+    from .base import creer, inserer
+
+    compte: dict[str, int] = {}
+    try:
+        c = sqlite3.connect(":memory:")
+        creer(c)
+        for table, lignes in lire_fichier(chemin):
+            compte[table] = compte.get(table, 0) + inserer(c, table, lignes)
+        c.close()
+    except ValueError as e:
+        raise ValueError(f"{chemin.name} : {e}") from None
+    if not compte:
+        raise ValueError(f"{chemin.name} : aucune ligne reconnue (vérifiez le nom du fichier ou des feuilles et les en-têtes)")
+    return compte
+
+
 def importer(fichiers: list[Path]) -> dict[str, int]:
-    """Copie les fichiers dans docs/catalogues (validation préalable) puis reconstruit la base."""
+    """Valide chaque fichier, le copie dans docs/catalogues, puis reconstruit la base."""
     CATALOGUES.mkdir(parents=True, exist_ok=True)
     for f in fichiers:
-        lire_fichier(f)  # lève si le fichier est illisible
+        valider_fichier(f)
+    for f in fichiers:
         if f.resolve().parent != CATALOGUES.resolve():
             shutil.copy2(f, CATALOGUES / f.name)
     return reconstruire()

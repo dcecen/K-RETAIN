@@ -87,7 +87,11 @@ def inserer(connexion: sqlite3.Connection, table: str, lignes: list[dict]) -> in
             if v in ("", None):
                 v = None
             elif c not in TEXTE:
-                v = float(str(v).replace(",", "."))
+                try:
+                    v = float(str(v).replace(",", "."))
+                except ValueError:
+                    raise ValueError(f"table {table}, ligne « {ligne.get(cols[0])} », colonne {c} : nombre attendu, "
+                                     f"reçu « {v} »") from None
             valeurs.append(v)
         connexion.execute(f"INSERT OR REPLACE INTO {table} ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
                           valeurs)
@@ -162,19 +166,34 @@ def _lire_fichiers(dossier: Path) -> list[tuple[str, list[dict]]]:
     return lots
 
 
-def reconstruire(chemin: Path = CHEMIN_BASE, catalogues: Path = CATALOGUES) -> dict[str, int]:
-    """Recrée la base : jeu DEMO puis catalogues utilisateur (qui remplacent la démo à référence égale)."""
+def reconstruire(chemin: Path | None = None, catalogues: Path | None = None) -> dict[str, int]:
+    """Recrée la base : jeu DEMO puis catalogues utilisateur (qui remplacent la démo à référence égale).
+    La nouvelle base est construite dans un fichier temporaire puis substituée d'un coup : une erreur
+    de lecture laisse la base précédente intacte. Sans argument : CHEMIN_BASE et CATALOGUES courants."""
+    import os
+
+    chemin = chemin or CHEMIN_BASE
+    catalogues = catalogues or CATALOGUES
     chemin.parent.mkdir(parents=True, exist_ok=True)
-    if chemin.exists():
-        chemin.unlink()
+    provisoire = chemin.with_name(chemin.name + ".tmp")
+    if provisoire.exists():
+        provisoire.unlink()
     compte: dict[str, int] = {}
-    with sqlite3.connect(chemin) as c:
-        creer(c)
-        for dossier in (DONNEES_DEMO, catalogues):
-            if not dossier.exists():
-                continue
-            for table, lignes in _lire_fichiers(dossier):
-                compte[table] = compte.get(table, 0) + inserer(c, table, lignes)
+    c = sqlite3.connect(provisoire)
+    try:
+        with c:
+            creer(c)
+            for dossier in (DONNEES_DEMO, catalogues):
+                if not dossier.exists():
+                    continue
+                for table, lignes in _lire_fichiers(dossier):
+                    compte[table] = compte.get(table, 0) + inserer(c, table, lignes)
+    except Exception:
+        c.close()
+        provisoire.unlink(missing_ok=True)
+        raise
+    c.close()
+    os.replace(provisoire, chemin)
     catalogue_par_defaut.cache_clear()
     return compte
 

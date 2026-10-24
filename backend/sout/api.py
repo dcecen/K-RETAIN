@@ -9,12 +9,14 @@ import time
 
 from pathlib import Path
 
+import hashlib
 import logging
+import threading
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sout import __version__, normes
 from sout.noyau.phasage import ErreurModele
@@ -40,12 +42,35 @@ async def _erreur_interne(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"ok": False, "erreurs": [{"ligne": None, "chemin": "", "message": message}]})
 
 
+_MESSAGES_422 = {
+    "missing": "champ obligatoire manquant",
+    "string_type": "texte attendu",
+    "string_too_long": f"texte trop long (maximum {2_000_000:,} caractères)".replace(",", " "),
+    "dict_type": "bloc de valeurs attendu",
+    "float_parsing": "nombre attendu",
+    "json_invalid": "JSON invalide",
+}
+
+
 @app.exception_handler(RequestValidationError)
 async def _requete_invalide(request: Request, exc: RequestValidationError):
-    """Requête mal formée (champ manquant, mauvais type) : message en français."""
-    details = "; ".join(f"{'.'.join(str(x) for x in e['loc'] if x != 'body')} : {e['msg']}" for e in exc.errors())
+    """Requête mal formée (champ manquant, mauvais type, texte trop long) : message en français."""
+    details = "; ".join(f"{'.'.join(str(x) for x in e['loc'] if x != 'body')} : {_MESSAGES_422.get(e['type'], e['msg'])}"
+                        for e in exc.errors())
     return JSONResponse(status_code=422, content={"ok": False, "erreurs": [
         {"ligne": None, "chemin": "", "message": f"Requête invalide : {details}"}]})
+
+
+# Identifications réussies (nom, empreinte du mot de passe) -> instant d'expiration. Sans ce cache,
+# chaque requête (fichiers statiques compris) recalculait 600 000 itérations PBKDF2 dans la boucle
+# d'événements. Un compte supprimé reste accepté au plus _AUTH_TTL secondes.
+_AUTH_CACHE: dict[tuple[str, str], float] = {}
+_AUTH_TTL = 600.0
+_AUTH_MAX = 256
+
+
+def vider_cache_authentification() -> None:
+    _AUTH_CACHE.clear()
 
 
 @app.middleware("http")
@@ -54,6 +79,7 @@ async def controle_acces(request, call_next):
     import base64
 
     from fastapi.responses import PlainTextResponse
+    from starlette.concurrency import run_in_threadpool
 
     from sout import utilisateurs
 
@@ -65,26 +91,40 @@ async def controle_acces(request, call_next):
             nom, _, mdp = base64.b64decode(entete[6:]).decode("utf-8").partition(":")
         except (ValueError, UnicodeDecodeError):
             nom, mdp = "", ""
-        if nom and utilisateurs.verifier(nom, mdp):
-            return await call_next(request)
+        if nom:
+            cle = (nom, hashlib.sha256(mdp.encode("utf-8")).hexdigest())
+            maintenant = time.monotonic()
+            if _AUTH_CACHE.get(cle, 0.0) > maintenant:
+                return await call_next(request)
+            if await run_in_threadpool(utilisateurs.verifier, nom, mdp):   # PBKDF2 hors de la boucle d'événements
+                if len(_AUTH_CACHE) >= _AUTH_MAX:
+                    _AUTH_CACHE.clear()
+                _AUTH_CACHE[cle] = maintenant + _AUTH_TTL
+                return await call_next(request)
     return PlainTextResponse("Identification requise", status_code=401,
                              headers={"WWW-Authenticate": 'Basic realm="RetainWall", charset="UTF-8"'})
 
 
+TAILLE_MAX_SCRIPT = 2_000_000          # caractères ; un script de projet fait quelques milliers de lignes
+TAILLE_MAX_IMPORT = 20 * 1024 * 1024    # octets, catalogue CSV / Excel
+
+
 class Texte(BaseModel):
-    texte: str
+    texte: str = Field(max_length=TAILLE_MAX_SCRIPT)
 
 
 class DemandeCalcul(BaseModel):
-    texte: str
+    texte: str = Field(max_length=TAILLE_MAX_SCRIPT)
     coupe: str | None = None     # nom d'une coupe de calcul : calcule cette coupe seule
 
 
-# Cache des calculs par coupe : empreinte du script fusionné -> résultats sérialisés.
-# Une coupe dont le script n'a pas changé n'est pas recalculée.
+# Cache des calculs par coupe : (empreinte du script fusionné | empreinte de l'environnement) -> résultats
+# sérialisés. L'environnement = version du logiciel, fichiers docs/normes, base matériaux et catalogues :
+# corriger un coefficient ou importer un catalogue invalide donc le cache sans redémarrage.
 _CACHE_COUPES: dict[str, dict] = {}
 _CACHE_MAX = 48
 _STATS = {"calculs": 0, "cache": 0}
+_VERROU_CACHE = threading.Lock()
 
 
 def statistiques_cache() -> dict:
@@ -92,8 +132,30 @@ def statistiques_cache() -> dict:
 
 
 def vider_cache_coupes() -> None:
-    _CACHE_COUPES.clear()
-    _STATS["calculs"] = _STATS["cache"] = 0
+    with _VERROU_CACHE:
+        _CACHE_COUPES.clear()
+        _STATS["calculs"] = _STATS["cache"] = 0
+
+
+def _empreinte_environnement() -> str:
+    """Empreinte (nom, date, taille) de tout ce qui influence un résultat en plus du texte du script."""
+    from sout.materiaux.base import CATALOGUES, CHEMIN_BASE
+
+    h = hashlib.sha256(__version__.encode("utf-8"))
+    fichiers = sorted(normes.DOSSIER.rglob("*.yaml")) + sorted(normes.DOSSIER.rglob("*.csv")) + [CHEMIN_BASE]
+    if CATALOGUES.exists():
+        fichiers += sorted(p for p in CATALOGUES.iterdir() if p.is_file())
+    for f in fichiers:
+        try:
+            st = f.stat()
+        except OSError:
+            continue
+        h.update(f"{f.name}:{st.st_mtime_ns}:{st.st_size};".encode("utf-8"))
+    return h.hexdigest()[:16]
+
+
+def _cle_cache(empreinte_texte: str) -> str:
+    return f"{empreinte_texte}|{_empreinte_environnement()}"
 
 
 def _catalogue():
@@ -172,10 +234,11 @@ def _resultats_script(texte: str) -> dict:
     """Résultats sérialisés d'un script complet (une coupe), avec cache par empreinte."""
     from sout.script.coupes import empreinte
 
-    cle = empreinte(texte)
-    if cle in _CACHE_COUPES:
-        _STATS["cache"] += 1
-        return _CACHE_COUPES[cle]
+    cle = _cle_cache(empreinte(texte))
+    with _VERROU_CACHE:
+        if cle in _CACHE_COUPES:
+            _STATS["cache"] += 1
+            return _CACHE_COUPES[cle]
     ex = executer_texte(texte)
     _STATS["calculs"] += 1
     r = serialiser(ex.resultat, ex.modele, ex.script.projet, _catalogue(), normes.charger())
@@ -192,9 +255,10 @@ def _resultats_script(texte: str) -> dict:
         if ex.pseudo3d is not None:          # calculé une seule fois, dans verifications.executer
             r["pseudo3d"] = serialiser_p3d(ex.pseudo3d, ex.resultat)
         r["avertissements"].extend(ex.avertissements)
-    if len(_CACHE_COUPES) >= _CACHE_MAX:
-        del _CACHE_COUPES[next(iter(_CACHE_COUPES))]
-    _CACHE_COUPES[cle] = r
+    with _VERROU_CACHE:
+        while len(_CACHE_COUPES) >= _CACHE_MAX:
+            del _CACHE_COUPES[next(iter(_CACHE_COUPES))]
+        _CACHE_COUPES[cle] = r
     return r
 
 
@@ -224,7 +288,7 @@ def coupes_preparer(t: Texte) -> dict:
         return _erreur(e)
     return {"ok": True, "erreurs": [], "unique": p.unique, "contour": p.contour, "orphelins": p.orphelins,
             "avertissements": p.avertissements,
-            "coupes": [{**c.vers_dict(), "en_cache": c.empreinte in _CACHE_COUPES} for c in p.coupes]}
+            "coupes": [{**c.vers_dict(), "en_cache": _cle_cache(c.empreinte) in _CACHE_COUPES} for c in p.coupes]}
 
 
 def _assembler(p, resultats: dict[str, dict]) -> dict:
@@ -302,18 +366,24 @@ async def importer_catalogue(fichier: UploadFile) -> dict:
     nom = Path(fichier.filename or "catalogue.csv").name
     if Path(nom).suffix.lower() not in (".csv", ".xlsx"):
         raise HTTPException(400, "format attendu : .csv ou .xlsx")
+    if nom.lower().startswith("modele_"):
+        raise HTTPException(400, "un fichier « modele_* » est un modèle d'en-têtes, pas un catalogue : renommez-le (ex. profiles_fournisseur.csv)")
+    contenu = await fichier.read(TAILLE_MAX_IMPORT + 1)
+    if len(contenu) > TAILLE_MAX_IMPORT:
+        raise HTTPException(413, f"fichier trop volumineux (maximum {TAILLE_MAX_IMPORT // (1024 * 1024)} Mo)")
     with tempfile.TemporaryDirectory() as d:
         chemin = Path(d) / nom
-        chemin.write_bytes(await fichier.read())
+        chemin.write_bytes(contenu)
         try:
             compte = importer([chemin])
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
+    vider_cache_coupes()   # les résultats dépendent de la base
     return {"ok": True, "lignes": compte}
 
 
 class FichierRido(BaseModel):
-    texte: str
+    texte: str = Field(max_length=TAILLE_MAX_SCRIPT)
     nom: str = "import RIDO"
 
 

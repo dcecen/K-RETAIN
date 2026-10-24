@@ -117,7 +117,7 @@ class Hydraulique(_Base):
     regime: Literal["hydrostatique", "simplifie", "differences_finies"] = Field(
         "hydrostatique", description="régime de l'eau : hydrostatique, simplifié (cheminement) ou écoulement 2D en différences finies")
     substratum: float | None = Field(None, description="cote du toit du substratum imperméable (m) ; défaut : pied − 2 × hauteur")
-    largeur_amont: float | None = Field(None, gt=0, description="étendue du domaine amont (m) ; défaut : 4 × hauteur de paroi")
+    largeur_amont: float | None = Field(None, gt=0, le=2000, description="étendue du domaine amont (m) ; défaut : 4 × hauteur de paroi")
     largeur_fouille: float | None = Field(None, gt=0, description="largeur de la fouille (m), fouille symétrique ; défaut : 2 × hauteur")
     pas: float = Field(0.5, gt=0.05, le=2.0, description="taille des cellules du maillage d'écoulement (m)")
     bouchon: BouchonScript | None = Field(None, description="bouchon de fond de fouille")
@@ -331,7 +331,7 @@ class CoupeScript(_Base):
 
 class Pseudo3D(_Base):
     longueur: float | None = Field(
-        None, gt=0, description="paroi droite : longueur développée modélisée (m) ; absente avec un bloc plan : fouille "
+        None, gt=0, le=2000, description="paroi droite : longueur développée modélisée (m) ; absente avec un bloc plan : fouille "
                                 "fermée sur tout le contour, butons reliant les parois en vis-à-vis (double écran)")
     pas_horizontal: float = Field(0.5, gt=0.05, description="taille des éléments selon la longueur (m)")
     bords: Literal["libres", "encastres", "appuyes"] = Field("libres", description="conditions aux extrémités")

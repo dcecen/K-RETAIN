@@ -19,6 +19,7 @@ from io import StringIO
 from pathlib import Path
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from .schema import Script
 
@@ -92,17 +93,32 @@ def fusionner(principal: dict, local: dict | None) -> tuple[dict, list[str], lis
     return fusion, herite, sorted(local)
 
 
+def chemin_script_coupe(script: str, nom: str) -> Path:
+    """Fichier de script d'une coupe : chemin relatif, sans « .. », dans le dossier exemples (le serveur
+    ne lit aucun autre fichier du poste)."""
+    chemin = Path(str(script))
+    if chemin.is_absolute() or ".." in chemin.parts or str(script).startswith(("\\\\", "//")):
+        raise ErreurCoupe(f"coupe « {nom} » : le script doit être un fichier du dossier exemples "
+                          f"(chemin relatif sans « .. »), reçu « {script} »")
+    racine = DOSSIER_SCRIPTS.resolve()
+    complet = (racine / chemin).resolve()
+    if not complet.is_relative_to(racine):
+        raise ErreurCoupe(f"coupe « {nom} » : le script doit rester dans le dossier exemples, reçu « {script} »")
+    if not complet.is_file():
+        raise ErreurCoupe(f"coupe « {nom} » : fichier {script} introuvable (cherché dans {DOSSIER_SCRIPTS})")
+    return complet
+
+
 def _script_local(c, nom: str) -> dict | None:
     if c.script is None:
         return None
     if isinstance(c.script, dict):
         return c.script
-    chemin = Path(c.script)
-    if not chemin.is_absolute():
-        chemin = DOSSIER_SCRIPTS / chemin
-    if not chemin.exists():
-        raise ErreurCoupe(f"coupe « {nom} » : fichier {c.script} introuvable (cherché dans {DOSSIER_SCRIPTS})")
-    return _charger(chemin.read_text(encoding="utf-8"))
+    chemin = chemin_script_coupe(c.script, nom)
+    try:
+        return _charger(chemin.read_text(encoding="utf-8"))
+    except YAMLError as e:
+        raise ErreurCoupe(f"coupe « {nom} » : fichier {c.script} illisible ({e})") from None
 
 
 # ---------------------------------------------------------------------------

@@ -26,11 +26,20 @@ FICHIER = Path(os.environ.get("RETAINWALL_UTILISATEURS",
 ITERATIONS = 600_000
 
 
+_CACHE_LECTURE: dict = {}
+
+
 def _lire(fichier: Path | None = None) -> dict:
+    """Comptes du fichier ; relu seulement si sa date ou sa taille a changé."""
     fichier = fichier or FICHIER
     if not fichier.exists():
         return {}
-    return json.loads(fichier.read_text(encoding="utf-8"))
+    st = fichier.stat()
+    cle = (str(fichier), st.st_mtime_ns, st.st_size)
+    if _CACHE_LECTURE.get("cle") != cle:
+        _CACHE_LECTURE["donnees"] = json.loads(fichier.read_text(encoding="utf-8"))
+        _CACHE_LECTURE["cle"] = cle
+    return dict(_CACHE_LECTURE["donnees"])
 
 
 def _ecrire(d: dict, fichier: Path | None = None) -> None:
