@@ -98,7 +98,7 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
         )}
       </div>
       <div className="insp-section">
-        <div className="insp-titre">Avertissements et vérifications à taux ≥ 90 %</div>
+        <div className="insp-titre" title="Avertissements du calcul et vérifications non vérifiées ou à taux ≥ 90 %">Avertissements</div>
         {res.avertissements.map((a, i) => <div key={i} className="alerte orange"><IconeAlerte />{a}</div>)}
         {alertes.map((v, i) => (
           <div key={`v${i}`} className={`alerte ${v.etat === 'non_ok' ? 'rouge' : 'orange'}`}><IconeAlerte />

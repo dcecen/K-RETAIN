@@ -3,7 +3,7 @@ import type { ErreurScript } from '../lib/api'
 import type { Onglet, Section, Selection } from '../lib/etat'
 import { nb } from '../lib/format'
 import {
-  IconeAppui, IconeChevronB, IconeChevronD, IconeCoupe, IconeEau, IconeParoi, IconePhases, IconeProjet, IconeSol,
+  IconeAppui, IconeChevronB, IconeChevronD, IconeCoupe, IconeCube, IconeEau, IconeFichier, IconeParoi, IconePhases, IconeProjet, IconeSol,
   IconeSurcharge, IconeTableau, IconeVerif,
 } from '../lib/icones'
 import type { Modele } from '../lib/scriptDoc'
@@ -19,6 +19,7 @@ const RESULTATS: { cle: Onglet; libelle: string }[] = [
   { cle: 'coupe', libelle: 'Coupe et diagrammes' },
   { cle: 'efforts', libelle: "Efforts d'appui" },
   { cle: 'verifications', libelle: 'Vérifications' },
+  { cle: 'hypotheses', libelle: 'Hypothèses et référentiel' },
   { cle: '3d', libelle: 'Maquette 3D' },
 ]
 
@@ -106,7 +107,7 @@ export function Navigation({ modele, erreurs, section, selection, onglet, result
               <button className={`noeud ${onglet === r.cle && section === null ? 'actif' : ''}`} onClick={() => onOnglet(r.cle)}
                 disabled={!resultats} title={resultats ? undefined : 'Disponible après le calcul'}>
                 <span className="chevron" />
-                {r.cle === 'coupe' ? <IconeCoupe /> : r.cle === 'efforts' ? <IconeTableau /> : r.cle === 'verifications' ? <IconeVerif /> : <IconeCoupe />}
+                {r.cle === 'coupe' ? <IconeCoupe /> : r.cle === 'efforts' ? <IconeTableau /> : r.cle === 'verifications' ? <IconeVerif /> : r.cle === 'hypotheses' ? <IconeFichier /> : <IconeCube />}
                 <span className="libelle">{r.libelle}</span>
               </button>
             </li>

@@ -55,13 +55,19 @@ def actions_phase(ph_modele, modele: Modele) -> list[dict]:
     return a
 
 
-def _butee_mobilisee(ph) -> float | None:
-    """Bm/Bt : butée mobilisée rapportée à la butée limite, côté fouille (valeur caractéristique)."""
+def _butee_valeurs(ph) -> tuple[float | None, float | None]:
+    """(Bm, Bt) en kN/m côté fouille : résultante des pressions mobilisées et des pressions limites
+    de butée (valeurs caractéristiques, intégrées sur la fiche)."""
     av = ph.pressions.get("aval")
     if not av or len(av["z"]) == 0:
-        return None
-    Bt = float(np.sum(av["L"] * av["pp"]))
-    return float(np.sum(av["L"] * av["p"])) / Bt if Bt > 0 else None
+        return None, None
+    return float(np.sum(av["L"] * av["p"])), float(np.sum(av["L"] * av["pp"]))
+
+
+def _butee_mobilisee(ph) -> float | None:
+    """Bm/Bt : butée mobilisée rapportée à la butée limite, côté fouille (valeur caractéristique)."""
+    Bm, Bt = _butee_valeurs(ph)
+    return Bm / Bt if Bm is not None and Bt is not None and Bt > 0 else None
 
 
 def _complement_appui(da, effort: float, catalogue, normes) -> dict:
@@ -146,8 +152,18 @@ def _couches(modele: Modele) -> list[dict]:
     from .noyau.phasage import _coefficients_couche, _kh_couche
 
     out = []
+    methode_k = {"coulomb": "Coulomb (Rankine si δ = 0)", "kerisel_absi": "tables de Kérisel-Absi"}.get(modele.coefficients, modele.coefficients)
     for c in sorted(modele.couches, key=lambda c: -c.toit):
-        d = {"nom": c.nom, "toit": c.toit, "kah": None, "kph": None, "k0": None, "kh": None}
+        if c.kh is not None:
+            methode_kh = "kh imposé"
+        elif c.EM is None and c.qc is not None:
+            methode_kh = "Schmitt, EM par corrélation CPT (EM = qc × EM/qc)"
+        else:
+            methode_kh = "Schmitt (EM, α, EI)"
+        d = {"nom": c.nom, "toit": c.toit, "kah": None, "kph": None, "k0": None, "kh": None,
+             "methode_k": methode_k, "methode_kh": methode_kh,
+             "k0_source": "saisi" if c.K0 is not None else "Jaky (1 − sin φ')",
+             "phi": c.phi, "c": c.c, "delta_a_sur_phi": c.delta_a_sur_phi, "delta_p_sur_phi": c.delta_p_sur_phi}
         try:
             kah, kph, k0, _, _, _ = _coefficients_couche(c, modele.coefficients)
             d.update({"kah": kah, "kph": kph, "k0": k0})
@@ -194,6 +210,7 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "", catalogue=
                     "M_max": float(ph.M.max()), "M_min": float(ph.M.min()),
                     "V_absmax": float(np.abs(ph.V).max()),
                     "butee_mobilisee": _butee_mobilisee(ph),
+                    "Bm_kN_m": _butee_valeurs(ph)[0], "Bt_kN_m": _butee_valeurs(ph)[1],
                 },
             })
             for a in ph.appuis:

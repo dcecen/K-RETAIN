@@ -183,6 +183,28 @@ def schema() -> dict:
     return Script.model_json_schema()
 
 
+def _aplatir_normes(noeud, prefixe: str = "") -> list[dict]:
+    """Feuilles d'un fichier de normes : {cle pointée, valeur, source}. Une feuille est un bloc
+    {valeur, source} ou un scalaire ; une valeur None reste None (TODO-NORME)."""
+    out = []
+    if isinstance(noeud, dict) and "valeur" in noeud:
+        return [{"cle": prefixe, "valeur": noeud.get("valeur"), "source": str(noeud.get("source") or "")}]
+    if isinstance(noeud, dict):
+        for k, v in noeud.items():
+            out.extend(_aplatir_normes(v, f"{prefixe}.{k}" if prefixe else str(k)))
+        return out
+    return [{"cle": prefixe, "valeur": noeud, "source": ""}]
+
+
+@app.get("/api/normes")
+def valeurs_normatives() -> dict:
+    """Référentiel tel que lu par le calcul (docs/normes/*.yaml, lecture seule) : pour chaque fichier,
+    ses valeurs (clé, valeur, source). Sert à l'onglet « Hypothèses et référentiel » et à la note."""
+    n = normes.charger()
+    return {"dossier": str(normes.DOSSIER),
+            "fichiers": {nom: _aplatir_normes(arbre) for nom, arbre in n.donnees.items()}}
+
+
 @app.get("/api/exemples")
 def exemples() -> list[dict]:
     """Scripts proposés dans le menu Fichier : exemples de projet (exemples/*.yaml) puis scripts de

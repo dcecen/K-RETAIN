@@ -103,6 +103,9 @@ export interface PhaseRes {
     M_min: number
     V_absmax: number
     butee_mobilisee: number | null
+    /** Résultantes aval (kN/m) des pressions mobilisées et limites, valeurs caractéristiques. */
+    Bm_kN_m?: number | null
+    Bt_kN_m?: number | null
   }
 }
 
@@ -210,7 +213,12 @@ export interface Resultats {
   avertissements: string[]
   conventions: Record<string, string>
   paroi: { tete: number; pied: number; type?: string; [k: string]: unknown }
-  couches: { nom: string; toit: number; kah?: number | null; kph?: number | null; k0?: number | null; kh?: number | null }[]
+  couches: {
+    nom: string; toit: number; kah?: number | null; kph?: number | null; k0?: number | null; kh?: number | null
+    /** Méthodes et données telles qu'utilisées par le calcul (traçabilité). */
+    methode_k?: string; methode_kh?: string; k0_source?: string
+    phi?: number; c?: number; delta_a_sur_phi?: number; delta_p_sur_phi?: number
+  }[]
   hydraulique?: Record<string, unknown> | null
   appuis: DefAppui[]
   phases: PhaseRes[]
@@ -350,7 +358,11 @@ async function post<T>(url: string, corps: unknown): Promise<T> {
   return r.json() as Promise<T>
 }
 
+/** Une valeur du référentiel docs/normes : clé pointée, valeur (null = TODO-NORME) et source. */
+export interface EntreeNorme { cle: string; valeur: number | string | boolean | null; source: string }
+
 export const api = {
+  normes: () => fetch('/api/normes').then((r) => { if (!r.ok) throw new Error(`erreur ${r.status}`); return r.json() as Promise<{ dossier: string; fichiers: Record<string, EntreeNorme[]> }> }),
   calcul: (texte: string, coupe?: string) => post<ReponseCalcul>('/api/calcul', coupe === undefined ? { texte } : { texte, coupe }),
   coupesPreparer: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[]; unique: boolean; coupes: CoupeRes[]; avertissements: string[] }>('/api/coupes/preparer', { texte }),
   coupesSynthese: (texte: string) => post<{ ok: boolean; erreurs: ErreurScript[]; projet: ProjetCoupes }>('/api/coupes/synthese', { texte }),

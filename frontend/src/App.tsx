@@ -3,7 +3,7 @@ import { api, ErreurServeur, messageErreur, type ErreurScript, type Exemple, typ
 import type { EtatCalcul, Onglet, Section, Selection } from './lib/etat'
 import { exporterImage, imprimerNote, telechargerTexte } from './lib/exporter'
 import { nomProjet } from './lib/format'
-import { IconeAppui, IconeBase, IconeCoupe, IconeCube, IconePlaque, IconeProjet, IconeScript, IconeTableau, IconeVerif } from './lib/icones'
+import { IconeAppui, IconeBase, IconeCoupe, IconeCube, IconeFichier, IconePlaque, IconeProjet, IconeScript, IconeTableau, IconeVerif } from './lib/icones'
 import * as sd from './lib/scriptDoc'
 import { appliquerTheme, choisirTheme, themeInitial, type Theme } from './lib/theme'
 import { BarreTitre } from './composants/BarreTitre'
@@ -16,6 +16,7 @@ import { Materiaux } from './vues/Materiaux'
 import { Pseudo3D } from './vues/Pseudo3D'
 import { Saisie } from './vues/Saisie'
 import { Verifications } from './vues/Verifications'
+import { Hypotheses } from './vues/Hypotheses'
 import { Assemblages } from './vues/Assemblages'
 import { decoderAncre, encoderAncre } from './vue3d/navigation'
 
@@ -283,6 +284,7 @@ export default function App() {
     { cle: 'efforts', lib: 'Efforts', icone: <IconeTableau />, visible: true },
     { cle: 'verifications', lib: 'Vérifications', icone: <IconeVerif />, visible: true,
       compteur: nNonOk ? `${nNonOk} non vérifiée${nNonOk > 1 ? 's' : ''}` : undefined, rouge: nNonOk > 0 },
+    { cle: 'hypotheses', lib: 'Hypothèses et référentiel', icone: <IconeFichier />, visible: true },
     { cle: 'pseudo3d', lib: 'Pseudo-3D', icone: <IconePlaque />, visible: !!res?.pseudo3d },
     { cle: 'assemblages', lib: 'Assemblages', icone: <IconeAppui />, visible: true },
     { cle: 'saisie', lib: 'Saisie', icone: <IconeProjet />, visible: true },
@@ -355,6 +357,7 @@ export default function App() {
             : <div className="vide-centre"><b>Maquette non disponible</b><span>Le serveur n’a pas renvoyé la géométrie de la maquette pour ce calcul.</span></div>) : sansResultats)}
           {onglet === 'efforts' && (res ? <Efforts res={res} phase={phase} onPhase={setPhase} onAppui={(n) => { setSelection({ type: 'appui', nom: n }); setTiroirInsp(true) }} /> : sansResultats)}
           {onglet === 'verifications' && (res ? <Verifications res={res} projet={projet} filtre={retour3d ? selection3d : null} onRetour={() => { setOnglet('3d'); setRetour3d(false) }} /> : sansResultats)}
+          {onglet === 'hypotheses' && (res ? <Hypotheses res={res} modele={erreurYaml ? null : modele} phase={phase} version={serveur} /> : sansResultats)}
           {onglet === 'pseudo3d' && res?.pseudo3d && <Pseudo3D res={res} phase={phase} />}
           {onglet === 'assemblages' && (
             <Assemblages res={res} modele={erreurYaml ? null : modele} references={references} theme={theme}
