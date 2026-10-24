@@ -1,0 +1,565 @@
+{
+ "fouille_exemple": {
+  "phases": [
+   {
+    "nom": "État initial",
+    "ok": true,
+    "y_max_mm": 0.07876333498872154,
+    "z_y_max": 0.0,
+    "M_max": 0.8195391345830695,
+    "M_min": -1.0397531952566403,
+    "V_absmax": 2.1097118375432933,
+    "butee_mobilisee": 0.12243780150358807,
+    "appuis": {}
+   },
+   {
+    "nom": "Terrassement à -2,0",
+    "ok": true,
+    "y_max_mm": 3.5613019460670223,
+    "z_y_max": 0.0,
+    "M_max": 1.4374347652007295,
+    "M_min": -36.98179555152648,
+    "V_absmax": 22.211939867066093,
+    "butee_mobilisee": 0.16263210849368184,
+    "appuis": {}
+   },
+   {
+    "nom": "Pose du buton B1",
+    "ok": true,
+    "y_max_mm": 3.2190075742648903,
+    "z_y_max": 0.0,
+    "M_max": 1.260802348907248,
+    "M_min": -32.16915365194123,
+    "V_absmax": 18.85300832176039,
+    "butee_mobilisee": 0.1617882015912114,
+    "appuis": {
+     "B1": 8.333333333333334
+    }
+   },
+   {
+    "nom": "Terrassement final et pompage",
+    "ok": true,
+    "y_max_mm": 17.647209253294992,
+    "z_y_max": -5.5,
+    "M_max": 254.70974518570955,
+    "M_min": -153.37167548859088,
+    "V_absmax": 120.79232471822013,
+    "butee_mobilisee": 0.56794700045885,
+    "appuis": {
+     "B1": 142.19182931034015
+    }
+   },
+   {
+    "nom": "Variante sans pompage",
+    "ok": true,
+    "y_max_mm": 2.8258609570532314,
+    "z_y_max": -3.1999999999999997,
+    "M_max": 39.33737772382172,
+    "M_min": -33.410378976772165,
+    "V_absmax": 37.63957747609723,
+    "butee_mobilisee": 0.23998676010203607,
+    "appuis": {
+     "B1": 50.216259670384865
+    }
+   }
+  ],
+  "verifications": [
+   {
+    "nom": "Mobilisation de la butée",
+    "element": "fiche",
+    "taux": 1.1807618139539493,
+    "etat": "non_ok"
+   },
+   {
+    "nom": "Équilibre vertical (mobilisation de δp)",
+    "element": "écran",
+    "taux": 0.0,
+    "etat": "ok"
+   },
+   {
+    "nom": "Équilibre vertical (portance)",
+    "element": "écran",
+    "taux": null,
+    "etat": "non_verifiable"
+   },
+   {
+    "nom": "Fond de fouille — soulèvement (UPL)",
+    "element": "fond de fouille",
+    "taux": 0.8492569002123141,
+    "etat": "ok"
+   },
+   {
+    "nom": "Fond de fouille — boulance (HYD)",
+    "element": "fond de fouille",
+    "taux": 0.3315649867374006,
+    "etat": "ok"
+   },
+   {
+    "nom": "Fond de fouille — renard",
+    "element": "fond de fouille",
+    "taux": 0.5128205128205129,
+    "etat": "ok"
+   },
+   {
+    "nom": "Stabilité générale (Bishop)",
+    "element": "massif",
+    "taux": 0.5111707729521368,
+    "etat": "ok"
+   },
+   {
+    "nom": "Palplanches — flexion et cisaillement",
+    "element": "AZ 26-700",
+    "taux": null,
+    "etat": "non_verifiable"
+   },
+   {
+    "nom": "Buton — flambement et flexion",
+    "element": "B1",
+    "taux": 0.7757869159535061,
+    "etat": "ok"
+   },
+   {
+    "nom": "Buton — résistance fabricant",
+    "element": "B1",
+    "taux": 0.5758769087068777,
+    "etat": "ok"
+   },
+   {
+    "nom": "Soudure tube / platine",
+    "element": "A1 (Buton – lierne : platine d'about) · soudure",
+    "taux": 0.478312680745238,
+    "etat": "ok"
+   },
+   {
+    "nom": "Platine d'about — flexion en console",
+    "element": "A1 (Buton – lierne : platine d'about) · platine",
+    "taux": 0.23730299980516806,
+    "etat": "ok"
+   },
+   {
+    "nom": "Aile de lierne — flexion locale",
+    "element": "A1 (Buton – lierne : platine d'about) · platine",
+    "taux": 0.8256006942646349,
+    "etat": "ok"
+   },
+   {
+    "nom": "Âme de lierne sous le buton",
+    "element": "A1 (Buton – lierne : platine d'about) · lierne",
+    "taux": 0.4517372529185857,
+    "etat": "ok"
+   },
+   {
+    "nom": "Nervures — compression",
+    "element": "A1 (Buton – lierne : platine d'about) · nervure",
+    "taux": 0.33795593233971694,
+    "etat": "ok"
+   },
+   {
+    "nom": "Nervure de chaise — section à l'encastrement",
+    "element": "A2 (Buton – lierne : chaise d'appui) · nervure",
+    "taux": 0.025039123630672927,
+    "etat": "ok"
+   },
+   {
+    "nom": "Soudure nervure / aile de lierne",
+    "element": "A2 (Buton – lierne : chaise d'appui) · soudure",
+    "taux": 0.08284681796407257,
+    "etat": "ok"
+   },
+   {
+    "nom": "Soudure table / aile de lierne",
+    "element": "A2 (Buton – lierne : chaise d'appui) · soudure",
+    "taux": 0.016569363592814516,
+    "etat": "ok"
+   },
+   {
+    "nom": "Table — flexion entre nervure et bord",
+    "element": "A2 (Buton – lierne : chaise d'appui) · platine",
+    "taux": 0.03961267605633803,
+    "etat": "ok"
+   },
+   {
+    "nom": "Âme de lierne au droit de la chaise",
+    "element": "A2 (Buton – lierne : chaise d'appui) · lierne",
+    "taux": 0.5694886695561318,
+    "etat": "ok"
+   },
+   {
+    "nom": "Raidisseurs + âme — compression",
+    "element": "A3 (Raidisseurs d'âme de lierne au droit du buton) · raidisseur",
+    "taux": 0.2845195957608772,
+    "etat": "ok"
+   },
+   {
+    "nom": "Soudures raidisseurs / ailes et âme",
+    "element": "A3 (Raidisseurs d'âme de lierne au droit du buton) · soudure",
+    "taux": 0.14944266069021625,
+    "etat": "ok"
+   },
+   {
+    "nom": "Âme de lierne sans raidisseur (pour mémoire)",
+    "element": "A3 (Raidisseurs d'âme de lierne au droit du buton) · lierne",
+    "taux": 1.892316681517225,
+    "etat": "non_ok"
+   }
+  ]
+ },
+ "berlinoise_tirants": {
+  "phases": [
+   {
+    "nom": "État initial",
+    "ok": true,
+    "y_max_mm": 0.1625927590084089,
+    "z_y_max": 0.0,
+    "M_max": 0.4498807634095084,
+    "M_min": -0.8784283652979273,
+    "V_absmax": 1.6186137310872986,
+    "butee_mobilisee": 0.12841130720002233,
+    "appuis": {}
+   },
+   {
+    "nom": "Terrassement à -2,0",
+    "ok": true,
+    "y_max_mm": 5.271977896387936,
+    "z_y_max": 0.0,
+    "M_max": 0.4772477923555196,
+    "M_min": -13.115555411498935,
+    "V_absmax": 9.917871926770964,
+    "butee_mobilisee": 0.15928731782977687,
+    "appuis": {}
+   },
+   {
+    "nom": "Pose et mise en tension T1",
+    "ok": true,
+    "y_max_mm": 3.9259022114572955,
+    "z_y_max": 0.0,
+    "M_max": 0.103044691728428,
+    "M_min": -35.605669195648275,
+    "V_absmax": 52.07546367603022,
+    "butee_mobilisee": 0.14792982790166745,
+    "appuis": {
+     "T1": 93.96926207859084
+    }
+   },
+   {
+    "nom": "Terrassement final à -6,0",
+    "ok": true,
+    "y_max_mm": 10.005999621335395,
+    "z_y_max": -4.5,
+    "M_max": 59.04038584350474,
+    "M_min": -48.14994245008063,
+    "V_absmax": 58.73172121163201,
+    "butee_mobilisee": 0.4030859504175535,
+    "appuis": {
+     "T1": 109.2490650086438
+    }
+   }
+  ],
+  "verifications": [
+   {
+    "nom": "Mobilisation de la butée",
+    "element": "fiche",
+    "taux": 0.8380156909180939,
+    "etat": "ok"
+   },
+   {
+    "nom": "Équilibre vertical (mobilisation de δp)",
+    "element": "écran",
+    "taux": 0.0,
+    "etat": "ok"
+   },
+   {
+    "nom": "Équilibre vertical (portance)",
+    "element": "écran",
+    "taux": 0.5254381473762805,
+    "etat": "ok"
+   },
+   {
+    "nom": "Stabilité du massif d'ancrage (Kranz)",
+    "element": "T1",
+    "taux": 0.29885776801983993,
+    "etat": "ok"
+   },
+   {
+    "nom": "Stabilité générale (Bishop)",
+    "element": "massif",
+    "taux": 0.400845062575126,
+    "etat": "ok"
+   },
+   {
+    "nom": "Scellement du tirant",
+    "element": "T1",
+    "taux": 0.8141505498139013,
+    "etat": "ok"
+   },
+   {
+    "nom": "Déplacement maximal (ELS)",
+    "element": "écran",
+    "taux": 0.3335333207111798,
+    "etat": "ok"
+   },
+   {
+    "nom": "Déplacement en tête (ELS)",
+    "element": "écran",
+    "taux": null,
+    "etat": "non_verifiable"
+   },
+   {
+    "nom": "Profilés de berlinoise — flexion et cisaillement",
+    "element": "HEB 300",
+    "taux": 0.24029849592235558,
+    "etat": "ok"
+   },
+   {
+    "nom": "Blindage entre profilés — flexion",
+    "element": "blindage bois",
+    "taux": 2.609364946867929,
+    "etat": "non_ok"
+   },
+   {
+    "nom": "Tirant — armature",
+    "element": "T1",
+    "taux": 0.36685835847129195,
+    "etat": "ok"
+   },
+   {
+    "nom": "Lierne — flexion bi-axiale et cisaillement",
+    "element": "T1 (HEB 200)",
+    "taux": null,
+    "etat": "non_verifiable"
+   }
+  ]
+ },
+ "fouille_ecoulement": {
+  "phases": [
+   {
+    "nom": "État initial",
+    "ok": true,
+    "y_max_mm": 0.0,
+    "z_y_max": -18.0,
+    "M_max": -0.0,
+    "M_min": -1.819407653750027e-11,
+    "V_absmax": 1.8213130681560193e-12,
+    "butee_mobilisee": 0.17092501148654035,
+    "appuis": {}
+   },
+   {
+    "nom": "Terrassement à -1,5",
+    "ok": true,
+    "y_max_mm": 0.9869909906279537,
+    "z_y_max": 0.0,
+    "M_max": 1.0295499867113924,
+    "M_min": -40.81533808617988,
+    "V_absmax": 18.588944596534454,
+    "butee_mobilisee": 0.19643866141451044,
+    "appuis": {}
+   },
+   {
+    "nom": "Pose du buton B1",
+    "ok": true,
+    "y_max_mm": 0.47347713796781726,
+    "z_y_max": 0.0,
+    "M_max": 4.202069214205425,
+    "M_min": -13.866056280166404,
+    "V_absmax": 11.564027365538138,
+    "butee_mobilisee": 0.1947245301188406,
+    "appuis": {
+     "B1": 16.666666666666668
+    }
+   },
+   {
+    "nom": "Terrassement à -5,5 et rabattement",
+    "ok": true,
+    "y_max_mm": 3.843567744878823,
+    "z_y_max": -5.333333333333333,
+    "M_max": 274.2638015522815,
+    "M_min": -65.919297126542,
+    "V_absmax": 115.83440100171937,
+    "butee_mobilisee": 0.45255508682264034,
+    "appuis": {
+     "B1": 119.08370235320302
+    }
+   },
+   {
+    "nom": "Pose du buton B2",
+    "ok": true,
+    "y_max_mm": 3.750058904254395,
+    "z_y_max": -5.5,
+    "M_max": 255.30334228990102,
+    "M_min": -61.57921806429613,
+    "V_absmax": 112.30771833608844,
+    "butee_mobilisee": 0.4499250203099643,
+    "appuis": {
+     "B1": 115.75792049527534,
+     "B2": 25.0
+    }
+   },
+   {
+    "nom": "Terrassement final à -9,0 et pompage",
+    "ok": true,
+    "y_max_mm": 13.903610335720064,
+    "z_y_max": -9.166666666666666,
+    "M_max": 822.6053884611124,
+    "M_min": -24.73932899614192,
+    "V_absmax": 317.19546735043014,
+    "butee_mobilisee": 0.8247319614498603,
+    "appuis": {
+     "B1": 93.4427530290127,
+     "B2": 359.315625608442
+    }
+   }
+  ],
+  "verifications": [
+   {
+    "nom": "Mobilisation de la butée",
+    "element": "fiche",
+    "taux": 1.7146177478542597,
+    "etat": "non_ok"
+   },
+   {
+    "nom": "Équilibre vertical (mobilisation de δp)",
+    "element": "écran",
+    "taux": 0.0,
+    "etat": "ok"
+   },
+   {
+    "nom": "Équilibre vertical (portance)",
+    "element": "écran",
+    "taux": 0.11218064516129034,
+    "etat": "ok"
+   },
+   {
+    "nom": "Boulance — équilibre des pressions (HYD)",
+    "element": "fond de fouille",
+    "taux": 0.5437772450795771,
+    "etat": "ok"
+   },
+   {
+    "nom": "Boulance — gradient de sortie",
+    "element": "fond de fouille",
+    "taux": 4.883264146116062e-05,
+    "etat": "ok"
+   },
+   {
+    "nom": "Renard — Terzaghi",
+    "element": "fond de fouille",
+    "taux": 0.7250363267727695,
+    "etat": "ok"
+   },
+   {
+    "nom": "Renard — Lane",
+    "element": "fond de fouille",
+    "taux": 1.7,
+    "etat": "non_ok"
+   },
+   {
+    "nom": "Renard — gradient critique",
+    "element": "fond de fouille",
+    "taux": 6.511018861488083e-05,
+    "etat": "ok"
+   },
+   {
+    "nom": "Soulèvement du bouchon (UPL)",
+    "element": "bouchon substratum",
+    "taux": 0.888799006576788,
+    "etat": "ok"
+   },
+   {
+    "nom": "Gradient à travers le bouchon",
+    "element": "bouchon substratum",
+    "taux": 0.14812110638837356,
+    "etat": "ok"
+   },
+   {
+    "nom": "Débit de pompage",
+    "element": "fouille",
+    "taux": null,
+    "etat": "non_verifiable"
+   },
+   {
+    "nom": "Stabilité générale (Bishop)",
+    "element": "massif",
+    "taux": 0.710165645651187,
+    "etat": "ok"
+   },
+   {
+    "nom": "Déplacement maximal (ELS)",
+    "element": "écran",
+    "taux": 0.46345367785733543,
+    "etat": "ok"
+   },
+   {
+    "nom": "Déplacement en tête (ELS)",
+    "element": "écran",
+    "taux": null,
+    "etat": "non_verifiable"
+   },
+   {
+    "nom": "Paroi moulée — flexion (face fouille)",
+    "element": "paroi",
+    "taux": null,
+    "etat": "non_verifiable"
+   },
+   {
+    "nom": "Paroi moulée — flexion (face terre)",
+    "element": "paroi",
+    "taux": null,
+    "etat": "non_verifiable"
+   },
+   {
+    "nom": "Paroi moulée — effort tranchant sans armatures",
+    "element": "paroi",
+    "taux": 1.6440736749695235,
+    "etat": "non_ok"
+   },
+   {
+    "nom": "Buton — flambement et flexion",
+    "element": "B1",
+    "taux": 1.5835488555816684,
+    "etat": "non_ok"
+   },
+   {
+    "nom": "Buton — résistance fabricant",
+    "element": "B1",
+    "taux": 0.4822889945304723,
+    "etat": "ok"
+   },
+   {
+    "nom": "Lierne — flexion bi-axiale et cisaillement",
+    "element": "B1 (HEB 400)",
+    "taux": 0.6541785123857049,
+    "etat": "ok"
+   },
+   {
+    "nom": "Lierne — raidisseurs",
+    "element": "B1 (HEB 400)",
+    "taux": null,
+    "etat": "non_verifiable"
+   },
+   {
+    "nom": "Buton — flambement et flexion",
+    "element": "B2",
+    "taux": 99.0,
+    "etat": "non_ok"
+   },
+   {
+    "nom": "Buton — résistance fabricant",
+    "element": "B2",
+    "taux": 1.45522828371419,
+    "etat": "non_ok"
+   },
+   {
+    "nom": "Lierne — flexion bi-axiale et cisaillement",
+    "element": "B2 (HEB 400)",
+    "taux": 1.9262524636450538,
+    "etat": "non_ok"
+   },
+   {
+    "nom": "Lierne — raidisseurs",
+    "element": "B2 (HEB 400)",
+    "taux": null,
+    "etat": "non_verifiable"
+   }
+  ]
+ }
+}
