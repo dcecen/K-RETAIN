@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api, ErreurServeur, messageErreur, type ErreurScript, type Exemple, type ProjetCoupes, type ReponseCalcul, type Resultats } from './lib/api'
 import type { EtatCalcul, Onglet, Section, Selection } from './lib/etat'
 import { exporterImage, imprimerNote, telechargerTexte } from './lib/exporter'
@@ -11,15 +11,18 @@ import { FrisePhases } from './composants/FrisePhases'
 import { Inspecteur } from './composants/Inspecteur'
 import { Navigation } from './composants/Navigation'
 import { CoupeDiagrammes } from './vues/CoupeDiagrammes'
-import { Editeur } from './vues/Editeur'
 import { Efforts } from './vues/Efforts'
 import { Materiaux } from './vues/Materiaux'
 import { Pseudo3D } from './vues/Pseudo3D'
 import { Saisie } from './vues/Saisie'
 import { Verifications } from './vues/Verifications'
 import { Assemblages } from './vues/Assemblages'
-import { Onglet3D } from './vue3d/Onglet3D'
 import { decoderAncre, encoderAncre } from './vue3d/navigation'
+
+// Éditeur (Monaco) et maquette (three.js) chargés à la demande : la page s'ouvre sans les attendre.
+const Editeur = lazy(() => import('./vues/Editeur').then((m) => ({ default: m.Editeur })))
+const Onglet3D = lazy(() => import('./vue3d/Onglet3D').then((m) => ({ default: m.Onglet3D })))
+const CHARGEMENT = <div className="vide-centre"><span>Chargement…</span></div>
 
 const CLE_BROUILLON = 'retainwall.brouillon'
 const COTES_VIDES: Record<string, number> = {}
@@ -47,7 +50,8 @@ export default function App() {
   const [exemples, setExemples] = useState<Exemple[]>([])
   const [enCours, setEnCours] = useState(false)
   const [etat, setEtat] = useState<EtatCalcul>({ genre: 'aucun', texte: 'Aucun calcul' })
-  const [ligneCible, setLigneCible] = useState<number | null>(null)
+  const [ligneCible, setLigneCible] = useState<{ ligne: number; n: number } | null>(null)
+  const compteurCible = useRef(0)
   const [theme, setTheme] = useState<Theme>(themeInitial)
   const [nav, setNav] = useState(true)
   const [insp, setInsp] = useState(true)
@@ -237,10 +241,11 @@ export default function App() {
     setOnglet('saisie')
     setTiroirNav(false)
   }
+  /** Place le curseur de l'éditeur sur une ligne (chaque demande est distincte : recliquer la même erreur agit). */
+  const viserLigne = (l: number | null | undefined) => { if (l) setLigneCible({ ligne: l, n: ++compteurCible.current }) }
   const allerErreur = () => {
     setOnglet('script')
-    const l = erreurs[0]?.ligne ?? etat.ligne
-    if (l) setLigneCible(l === ligneCible ? l + 0.000001 : l)
+    viserLigne(erreurs[0]?.ligne ?? etat.ligne)
   }
   const enregistrer = () => {
     const nom = (nomProjet(modele?.projet) || 'projet').trim().replace(/[^\w-]+/g, '_')
@@ -285,7 +290,7 @@ export default function App() {
   ]
   const allerLigne = (l: number | null) => {
     setOnglet('script')
-    if (l) setLigneCible(l === ligneCible ? l + 0.000001 : l)
+    viserLigne(l)
   }
   const sansResultats = erreurs.length > 0 ? (
     <div className="vide-centre bloque">
@@ -336,6 +341,7 @@ export default function App() {
           <span className="doux" style={{ alignSelf: 'center', paddingRight: 10, fontSize: 11 }}>{serveur}</span>
         </nav>
         <div className="contenu-onglet">
+          <Suspense fallback={CHARGEMENT}>
           {onglet === 'coupe' && (res ? <CoupeDiagrammes res={res} phase={phase} theme={theme} /> : sansResultats)}
           {retour3d && onglet !== '3d' && (
             <div className="barre-retour"><button className="btn" onClick={() => { setOnglet('3d'); setRetour3d(false) }}>← Retour à la maquette 3D</button>
@@ -359,7 +365,7 @@ export default function App() {
           {onglet === 'script' && (
             <div className="vue-script">
               <div className="editeur">
-                <Editeur texte={texte} onChange={setTexte} erreurs={[...erreurs, ...avertScript]} schema={schema} references={references} ligneCible={ligneCible ? Math.floor(ligneCible) : null} />
+                <Editeur texte={texte} onChange={setTexte} erreurs={[...erreurs, ...avertScript]} schema={schema} references={references} cible={ligneCible} />
               </div>
               {rapportRido && (
                 <div className="rapport-rido"><b>Rapport de conversion RIDO</b> <button className="btn discret" onClick={() => setRapportRido(null)}>Fermer</button>
@@ -372,7 +378,7 @@ export default function App() {
                       {erreurs.length === 0 && <li className="ok-ligne">Script calculable : les avertissements ci-dessous n'empêchent pas le calcul.</li>}
                       {[...erreurs, ...avertScript].map((e, i) => (
                         <li key={i} className={e.niveau === 'avertissement' ? 'avert' : ''}
-                          onClick={() => { if (e.ligne) setLigneCible(e.ligne === ligneCible ? e.ligne + 0.000001 : e.ligne) }}>
+                          onClick={() => viserLigne(e.ligne)}>
                           <b className="mono">{e.ligne ? `ligne ${e.ligne}` : 'script'}</b><span>{e.chemin ? `${e.chemin} : ` : ''}{e.message}</span>
                         </li>))}
                     </ul>
@@ -381,6 +387,7 @@ export default function App() {
             </div>
           )}
           {onglet === 'materiaux' && <Materiaux surImport={() => api.references().then(setReferences)} />}
+          </Suspense>
         </div>
       </main>
 

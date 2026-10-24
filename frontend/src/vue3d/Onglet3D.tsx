@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type * as THREE from 'three'
-import { api, type ProjetCoupes, type Resultats } from '../lib/api'
+import { api, messageErreur, type ProjetCoupes, type Resultats } from '../lib/api'
+import { demanderNombre } from '../lib/saisie'
 import { enregistrerExport, telecharger, telechargerTexte } from '../lib/exporter'
-import { IconeCalques } from '../lib/icones'
+import { IconeCalques, IconeCiseaux, IconeCoupe, IconeRemblai, IconeSurcharge, IconeTableau } from '../lib/icones'
 import type { Theme } from '../lib/theme'
 import { nb } from '../lib/format'
 import { ecrireStockage, lireStockage, versScene, type EtatCalques, type Prereglage } from './calques'
@@ -17,7 +18,6 @@ import { FABRIQUES_COUPE_LOCALE, positionDepuisPoint, type PositionCoupeLocale }
 import { PanneauCoupeLocale } from './PanneauCoupeLocale'
 import { entreeYamlCoupe, sourcePourProjet } from './sourceResultats'
 import { Contour } from './geometrie'
-import { IconeCiseaux, IconeTableau } from '../lib/icones'
 import type { Modele } from '../lib/scriptDoc'
 import { analyserSelection, filAriane } from './navigation'
 import { PanneauResultats, type Volet } from './PanneauResultats'
@@ -29,8 +29,6 @@ import { exporterGltf, imagePng } from './exports'
 import { profilValeur, sourcePour } from './resultats'
 import { analyserSelection as analyserSel } from './navigation'
 import { definirReglage, definirVisible } from './calques'
-import { IconeRemblai, IconeCoupe } from '../lib/icones'
-import { IconeSurcharge } from '../lib/icones'
 import { etatPrereglage } from './calques'
 
 const FABRIQUES = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI, ...FABRIQUES_RESULTATS_APPUIS, ...FABRIQUES_COUPES, ...FABRIQUES_COUPE_LOCALE, ...FABRIQUES_REPERES, ...FABRIQUES_SURCHARGES, ...FABRIQUES_TERRAIN, ...FABRIQUES_COMPARAISON]
@@ -109,23 +107,29 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
     }
     if (outilRisberme && point && id?.startsWith('paroi:')) {
       const k = Number(id.slice(6)) || 0
-      const fond = res.phases[phase]?.terrain_aval ?? res.maquette!.paroi.pied
-      const crete = Number(window.prompt(`Risberme contre le côté ${nomCote(k)} — cote de la crête (m) :`, nb(fond + 2.5, 2).replace(',', '.')))
-      const largeur = Number(window.prompt('Largeur de la crête (m) :', '2'))
-      const pente = Number(window.prompt('Pente du talus (horizontal / vertical) :', '1.5'))
-      const pied = Number(window.prompt('Cote du pied, fond général (m) :', nb(fond, 2).replace(',', '.')))
-      const nom = window.prompt('Nom de la risberme :', `R${(res.maquette?.terrain?.objets.length ?? 0) + 1}`)
+      const fond = res.phases[phase]?.terrain_aval ?? res.maquette?.paroi.pied ?? 0
       setOutilRisberme(false)
-      if ([crete, largeur, pente, pied].every(Number.isFinite) && nom) onAjouterRisberme?.(entreeYamlRisberme(nom, nomCote(k), crete, largeur, pente, pied, [Math.max(1, phase), Math.max(1, phase)]))
+      // chaque boîte peut être annulée (ou refusée si la valeur n'est pas un nombre) : rien n'est alors écrit
+      const crete = demanderNombre(`Risberme contre le côté ${nomCote(k)} — cote de la crête (m) :`, nb(fond + 2.5, 2).replace(',', '.'))
+      if (crete === null) return
+      const largeur = demanderNombre('Largeur de la crête (m) :', '2')
+      if (largeur === null || largeur <= 0) return
+      const pente = demanderNombre('Pente du talus (horizontal / vertical) :', '1.5')
+      if (pente === null || pente <= 0) return
+      const pied = demanderNombre('Cote du pied, fond général (m) :', nb(fond, 2).replace(',', '.'))
+      if (pied === null) return
+      const nom = window.prompt('Nom de la risberme :', `R${(res.maquette?.terrain?.objets.length ?? 0) + 1}`)
+      if (nom?.trim()) onAjouterRisberme?.(entreeYamlRisberme(nom.trim(), nomCote(k), crete, largeur, pente, pied, [Math.max(1, phase), Math.max(1, phase)]))
       return
     }
     if (outilSurcharge && point && (id?.startsWith('couche:') || id === null)) {
       const pt: [number, number] = [point.x, -point.z]
       if (!outilSurcharge.p1) { setOutilSurcharge({ p1: pt }); return }
-      const q = Number(window.prompt('Valeur de la surcharge (kPa) :', '20'))
-      const nom = window.prompt('Nom de la surcharge :', `S${(res.maquette?.surcharges?.length ?? 0) + 1}`)
       setOutilSurcharge(null)
-      if (Number.isFinite(q) && q > 0 && nom) onAjouterSurcharge?.(entreeYamlSurcharge(nom, q, outilSurcharge.p1, pt, phase > 0 ? phase : null))
+      const q = demanderNombre('Valeur de la surcharge (kPa) :', '20')
+      if (q === null || q <= 0) return
+      const nom = window.prompt('Nom de la surcharge :', `S${(res.maquette?.surcharges?.length ?? 0) + 1}`)
+      if (nom?.trim()) onAjouterSurcharge?.(entreeYamlSurcharge(nom.trim(), q, outilSurcharge.p1, pt, phase > 0 ? phase : null))
       return
     }
     if (outilCoupe && point && id?.startsWith('paroi:')) { setPositionLocale(positionDepuisPoint(geo, point)); return }
@@ -166,8 +170,14 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   const exporterScene = async () => {
     const p = poignee.current
     if (!p) return
-    const blob = await exporterGltf(p.scene.scene)
-    telecharger(URL.createObjectURL(blob), `maquette_phase${phase + 1}.glb`)
+    try {
+      const blob = await exporterGltf(p.scene.scene)
+      const url = URL.createObjectURL(blob)
+      telecharger(url, `maquette_phase${phase + 1}.glb`)
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
+    } catch (e) {
+      alert(`Export glTF impossible : ${messageErreur(e)}`)
+    }
   }
   const comparer = (ref: number) => {
     let e = definirVisible(calquesRef.current, 'resultats.comparaison', ref > 0)
@@ -225,7 +235,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   const exporterHtml = async () => {
     setExportEnCours(true)
     try { telechargerTexte(await api.maquette(texte), 'maquette_retainwall.html', 'text/html') }
-    catch (e) { alert(String(e)) }
+    catch (e) { alert(`Export de la maquette impossible : ${messageErreur(e)}`) }
     finally { setExportEnCours(false) }
   }
 

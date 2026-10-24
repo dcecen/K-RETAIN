@@ -4,6 +4,7 @@ import type { PhaseRes, Resultats } from '../lib/api'
 import { enregistrerExport } from '../lib/exporter'
 import { interp, nb } from '../lib/format'
 import { COULEURS_SOL, couleurs, type Theme } from '../lib/theme'
+import { couleurEtat, etatHydraulique } from '../lib/verifs'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Obj = any
@@ -11,9 +12,15 @@ type Obj = any
 // Domaines horizontaux des cinq panneaux (coupe, y, M, V, pressions)
 const DOM = [[0, 0.27], [0.31, 0.45], [0.49, 0.64], [0.68, 0.81], [0.85, 1]] as const
 
-function etendue(valeurs: number[], marge = 0.08): [number, number] {
-  let lo = Math.min(0, ...valeurs)
-  let hi = Math.max(0, ...valeurs)
+/** Minimum et maximum sans `Math.min(...tableau)` (un maillage fin × beaucoup de phases dépasserait la pile d'appels). */
+function minMax(valeurs: Iterable<number>, lo0: number, hi0: number): [number, number] {
+  let lo = lo0, hi = hi0
+  for (const v of valeurs) { if (v < lo) lo = v; if (v > hi) hi = v }
+  return [lo, hi]
+}
+
+function etendue(valeurs: Iterable<number>, marge = 0.08): [number, number] {
+  let [lo, hi] = minMax(valeurs, 0, 0)
   if (hi - lo < 1e-9) { lo -= 1; hi += 1 }
   const m = (hi - lo) * marge
   return [lo - m, hi + m]
@@ -21,18 +28,17 @@ function etendue(valeurs: number[], marge = 0.08): [number, number] {
 
 /** Bornes fixes pour toutes les phases (les axes ne bougent pas d'une phase à l'autre). */
 function bornes(res: Resultats) {
-  const ok = res.phases.filter((p) => p.ok && p.z)
-  const y = ok.flatMap((p) => p.y_mm!)
-  const M = ok.flatMap((p) => p.M!)
-  const V = ok.flatMap((p) => p.V!)
-  const pmob = ok.flatMap((p) => [...p.pressions!.amont.p, ...p.pressions!.aval.p, ...p.eau!.u_amont, ...p.eau!.u_aval])
-  const pmax = Math.max(1, ...pmob)
+  const ok = res.phases.filter((p) => p.ok && p.z && p.pressions && p.eau)
+  const y = ok.flatMap((p) => p.y_mm ?? [])
+  const M = ok.flatMap((p) => p.M ?? [])
+  const V = ok.flatMap((p) => p.V ?? [])
   const pa = ok.flatMap((p) => [...p.pressions!.amont.p, ...p.eau!.u_amont])
   const pv = ok.flatMap((p) => [...p.pressions!.aval.p, ...p.eau!.u_aval])
-  const plafond = 1.8 * pmax
+  const pamax = minMax(pa, 1, 1)[1], pvmax = minMax(pv, 1, 1)[1]
+  const plafond = 1.8 * Math.max(pamax, pvmax)
   return {
     y: etendue(y), M: etendue(M), V: etendue(V),
-    p: [-Math.min(plafond, 1.25 * Math.max(1, ...pa)), Math.min(plafond, 1.25 * Math.max(1, ...pv))] as [number, number],
+    p: [-Math.min(plafond, 1.25 * pamax), Math.min(plafond, 1.25 * pvmax)] as [number, number],
   }
 }
 
@@ -86,15 +92,17 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
     annotations.push({ text: `bouchon ${b.type}`, xref: 'x', yref: 'y', x: L * 0.5, y: (b.base + Math.min(b.toit, ph.terrain_aval)) / 2, showarrow: false, font: { size: 10, color: c.texte } })
   }
   if (hy && hy.gradient_sortie.length && hy.gradient_sortie_max > 0) {
-    const ic = (res.couches.length ? 1 : 1) // i_c affiché via la couleur : rouge au-delà de 0,9·i_c (i_c ≈ γ'/γw ≈ 1)
+    // couleur = état de la vérification hydraulique calculée par le serveur (aucun gradient critique fixé ici)
+    const etat = etatHydraulique(res, ph.nom)
+    const coul = couleurEtat(etat) === 'var(--rouge)' ? c.rouge : couleurEtat(etat) === 'var(--orange)' ? c.orange : c.accent
     hy.gradient_sortie_x.forEach((x, k) => {
       if (x > L || k % Math.max(1, Math.round(hy.gradient_sortie_x.length / 12))) return
       const i = hy.gradient_sortie[k]
-      const lg = 0.12 * H * Math.min(1.5, i / ic)
-      const coul = i >= 0.9 * ic ? c.rouge : i >= 0.5 * ic ? c.orange : c.accent
+      const lg = 0.12 * H * Math.min(1.5, i / hy.gradient_sortie_max)
       annotations.push({ x, y: ph.terrain_aval + lg, ax: x, ay: ph.terrain_aval, xref: 'x', yref: 'y', axref: 'x', ayref: 'y', showarrow: true, arrowhead: 2, arrowwidth: 1.5, arrowcolor: coul, text: '' })
     })
-    annotations.push({ text: `i sortie max ${nb(hy.gradient_sortie_max, 2)}`, xref: 'x', yref: 'y', x: L * 0.97, y: ph.terrain_aval + 0.2 * H, xanchor: 'right', showarrow: false, font: { size: 10, color: hy.gradient_sortie_max >= 0.9 * ic ? c.rouge : c.doux } })
+    annotations.push({ text: `i sortie max ${nb(hy.gradient_sortie_max, 2)}` + (etat ? ` (${etat === 'non_ok' ? 'non vérifié' : etat === 'attention' ? 'limite' : etat === 'ok' ? 'vérifié' : 'à vérifier'})` : ''),
+      xref: 'x', yref: 'y', x: L * 0.97, y: ph.terrain_aval + 0.2 * H, xanchor: 'right', showarrow: false, font: { size: 10, color: etat === 'non_ok' ? c.rouge : etat === 'attention' ? c.orange : c.doux } })
   }
   // géométrie du terrain : objets phasés (risbermes, talus, gradins côté fouille ; pente côté terre) et profil amont
   const terr = res.maquette?.terrain
@@ -185,10 +193,15 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
   formes.push({ type: 'line', xref: 'paper', yref: 'y', x0: DOM[1][0], x1: 1, y0: ph.terrain_aval, y1: ph.terrain_aval, line: { color: c.filetFort, width: 1, dash: 'dot' } })
 
   titre(0, 'Coupe')
-  titre(1, 'Déplacement (mm)')
-  titre(2, 'Moment (kN·m/m)')
-  titre(3, 'Tranchant (kN/m)')
+  titre(1, 'Déplacement y (mm)')
+  titre(2, 'Moment M (kN·m/m)')
+  titre(3, 'Tranchant V (kN/m)')
   titre(4, 'Pressions (kPa)')
+  // conventions de signe et légende des pressions dans la figure elle-même (donc dans le PNG exporté)
+  annotations.push({ text: 'y > 0 vers la fouille · M > 0 : face côté fouille tendue · V = dM/dz · déformée amplifiée sur la coupe',
+    xref: 'paper', yref: 'paper', x: 0, y: -0.075, xanchor: 'left', yanchor: 'top', showarrow: false, font: { size: 10, color: c.doux } })
+  annotations.push({ text: `Pressions : <span style="color:${c.orange}">— amont mobilisée</span> · <span style="color:${c.orange}">··· poussée limite</span> · <span style="color:${c.vert}">— aval mobilisée</span> · <span style="color:${c.vert}">- - butée limite</span> · <span style="color:${c.accent}">-·- eau</span> (amont à gauche, aval à droite)`,
+    xref: 'paper', yref: 'paper', x: 1, y: -0.075, xanchor: 'right', yanchor: 'top', showarrow: false, font: { size: 10, color: c.doux } })
 
   const axe = (k: number, range: [number, number]) => ({
     domain: DOM[k], anchor: 'y', range, zeroline: k > 0, zerolinecolor: c.filetFort, zerolinewidth: 1,
@@ -197,7 +210,7 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
   })
   const layout: Obj = {
     paper_bgcolor: c.fond, plot_bgcolor: c.fond, font: { family: 'IBM Plex Sans, sans-serif', size: 11, color: c.texte },
-    margin: { l: 52, r: 10, t: 26, b: 34 }, showlegend: false, hovermode: 'y', dragmode: false,
+    margin: { l: 52, r: 10, t: 26, b: 58 }, showlegend: false, hovermode: 'y', dragmode: false, separators: ', ',
     yaxis: { range: [zBas, zHaut], title: { text: 'cote (m)', font: { size: 11, color: c.doux } }, gridcolor: c.filet, zeroline: false,
       linecolor: c.filetFort, showline: true, tickfont: { size: 10, color: c.doux }, ticks: 'outside', ticklen: 3, tickcolor: c.filetFort },
     xaxis: { ...axe(0, [-L, L]), showgrid: false, zeroline: false, showticklabels: false, ticks: '' },
@@ -308,7 +321,7 @@ export function CoupeDiagrammes({ res, phase, theme, curseurZ, onSurvolZ }: {
       <div className="barre-outils">
         <label><input type="checkbox" checked={enveloppe} onChange={(e) => setEnveloppe(e.target.checked)} /> Enveloppes toutes phases</label>
         <span className="espace" />
-        <span className="legende-signes">y &gt; 0 vers la fouille · M &gt; 0 face fouille tendue · V = dM/dz · Maj+molette : zoom vertical, double-clic : rétablir</span>
+        <span className="legende-signes">Maj+molette : zoom vertical · double-clic : rétablir · conventions et légende au bas de la figure</span>
       </div>
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         {!ph.ok && <div className="alerte rouge" style={{ position: 'absolute', top: 8, left: 60, zIndex: 6 }}>{ph.message}</div>}

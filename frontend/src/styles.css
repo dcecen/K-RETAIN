@@ -8,7 +8,7 @@
   --filet-fort: #c6cdd8;
   --texte: #1b2330;
   --texte-doux: #5a6475;
-  --texte-faible: #8a93a2;
+  --texte-faible: #646e82;   /* ≥ 4,5:1 sur fond clair */
   --accent: #2f5d8a;
   --accent-doux: #e6edf5;
   --accent-texte: #ffffff;
@@ -39,7 +39,7 @@
   --filet-fort: #39424f;
   --texte: #d9dfe8;
   --texte-doux: #9aa4b3;
-  --texte-faible: #6c7585;
+  --texte-faible: #939cad;   /* ≥ 4,5:1 sur fond sombre */
   --accent: #6b9ccc;
   --accent-doux: #1c2a3a;
   --accent-texte: #0e1217;
@@ -65,7 +65,7 @@
     --filet-fort: #39424f;
     --texte: #d9dfe8;
     --texte-doux: #9aa4b3;
-    --texte-faible: #6c7585;
+    --texte-faible: #939cad;   /* ≥ 4,5:1 sur fond sombre */
     --accent: #6b9ccc;
     --accent-doux: #1c2a3a;
     --accent-texte: #0e1217;

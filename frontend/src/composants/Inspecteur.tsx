@@ -1,4 +1,5 @@
 import type { Resultats } from '../lib/api'
+import { couleurEtat, etatHydraulique } from '../lib/verifs'
 import type { Selection } from '../lib/etat'
 import { cote, nb, pourcent } from '../lib/format'
 import { IconeAlerte, IconeFermer, IconeInfo } from '../lib/icones'
@@ -42,7 +43,7 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
   const butons = (ph.appuis ?? []).filter((a) => a.type === 'buton' || a.type === 'bracon')
   const maxButon = butons.reduce<null | (typeof butons)[number]>((m, a) => (!m || a.effort_axial_kN > m.effort_axial_kN ? a : m), null)
   const Mabs = s ? (Math.abs(s.M_max) >= Math.abs(s.M_min) ? s.M_max : s.M_min) : null
-  const alertes = (res.verifications ?? []).filter((v) => v.etat === 'non_ok' || (v.taux !== null && v.taux > 0.9))
+  const alertes = (res.verifications ?? []).filter((v) => v.etat === 'non_ok' || v.etat === 'attention')   // états fixés par le calcul
   return (
     <>
       <div className="insp-section">
@@ -75,7 +76,7 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
             {ph.hydro && ph.hydro.regime !== 'hydrostatique' && (
               <>
                 <div className="chiffre"><div className="lib">Gradient de sortie</div>
-                  <div className="val" style={{ color: ph.hydro.gradient_sortie_max >= 0.9 ? 'var(--rouge)' : undefined }}>{nb(ph.hydro.gradient_sortie_max, 3)}</div>
+                  <div className="val" style={{ color: couleurEtat(etatHydraulique(res, ph.nom)) }}>{nb(ph.hydro.gradient_sortie_max, 3)}</div>
                   <div className="sous">{ph.hydro.bouchon ? `bouchon ${ph.hydro.bouchon.type} : i = ${nb(ph.hydro.gradient_bouchon, 2)}` : 'au fond de fouille, contre l’écran'}</div></div>
                 <div className="chiffre"><div className="lib">Débit de pompage</div>
                   <div className="val">{nb(ph.hydro.debit_m3_h_m, 3)}<small>m³/h/m</small></div><div className="sous">{ph.hydro.regime === 'differences_finies' ? 'réseau d’écoulement 2D' : 'régime simplifié'}</div></div>

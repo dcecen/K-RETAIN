@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import Plotly from 'plotly.js-dist-min'
+import { couleurs } from '../lib/theme'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Trace = any
@@ -20,10 +21,11 @@ export function Graphique({ data, layout, hauteur = 520, nom = 'retainwall' }: {
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    const c = couleurs()
     void Plotly.react(
       el,
       data,
-      { font: POLICE, margin: { l: 60, r: 20, t: 40, b: 50 }, paper_bgcolor: 'white', plot_bgcolor: 'white', ...layout },
+      { font: { ...POLICE, color: c.texte }, margin: { l: 60, r: 20, t: 40, b: 50 }, paper_bgcolor: c.fond, plot_bgcolor: c.fond, separators: ', ', ...layout },
       {
         responsive: true,
         displaylogo: false,

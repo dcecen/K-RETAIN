@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { nb } from '../lib/format'
 import type { Resultats } from '../lib/api'
 import { Graphique } from './Graphique'
 
@@ -52,11 +53,11 @@ export function Pseudo3D({ res, phase }: { res: Resultats; phase: number }) {
         <div key={i} className="alerte orange">{a}</div>
       ))}
       <div className="chiffres" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
-        <div className="chiffre"><div className="lib">|y| max pseudo-3D</div><div className="val">{ph.y_max_mm?.toFixed(1)} mm</div><div className="sous">2D : {ph.y_max_2d_mm?.toFixed(1) ?? '—'} mm</div></div>
-        <div className="chiffre"><div className="lib">Moment vertical</div><div className="val">{ph.Mz_max?.toFixed(0)} / {ph.Mz_min?.toFixed(0)}</div><div className="sous">kN·m/m</div></div>
-        <div className="chiffre"><div className="lib">|Moment horizontal| max</div><div className="val">{ph.Ms_absmax?.toFixed(0)}</div><div className="sous">kN·m/m</div></div>
-        <div className="chiffre"><div className="lib">|Tranchant| max</div><div className="val">{ph.V_absmax?.toFixed(0) ?? '—'}</div><div className="sous">kN/m (au droit des appuis ponctuels : voir largeur_appui)</div></div>
-        <div className="chiffre"><div className="lib">{p3d.fermee ? 'Butons entre parois' : 'Appuis ponctuels'}</div><div className="val">{ph.appuis?.length ?? 0}</div><div className="sous">effort max {Math.max(0, ...(ph.appuis ?? []).map((a) => a.effort)).toFixed(0)} kN{p3d.fermee ? ' · angles à w = 0' : ''}</div></div>
+        <div className="chiffre"><div className="lib">|y| max pseudo-3D</div><div className="val">{nb(ph.y_max_mm, 1)} mm</div><div className="sous">2D : {nb(ph.y_max_2d_mm, 1)} mm</div></div>
+        <div className="chiffre"><div className="lib">Moment vertical</div><div className="val">{nb(ph.Mz_max, 0)} / {nb(ph.Mz_min, 0)}</div><div className="sous">kN·m/m</div></div>
+        <div className="chiffre"><div className="lib">|Moment horizontal| max</div><div className="val">{nb(ph.Ms_absmax, 0)}</div><div className="sous">kN·m/m</div></div>
+        <div className="chiffre"><div className="lib">|Tranchant| max</div><div className="val">{nb(ph.V_absmax, 0)}</div><div className="sous">kN/m (au droit des appuis ponctuels : voir largeur_appui)</div></div>
+        <div className="chiffre"><div className="lib">{p3d.fermee ? 'Butons entre parois' : 'Appuis ponctuels'}</div><div className="val">{ph.appuis?.length ?? 0}</div><div className="sous">effort max {nb((ph.appuis ?? []).reduce((m, a) => Math.max(m, a.effort), 0), 0)} kN{p3d.fermee ? ' · angles à w = 0' : ''}</div></div>
       </div>
       <Graphique data={data} layout={layout} hauteur={ph.Ms || ph.V ? 900 : 560} nom={`pseudo3d_${ph.nom}`} />
     </div>

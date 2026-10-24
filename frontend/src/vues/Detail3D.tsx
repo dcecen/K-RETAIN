@@ -45,10 +45,22 @@ function maillage(s: Solide): THREE.Mesh | null {
   return m
 }
 
+/** Libère géométries et matériaux des objets d'un groupe avant de le vider (sinon fuite graphique à chaque recalcul). */
+function viderGroupe(groupe: THREE.Group) {
+  for (const o of groupe.children) {
+    const m = o as THREE.Mesh | THREE.LineSegments
+    m.geometry?.dispose()
+    const mat = m.material as THREE.Material | THREE.Material[] | undefined
+    if (Array.isArray(mat)) mat.forEach((x) => x.dispose())
+    else mat?.dispose()
+  }
+  groupe.clear()
+}
+
 /** Vue de détail 3D construite à partir des mêmes solides que le schéma 2D. */
 export function Detail3D({ schema, reperes, theme, hauteur = 420 }: { schema: Schema; reperes?: Set<number>; theme: Theme; hauteur?: number }) {
   const hote = useRef<HTMLDivElement>(null)
-  const etat = useRef<{ scene: THREE.Scene; cam: THREE.PerspectiveCamera; rendu: THREE.WebGLRenderer; groupe: THREE.Group; theta: number; phi: number; r: number; cible: THREE.Vector3 } | null>(null)
+  const etat = useRef<{ scene: THREE.Scene; cam: THREE.PerspectiveCamera; rendu: THREE.WebGLRenderer; groupe: THREE.Group; theta: number; phi: number; r: number; cible: THREE.Vector3; rendre: () => void } | null>(null)
 
   useEffect(() => {
     const el = hote.current
@@ -65,11 +77,14 @@ export function Detail3D({ schema, reperes, theme, hauteur = 420 }: { schema: Sc
     const cam = new THREE.PerspectiveCamera(40, el.clientWidth / hauteur, 1, 50000)
     const groupe = new THREE.Group()
     scene.add(groupe)
-    const st = { scene, cam, rendu, groupe, theta: -0.8, phi: 1.05, r: 2500, cible: new THREE.Vector3() }
+    // rendu à la demande (après une interaction ou un nouveau schéma), pas de boucle continue
+    const rendre = () => rendu.render(scene, cam)
+    const st = { scene, cam, rendu, groupe, theta: -0.8, phi: 1.05, r: 2500, cible: new THREE.Vector3(), rendre }
     etat.current = st
     const placer = () => {
       cam.position.set(st.cible.x + st.r * Math.sin(st.phi) * Math.cos(st.theta), st.cible.y + st.r * Math.cos(st.phi), st.cible.z + st.r * Math.sin(st.phi) * Math.sin(st.theta))
       cam.lookAt(st.cible)
+      rendre()
     }
     let glisse: { x: number; y: number } | null = null
     const down = (e: PointerEvent) => { glisse = { x: e.clientX, y: e.clientY } }
@@ -86,19 +101,17 @@ export function Detail3D({ schema, reperes, theme, hauteur = 420 }: { schema: Sc
     window.addEventListener('pointerup', up)
     window.addEventListener('pointermove', move)
     rendu.domElement.addEventListener('wheel', wheel, { passive: false })
-    let actif = true
-    const boucle = () => { if (!actif) return; rendu.render(scene, cam); requestAnimationFrame(boucle) }
     placer()
-    boucle()
-    const redim = () => { rendu.setSize(el.clientWidth, hauteur); cam.aspect = el.clientWidth / hauteur; cam.updateProjectionMatrix() }
+    const redim = () => { rendu.setSize(el.clientWidth, hauteur); cam.aspect = el.clientWidth / hauteur; cam.updateProjectionMatrix(); rendre() }
     window.addEventListener('resize', redim)
     return () => {
-      actif = false
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('resize', redim)
+      viderGroupe(groupe)
       rendu.dispose()
       el.removeChild(rendu.domElement)
+      etat.current = null
     }
   }, [hauteur])
 
@@ -106,7 +119,7 @@ export function Detail3D({ schema, reperes, theme, hauteur = 420 }: { schema: Sc
   useEffect(() => {
     const st = etat.current
     if (!st) return
-    st.groupe.clear()
+    viderGroupe(st.groupe)
     const boite = new THREE.Box3()
     for (const s of schema.solides) {
       const m = maillage(s)
@@ -124,12 +137,14 @@ export function Detail3D({ schema, reperes, theme, hauteur = 420 }: { schema: Sc
       st.cam.position.set(st.cible.x + st.r * Math.sin(st.phi) * Math.cos(st.theta), st.cible.y + st.r * Math.cos(st.phi), st.cible.z + st.r * Math.sin(st.phi) * Math.sin(st.theta))
       st.cam.lookAt(st.cible)
     }
+    st.rendre()
   }, [schema])
 
   useEffect(() => {
     const st = etat.current
     if (!st) return
     st.scene.background = new THREE.Color(theme === 'sombre' ? 0x151a21 : 0xf7f8fa)
+    st.rendre()
   }, [theme, schema])
 
   useEffect(() => {
@@ -141,6 +156,7 @@ export function Detail3D({ schema, reperes, theme, hauteur = 420 }: { schema: Sc
         (m.material as THREE.MeshLambertMaterial).emissive.setHex(reperes?.has(m.userData.repere) ? 0x2f5d8a : 0x000000)
       }
     })
+    st.rendre()
   }, [reperes, schema])
 
   return <div ref={hote} style={{ width: '100%', height: hauteur, borderTop: '1px solid var(--filet)' }} />

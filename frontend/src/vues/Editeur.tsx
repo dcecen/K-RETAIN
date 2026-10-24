@@ -59,48 +59,68 @@ function installerFournisseurs() {
   })
 }
 
-export function Editeur({ texte, onChange, erreurs, schema, references, ligneCible }: {
+function poserMarqueurs(ed: monaco.editor.IStandaloneCodeEditor, erreurs: ErreurScript[]) {
+  const model = ed.getModel()
+  if (!model) return
+  monaco.editor.setModelMarkers(
+    model,
+    'retainwall',
+    erreurs.map((e) => ({
+      startLineNumber: e.ligne ?? 1,
+      endLineNumber: e.ligne ?? 1,
+      startColumn: 1,
+      endColumn: model.getLineMaxColumn(Math.min(e.ligne ?? 1, model.getLineCount())),
+      message: e.chemin ? `${e.chemin} : ${e.message}` : e.message,
+      severity: e.niveau === 'avertissement' ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error,
+    })),
+  )
+}
+
+function allerA(ed: monaco.editor.IStandaloneCodeEditor, ligne: number) {
+  const l = Math.max(1, Math.min(Math.floor(ligne), ed.getModel()?.getLineCount() ?? 1))
+  ed.revealLineInCenter(l)
+  ed.setPosition({ lineNumber: l, column: 1 })
+  ed.focus()
+}
+
+export function Editeur({ texte, onChange, erreurs, schema, references, cible }: {
   texte: string
   onChange: (t: string) => void
   erreurs: ErreurScript[]
   schema: Schema
   references: Record<string, string[]>
-  ligneCible: number | null
+  /** Ligne à montrer ; `n` distingue deux demandes successives de la même ligne. */
+  cible: { ligne: number; n: number } | null
 }) {
   const editeurRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null)
+  const derniereCible = useRef<number>(0)
+  const erreursRef = useRef(erreurs)
+  erreursRef.current = erreurs
+  const cibleRef = useRef(cible)
+  cibleRef.current = cible
   contexte.schema = schema
   contexte.references = references
 
   const surMontage: OnMount = (ed) => {
-    editeurRef.current = ed as unknown as monaco.editor.IStandaloneCodeEditor
+    const e = ed as unknown as monaco.editor.IStandaloneCodeEditor
+    editeurRef.current = e
     installerFournisseurs()
+    // Monaco se monte de façon asynchrone : marqueurs et ligne demandée avant le montage sont appliqués ici
+    poserMarqueurs(e, erreursRef.current)
+    const c = cibleRef.current
+    if (c && c.n !== derniereCible.current) { derniereCible.current = c.n; allerA(e, c.ligne) }
   }
 
   useEffect(() => {
-    const ed = editeurRef.current
-    const model = ed?.getModel()
-    if (!model) return
-    monaco.editor.setModelMarkers(
-      model,
-      'retainwall',
-      erreurs.map((e) => ({
-        startLineNumber: e.ligne ?? 1,
-        endLineNumber: e.ligne ?? 1,
-        startColumn: 1,
-        endColumn: model.getLineMaxColumn(Math.min(e.ligne ?? 1, model.getLineCount())),
-        message: e.chemin ? `${e.chemin} : ${e.message}` : e.message,
-        severity: e.niveau === 'avertissement' ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error,
-      })),
-    )
+    if (editeurRef.current) poserMarqueurs(editeurRef.current, erreurs)
   }, [erreurs])
 
   useEffect(() => {
-    if (ligneCible && editeurRef.current) {
-      editeurRef.current.revealLineInCenter(ligneCible)
-      editeurRef.current.setPosition({ lineNumber: ligneCible, column: 1 })
-      editeurRef.current.focus()
+    if (cible && editeurRef.current && cible.n !== derniereCible.current) {
+      derniereCible.current = cible.n
+      allerA(editeurRef.current, cible.ligne)
     }
-  }, [ligneCible])
+  }, [cible])
 
   return (
     <Editor

@@ -159,7 +159,7 @@ function Sol({ ctx, selection }: { ctx: Ctx; selection: Selection }) {
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button className="btn icone discret" title="Monter" disabled={i === 0} onClick={() => ctx.actions.deplacer(['sol'], i, i - 1)}><IconeMonter taille={14} /></button>
                   <button className="btn icone discret" title="Descendre" disabled={i === sol.length - 1} onClick={() => ctx.actions.deplacer(['sol'], i, i + 1)}><IconeDescendre taille={14} /></button>
-                  <button className="btn icone discret" title="Supprimer la couche" onClick={() => ctx.actions.supprimer(['sol', i])}><IconeCorbeille taille={14} /></button>
+                  <button className="btn icone discret" title="Supprimer la couche" onClick={() => { if (window.confirm('Supprimer cette couche de sol du script ?')) ctx.actions.supprimer(['sol', i]) }}><IconeCorbeille taille={14} /></button>
                 </td>
               </tr>
             ))}
@@ -251,7 +251,7 @@ function Eau({ ctx }: { ctx: Ctx }) {
                 <td style={{ fontWeight: 500 }}>{nom}</td>
                 <td><Champ ctx={ctx} chemin={['eau', nom, 'amont']} valeur={n?.amont} placeholder="aucune" /></td>
                 <td><Champ ctx={ctx} chemin={['eau', nom, 'aval']} valeur={n?.aval} placeholder="aucune" /></td>
-                <td><button className="btn icone discret" title="Supprimer" onClick={() => ctx.actions.supprimer(['eau', nom])}><IconeCorbeille taille={14} /></button></td>
+                <td><button className="btn icone discret" title="Supprimer" onClick={() => { if (window.confirm(`Supprimer le jeu d'eau « ${nom} » du script ?`)) ctx.actions.supprimer(['eau', nom]) }}><IconeCorbeille taille={14} /></button></td>
               </tr>
             ))}
             <tr>
@@ -313,7 +313,7 @@ function Surcharges({ ctx }: { ctx: Ctx }) {
                 <td><Champ ctx={ctx} chemin={['surcharges', i, 'distance']} valeur={s?.distance} placeholder="0" /></td>
                 <td><Champ ctx={ctx} chemin={['surcharges', i, 'largeur']} valeur={s?.largeur} /></td>
                 <td><Choix ctx={ctx} chemin={['surcharges', i, 'cote_ecran']} valeur={s?.cote_ecran ?? 'amont'} options={['amont', 'aval']} /></td>
-                <td><button className="btn icone discret" title="Supprimer" onClick={() => ctx.actions.supprimer(['surcharges', i])}><IconeCorbeille taille={14} /></button></td>
+                <td><button className="btn icone discret" title="Supprimer" onClick={() => { if (window.confirm('Supprimer cette surcharge du script ?')) ctx.actions.supprimer(['surcharges', i]) }}><IconeCorbeille taille={14} /></button></td>
               </tr>
             ))}
           </tbody>
@@ -359,7 +359,7 @@ function Appuis({ ctx, selection, onSelection }: { ctx: Ctx; selection: Selectio
       {a && actif && (
         <div className="bloc"><div className="bloc-titre">{actif}
           <span className="espace" />
-          <button className="btn icone discret" title="Supprimer l'appui" onClick={() => { ctx.actions.supprimer(['appuis', actif]); onSelection(null) }}><IconeCorbeille taille={14} /></button>
+          <button className="btn icone discret" title="Supprimer l'appui" onClick={() => { if (window.confirm(`Supprimer l'appui « ${actif} » du script (et ses références dans les phases) ?`)) { ctx.actions.supprimer(['appuis', actif]); onSelection(null) } }}><IconeCorbeille taille={14} /></button>
         </div>
           <div className="grille-form">
             <label>Nom<input className="champ champ-bloc" value={nom} onChange={(e) => setNom(e.target.value)}
@@ -435,6 +435,7 @@ function Phases({ ctx, selection, onSelection, phaseActive, onPhaseActive, res }
     const nom = String(phases[i]?.nom ?? '')
     const refs = phases.map((p, k) => (p?.depuis === nom ? k + 1 : 0)).filter(Boolean)
     if (refs.length && !window.confirm(`La phase « ${nom} » est le point de départ des phases ${refs.join(', ')}. Supprimer quand même ?`)) return
+    if (!refs.length && !window.confirm(`Supprimer la phase « ${nom} » du script ?`)) return
     ctx.actions.supprimer(['phases', i])
     onSelection(null)
   }

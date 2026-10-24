@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MESSAGE_INJOIGNABLE, type Resultats, type Verif } from '../lib/api'
 import type { ParamDef, Schema, TypeAssemblage } from '../lib/assemblages'
 import { nb, pourcent } from '../lib/format'
+import { lireNombre } from '../lib/saisie'
 import type { Modele } from '../lib/scriptDoc'
 import type { Theme } from '../lib/theme'
 import { Detail3D } from './Detail3D'
@@ -25,6 +26,23 @@ async function post<T>(url: string, corps: unknown): Promise<T> {
     throw new Error(detail ?? `erreur ${r.status} du serveur`)
   }
   return r.json() as Promise<T>
+}
+
+/** Champ numérique validé à la sortie (Entrée ou perte de focus) : on peut taper « 0,5 » ou « -12 » sans que la
+ *  valeur soit convertie à chaque frappe ; une saisie non numérique est annulée. */
+function ChampNombre({ valeur, onValide, commun }: { valeur: number | string; onValide: (v: number | '') => void; commun: Record<string, () => void> }) {
+  const [brut, setBrut] = useState(String(valeur))
+  useEffect(() => { setBrut(String(valeur)) }, [valeur])
+  const valider = () => {
+    const t = brut.trim()
+    if (t === '') { onValide(''); return }
+    const n = lireNombre(t)
+    if (n === null) setBrut(String(valeur))
+    else if (n !== valeur) onValide(n)
+  }
+  return <input className="champ champ-bloc num" value={brut} inputMode="decimal" onMouseEnter={commun.onMouseEnter} onMouseLeave={commun.onMouseLeave}
+    onFocus={commun.onFocus} onBlur={() => { valider(); commun.onBlur?.() }} onChange={(e) => setBrut(e.target.value)}
+    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />
 }
 
 /** Efforts d'un appui calculé : N axial max (kN), V (inclinaison), M et V de lierne (deux travées). */
@@ -136,8 +154,7 @@ export function Assemblages({ res, modele, references, theme, onEnregistrer }: {
       return <select className="champ champ-bloc" value={String(v)} {...commun} onChange={(e) => setParams({ ...params, [p.cle]: e.target.value })}>
         <option value="">—</option>{liste.map((r) => <option key={r} value={r}>{r}</option>)}</select>
     }
-    return <input className="champ champ-bloc num" value={String(v)} inputMode="decimal" {...commun}
-      onChange={(e) => setParams({ ...params, [p.cle]: e.target.value === '' ? '' : Number(e.target.value.replace(',', '.')) })} />
+    return <ChampNombre valeur={v} commun={commun} onValide={(n) => setParams((q) => ({ ...q, [p.cle]: n }))} />
   }
 
   const effortsDemandes = type?.efforts ?? ['N']

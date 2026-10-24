@@ -15,9 +15,11 @@ const LIBELLE: Record<Verif['etat'], string> = { ok: 'Vérifié', attention: 'Li
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Obj = any
 
-/** Petit graphique Plotly aux couleurs du thème. */
+/** Petit graphique Plotly aux couleurs du thème. Les tableaux reçus sont souvent recréés à chaque rendu
+ *  (survol de la maquette) : le graphique n'est redessiné que si leur contenu change. */
 function Mini({ traces, layout, hauteur = 220, theme }: { traces: Obj[]; layout: Obj; hauteur?: number; theme: Theme }) {
   const ref = useRef<HTMLDivElement>(null)
+  const cle = JSON.stringify([traces, layout])
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -25,11 +27,15 @@ function Mini({ traces, layout, hauteur = 220, theme }: { traces: Obj[]; layout:
     const axe = { gridcolor: c.filet, linecolor: c.filetFort, tickfont: { size: 10, color: c.doux }, zerolinecolor: c.filetFort }
     void Plotly.react(el, traces, {
       paper_bgcolor: c.fond, plot_bgcolor: c.fond, font: { family: 'IBM Plex Sans, sans-serif', size: 11, color: c.texte },
-      margin: { l: 48, r: 10, t: 24, b: 34 }, showlegend: true, legend: { orientation: 'h', y: 1.15, font: { size: 10 } },
+      margin: { l: 48, r: 10, t: 24, b: 34 }, showlegend: true, legend: { orientation: 'h', y: 1.15, font: { size: 10 } }, separators: ', ',
       ...layout, xaxis: { ...axe, ...(layout.xaxis ?? {}) }, yaxis: { ...axe, ...(layout.yaxis ?? {}) },
     }, { responsive: true, displayModeBar: false, locale: 'fr' })
-    return () => { Plotly.purge(el) }
-  }, [traces, layout, theme])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cle, theme])
+  useEffect(() => {
+    const el = ref.current
+    return () => { if (el) Plotly.purge(el) }
+  }, [])
   return <div ref={ref} style={{ width: '100%', height: hauteur }} />
 }
 

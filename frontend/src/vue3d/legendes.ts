@@ -55,7 +55,7 @@ export function legendes(res: Resultats, c: EtatCalquesScene, phase: number, ani
     out.push({ type: 'continue', id: 'deplacement', titre: signe ? 'Déplacement y (positif vers la fouille)' : 'Déplacement |y|', unite: 'mm', ...b,
       degrade: degradeCss(reglageCalque(c, 'resultats.deplacement', 'palette', signe ? 'signe' : 'divergente') as NomPalette), phase: fixe ? 'toutes phases' : nomPhase })
   } else {
-    for (const [id, quoi, titre, unite] of [['resultats.moment', 'M', 'Moment (positif : face fouille tendue)', 'kN·m/m'], ['resultats.tranchant', 'V', 'Effort tranchant', 'kN/m']] as const) {
+    for (const [id, quoi, titre, unite] of [['resultats.moment', 'M', 'Moment (positif : face fouille tendue)', 'kN·m/m'], ['resultats.tranchant', 'V', 'Effort tranchant V = dM/dz (M > 0 : face fouille tendue)', 'kN/m']] as const) {
       if (!vis(id) || modeCalque(c, id, quoi === 'M' ? 'couleur' : 'ailettes') !== 'couleur') continue
       const fixe = reglageCalque(c, id, 'echelle', 'fixe') === 'fixe'
       const b = bornes(res, quoi, fixe ? null : phase)
@@ -65,7 +65,8 @@ export function legendes(res: Resultats, c: EtatCalquesScene, phase: number, ani
   }
   for (const [id, quoi, titre, unite] of [['resultats.moment', 'M', 'Moment en ailettes', 'kN·m/m'], ['resultats.tranchant', 'V', 'Tranchant en ailettes', 'kN/m']] as const) {
     if (vis(id) && modeCalque(c, id, quoi === 'M' ? 'couleur' : 'ailettes') === 'ailettes')
-      out.push({ type: 'discrete', id: `${quoi}.ailettes`, titre: `${titre} (${unite})`, phase: nomPhase, classes: [{ couleur: '#c7362c', texte: 'positif' }, { couleur: '#2c5da8', texte: 'négatif' }] })
+      out.push({ type: 'discrete', id: `${quoi}.ailettes`, titre: `${titre} (${unite})`, phase: nomPhase,
+        classes: [{ couleur: '#c7362c', texte: quoi === 'M' ? 'M > 0 : face fouille tendue' : 'V > 0 (V = dM/dz)' }, { couleur: '#2c5da8', texte: quoi === 'M' ? 'M < 0 : face terre tendue' : 'V < 0' }] })
   }
   if (vis('resultats.pressions')) {
     out.push({ type: 'discrete', id: 'pressions', titre: 'Pressions (kPa)', phase: nomPhase, classes: [

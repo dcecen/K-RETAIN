@@ -35,7 +35,7 @@ export function PanneauCalques({ etat, perso, onEtat, onPerso, onFermer, disponi
       const r = importerJson(await f.text())
       onEtat(r.etat)
       if (r.prereglages.length) onPerso([...perso.filter((p) => !r.prereglages.some((q) => q.id === p.id)), ...r.prereglages])
-    } catch (e) { alert(String(e)) }
+    } catch (e) { alert(`Fichier de calques illisible : ${e instanceof Error ? e.message : String(e)}`) }
   }
 
   const reglage = (id: string, r: DefReglage, v: number | string | boolean | undefined) => {
