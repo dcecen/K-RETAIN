@@ -66,7 +66,8 @@ const capture = async (nom) => {
 /** Clic sur le premier élément (onglet, nœud de navigation ou bouton) dont le texte commence par `texte`. */
 const aller = async (texte, { attente = 1200, obligatoire = true } = {}) => {
   const ok = await evaluer(`(() => {
-    const b = [...document.querySelectorAll('.onglet, .noeud, button')].find((x) => x.textContent.trim().startsWith(${JSON.stringify(texte)}))
+    const lib = (x) => (x.querySelector('.libelle') ?? x).textContent.trim()
+    const b = [...document.querySelectorAll('.onglet, .noeud, button')].find((x) => lib(x).startsWith(${JSON.stringify(texte)}))
     if (b) { b.click(); return true } return false })()`)
   if (!ok) { console.log('vue introuvable :', texte); if (obligatoire) manquantes.push(texte) }
   await dormir(attente)

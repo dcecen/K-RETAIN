@@ -104,7 +104,6 @@ function Projet({ ctx }: { ctx: Ctx }) {
   const infos = projetBloc ? Object.entries(projetBloc).filter(([k, v]) => k !== 'nom' && (typeof v === 'string' || typeof v === 'number')) : []
   return (
     <div className="saisie">
-      <h2>Projet et options de calcul</h2>
       <p className="aide">Le script YAML est la référence du modèle : chaque champ modifié met à jour la ligne correspondante du script, et inversement.</p>
       <div className="bloc"><div className="bloc-titre">Projet</div>
         <div className="grille-form">
@@ -158,7 +157,6 @@ function Sol({ ctx, selection, res }: { ctx: Ctx; selection: Selection; res: Res
   }
   return (
     <div className="saisie">
-      <h2>Couches de sol</h2>
       <p className="aide">Couches du haut vers le bas, chacune définie par la cote de son toit ({unite}) ; la dernière se prolonge sous le pied de l'écran. Poussée et butée : {methodeK}. Coefficient de réaction : {methodeKh}. Avec Coulomb, δp/φ' est limité à 1/3. Les colonnes Ka, Kp, K0 et kh sont les valeurs utilisées par le dernier calcul.</p>
       <div className="bloc">
         <table className="tableau">
@@ -212,7 +210,6 @@ function Paroi({ ctx }: { ctx: Ctx }) {
   )
   return (
     <div className="saisie">
-      <h2>Paroi</h2>
       <p className="aide">La rigidité EI par mètre est calculée depuis la base matériaux, ou imposée directement. Les fiches discontinues (pieux disjoints, berlinoise) exigent une largeur de réaction sous le fond.</p>
       <div className="bloc"><div className="bloc-titre">Type et géométrie</div>
         <div className="grille-form">
@@ -262,7 +259,6 @@ function Eau({ ctx }: { ctx: Ctx }) {
   const [nouveau, setNouveau] = useState('')
   return (
     <div className="saisie">
-      <h2>Eau et terrain initial</h2>
       <p className="aide">Chaque jeu de niveaux (service, exceptionnel…) est calculé ; les vérifications retiennent le cas le plus défavorable. Un jeu dont le nom contient « except » ou « accid » est vérifié en combinaison accidentelle. Seul le régime hydrostatique est modélisé.</p>
       <div className="bloc"><div className="bloc-titre">Jeux de niveaux d'eau</div>
         <table className="tableau">
@@ -321,7 +317,6 @@ function Surcharges({ ctx }: { ctx: Ctx }) {
   const liste: Modele[] = Array.isArray(ctx.modele.surcharges) ? ctx.modele.surcharges : []
   return (
     <div className="saisie">
-      <h2>Surcharges</h2>
       <p className="aide">Uniforme, en bande (Boussinesq), linéique (Flamant), et en plan : rectangulaire, ponctuelle, linéaire (position, emprise, trace, profondeur, phase d'application : dans le script ou depuis la maquette 3D, outil « Ajouter une surcharge »). Les surcharges ajoutées ou retirées en cours de chantier se déclarent par <code>phase</code> / <code>phases</code> ou dans les phases.</p>
       <div className="bloc">
         <table className="tableau">
@@ -372,7 +367,6 @@ function Appuis({ ctx, selection, onSelection }: { ctx: Ctx; selection: Selectio
   const famille = a?.type === 'tirant' ? ['armatures', 'butons', 'profiles'] : ['butons', 'profiles']
   return (
     <div className="saisie">
-      <h2>Appuis</h2>
       <p className="aide">Butons, tirants, bracons et dalles. La raideur est calculée depuis l'élément de la base matériaux (ou E et A), sauf raideur imposée. La précharge est l'effort axial par appui, appliqué à la pose.</p>
       <div className="puces-choix" style={{ marginBottom: 12 }}>
         {noms.map((n) => <button key={n} className={`puce-choix ${n === actif ? 'actif' : ''}`} onClick={() => onSelection({ type: 'appui', nom: n })}>{n} <span style={{ opacity: 0.7 }}>· {appuis[n]?.type}</span></button>)}
@@ -463,7 +457,6 @@ function Phases({ ctx, selection, onSelection, phaseActive, onPhaseActive, res }
   }
   return (
     <div className="saisie">
-      <h2>Phases</h2>
       <p className="aide">Explorateur de phases : chaque phase repart de l'état de la précédente, ou de la phase indiquée par <span className="mono">depuis</span> (variante, comme une branche dans Plaxis). Insérez une phase après une autre, ou créez une variante à partir d'une phase ; cliquez une phase pour l'éditer et l'afficher dans les résultats.</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 1fr) minmax(300px, 1fr)', gap: 16, alignItems: 'start' }}>
         <ArbrePhases phases={phases} res={res} actif={phaseActive} selection={sel}
@@ -516,7 +509,6 @@ function Verifs({ ctx }: { ctx: Ctx }) {
   }
   return (
     <div className="saisie">
-      <h2>Vérifications à mener</h2>
       <p className="aide">Les coefficients partiels sont lus dans docs/normes/*.yaml. Tant qu'une valeur y manque, la vérification est « non vérifiable » et affiche la valeur caractéristique.</p>
       <div className="bloc">
         <table className="tableau">
@@ -542,11 +534,11 @@ export function Saisie(p: Ctx & { section: Section; selection: Selection; onSele
   switch (p.section) {
     case 'projet': return <Projet ctx={ctx} />
     case 'sol': return <Sol ctx={ctx} selection={p.selection} res={p.res} />
-    case 'paroi': return <Paroi ctx={ctx} />
+    case 'ecran': return <Paroi ctx={ctx} />
     case 'eau': return <Eau ctx={ctx} />
     case 'surcharges': return <Surcharges ctx={ctx} />
     case 'appuis': return <Appuis ctx={ctx} selection={p.selection} onSelection={p.onSelection} />
     case 'phases': return <Phases ctx={ctx} selection={p.selection} onSelection={p.onSelection} phaseActive={p.phaseActive} onPhaseActive={p.onPhaseActive} res={p.res} />
-    case 'verifications': return <Verifs ctx={ctx} />
+    case 'verifs_demandees': return <Verifs ctx={ctx} />
   }
 }

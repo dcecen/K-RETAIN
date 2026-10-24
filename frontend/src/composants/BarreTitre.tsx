@@ -1,9 +1,6 @@
 import type { Exemple } from '../lib/api'
 import type { EtatCalcul } from '../lib/etat'
-import {
-  IconeCalcul, IconeChevronB, IconeExport, IconeFichier, IconeLogo, IconeLune, IconeMenu, IconePanneauD,
-  IconePanneauG, IconeSoleil,
-} from '../lib/icones'
+import { IconeCalcul, IconeChevronB, IconeExport, IconeFichier, IconeLogo, IconeLune, IconeMenu, IconePanneauD, IconeSoleil } from '../lib/icones'
 import type { Theme } from '../lib/theme'
 import { Menu } from './Menu'
 
@@ -31,15 +28,14 @@ export function BarreTitre(p: {
   onOuvrir: (f: File) => void
   onEnregistrer: () => void
   onRido: (f: File) => void
-  onMateriaux: () => void
   onImage: () => void
   onNote: () => void
   onNoteFichier: () => void
   onMaquette: () => void
   onTheme: () => void
   onAllerErreur: () => void
-  onBasculeNav: () => void
-  onBasculeInsp: () => void
+  onTiroirNav: () => void
+  onTiroirInsp: () => void
 }) {
   const choisirFichier = (accept: string, action: (f: File) => void) => {
     const i = document.createElement('input')
@@ -50,7 +46,7 @@ export function BarreTitre(p: {
   }
   return (
     <header className="barre-titre zone-titre">
-      <button className="btn icone discret btn-tiroir nav" onClick={p.onBasculeNav} title="Navigation du modèle"><IconeMenu /></button>
+      <button className="btn icone discret btn-tiroir nav" onClick={p.onTiroirNav} title="Navigation"><IconeMenu /></button>
       <div className="logo"><IconeLogo taille={18} /> RetainWall</div>
       <div className="separateur-v masquer-etroit" />
       <Menu bouton={<><IconeFichier /> <span className="masquer-etroit">Fichier</span> <IconeChevronB taille={12} /></>} titre="Fichier">
@@ -79,8 +75,6 @@ export function BarreTitre(p: {
             <button onClick={() => { choisirFichier('.yaml,.yml,.txt', p.onOuvrir); fermer() }}>Ouvrir un script</button>
             <button onClick={() => { p.onEnregistrer(); fermer() }}>Enregistrer le script</button>
             <button onClick={() => { choisirFichier('*', p.onRido); fermer() }}>Importer un fichier RIDO</button>
-            <hr />
-            <button onClick={() => { p.onMateriaux(); fermer() }}>Base matériaux</button>
           </>
         )}
       </Menu>
@@ -91,7 +85,7 @@ export function BarreTitre(p: {
       <span className="espace" />
       <span className={`etat-calcul ${p.enCours ? 'calcul' : p.etat.genre === 'rupture' ? 'erreur' : p.etat.genre}`}
         onClick={p.etat.genre === 'erreur' ? p.onAllerErreur : undefined}
-        title={p.etat.genre === 'erreur' ? 'Aller à l’erreur dans le script' : undefined}>
+        title={p.etat.genre === 'erreur' ? 'Aller à l’erreur dans le script' : p.etat.texte}>
         {p.enCours ? 'Calcul en cours' : p.etat.texte}
       </span>
       <span className="espace" />
@@ -101,10 +95,10 @@ export function BarreTitre(p: {
       <Menu droite bouton={<><IconeExport /> <span className="masquer-etroit">Exporter</span></>} titre="Exporter">
         {(fermer) => (
           <>
-            <button disabled={!p.imagePossible} onClick={() => { p.onImage(); fermer() }}>Image PNG de la vue active</button>
             <button disabled={!p.resultatsDisponibles} onClick={() => { p.onNote(); fermer() }}>Note de calcul : imprimer ou enregistrer en PDF</button>
             <button disabled={!p.resultatsDisponibles} onClick={() => { p.onNoteFichier(); fermer() }}>Note de calcul : fichier HTML</button>
-            <button disabled={!p.resultatsDisponibles} onClick={() => { p.onMaquette(); fermer() }}>Maquette 3D (fichier HTML autonome)</button>
+            <button disabled={!p.imagePossible} onClick={() => { p.onImage(); fermer() }}>Image PNG de la vue affichée</button>
+            <button disabled={!p.resultatsDisponibles} onClick={() => { p.onMaquette(); fermer() }}>Maquette 3D : fichier HTML autonome</button>
             <hr />
             <button onClick={() => { p.onEnregistrer(); fermer() }}>Script de calcul (.yaml)</button>
           </>
@@ -113,8 +107,7 @@ export function BarreTitre(p: {
       <button className="btn icone" onClick={p.onTheme} title={p.theme === 'sombre' ? 'Thème clair' : 'Thème sombre'}>
         {p.theme === 'sombre' ? <IconeSoleil /> : <IconeLune />}
       </button>
-      <button className="btn icone discret masquer-etroit" onClick={p.onBasculeNav} title="Afficher ou masquer la navigation"><IconePanneauG /></button>
-      <button className="btn icone discret" onClick={p.onBasculeInsp} title="Afficher ou masquer l'inspecteur"><IconePanneauD /></button>
+      <button className="btn icone discret btn-tiroir insp" onClick={p.onTiroirInsp} title="Phase et résultats"><IconePanneauD /></button>
     </header>
   )
 }
