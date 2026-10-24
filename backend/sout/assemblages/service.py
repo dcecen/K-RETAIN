@@ -56,6 +56,11 @@ def completer(t: TypeAssemblage, params: dict) -> dict:
     out = {}
     for p in PARAMS_COMMUNS + t.parametres:
         v = params.get(p.cle, p.defaut)
+        if p.genre in ("nombre", "entier") and isinstance(v, str) and v.strip() != "":
+            try:
+                v = float(v.strip().replace(",", "."))
+            except ValueError:
+                raise ValueError(f"paramètre « {p.cle} » ({p.libelle}) : nombre attendu, reçu « {v} »") from None
         if p.genre in ("nombre", "entier", "choix") and v not in ("", None) and not isinstance(v, str):
             v = float(v)
             if p.genre == "entier":

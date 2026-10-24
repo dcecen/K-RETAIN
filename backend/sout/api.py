@@ -9,7 +9,11 @@ import time
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, UploadFile
+import logging
+
+from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from sout import __version__, normes
@@ -23,6 +27,25 @@ RACINE = Path(__file__).resolve().parents[2]
 EXEMPLES = RACINE / "exemples"
 
 app = FastAPI(title="RetainWall", version=__version__)
+_journal = logging.getLogger("retainwall")
+
+
+@app.exception_handler(Exception)
+async def _erreur_interne(request: Request, exc: Exception):
+    """Toute exception non prévue : message en français lisible par l'interface (au lieu du
+    « Internal Server Error » anonyme), détail complet dans le journal du serveur."""
+    _journal.exception("erreur interne sur %s", request.url.path)
+    message = (f"Erreur interne du serveur de calcul ({type(exc).__name__}) : {exc} — "
+               "signalez ce message avec le script qui l'a provoqué.")
+    return JSONResponse(status_code=500, content={"ok": False, "erreurs": [{"ligne": None, "chemin": "", "message": message}]})
+
+
+@app.exception_handler(RequestValidationError)
+async def _requete_invalide(request: Request, exc: RequestValidationError):
+    """Requête mal formée (champ manquant, mauvais type) : message en français."""
+    details = "; ".join(f"{'.'.join(str(x) for x in e['loc'] if x != 'body')} : {e['msg']}" for e in exc.errors())
+    return JSONResponse(status_code=422, content={"ok": False, "erreurs": [
+        {"ligne": None, "chemin": "", "message": f"Requête invalide : {details}"}]})
 
 
 @app.middleware("http")
@@ -256,12 +279,17 @@ def materiaux() -> dict:
     from sout.materiaux.base import TABLES
 
     cat = _catalogue()
+    if cat is None:
+        raise HTTPException(503, "base matériaux indisponible sur ce serveur")
     return {t: cat.lister(t) for t in TABLES}
 
 
 @app.get("/api/materiaux/references")
 def references() -> dict:
-    return _catalogue().references()
+    cat = _catalogue()
+    if cat is None:
+        raise HTTPException(503, "base matériaux indisponible sur ce serveur")
+    return cat.references()
 
 
 @app.post("/api/materiaux/import")
@@ -341,8 +369,8 @@ def assemblage_schema(d: DemandeAssemblage) -> dict:
 
     try:
         return schema_assemblage(d.type, d.parametres, d.efforts, _catalogue(), normes.charger(), d.fck)
-    except KeyError as e:
-        raise HTTPException(400, str(e)) from None
+    except (KeyError, ValueError) as e:
+        raise HTTPException(400, str(e).strip("'")) from None
 
 
 @app.post("/api/assemblages/verifier")
@@ -351,8 +379,8 @@ def assemblage_verifier(d: DemandeAssemblage) -> list[dict]:
 
     try:
         return [v.vers_dict() for v in verifier_assemblage(d.type, d.parametres, d.efforts, _catalogue(), normes.charger(), d.fck)]
-    except KeyError as e:
-        raise HTTPException(400, str(e)) from None
+    except (KeyError, ValueError) as e:
+        raise HTTPException(400, str(e).strip("'")) from None
 
 
 # Interface compilée — à garder en DERNIER : un montage sur « / » masque les routes déclarées après lui.

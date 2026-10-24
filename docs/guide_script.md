@@ -459,7 +459,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- | --- |
-| `contour` | liste de liste de nombre | oui |  | polygone de la fouille [[x, y], ...] (m) |
+| `contour` | liste de liste de nombre | oui |  | polygone de la fouille [[x, y], ...] (m) ; le polygone est fermé automatiquement (un dernier point égal au premier est ignoré) |
 | `appuis` | liste de bloc |  |  | positions des appuis en plan |
 | `cote_terrain` | nombre |  |  | cote du terrain autour de la fouille (m) |
 | `cotes` | blocs nommés de entier |  |  | noms des côtés de la fouille → numéro d'arête du contour (0 = premier segment) |

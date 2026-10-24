@@ -164,7 +164,7 @@ class MoteurPhases:
                         "à 1/3 au plus ou utilisez coefficients: kerisel_absi avec les tables fournies.")
         try:
             props = [_coefficients_couche(c, modele.coefficients) for c in self.couches]
-        except ValueError as e:
+        except (ValueError, kerisel_absi.TableAbsente) as e:
             raise ErreurModele(str(e)) from None
         idx = np.array([indice_couche(self.couches, zm) for zm in self.d_zm])
         tab = np.array(props)[idx]

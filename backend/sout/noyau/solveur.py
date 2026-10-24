@@ -196,6 +196,7 @@ def resoudre_general(
     st = statuts(u)
     it = 0
     pas_negligeable = False
+    tol_it = tol
     for it in range(1, max_iter + 1):
         # Tolérance : forces en jeu + bruit d'arrondi du produit K·u, estimé par max|K_ii·u_i|
         # (pour un degré de liberté pénalisé — bord, angle du pseudo-3D — c'est la réaction
@@ -226,7 +227,9 @@ def resoudre_general(
                            and np.abs(du).max() <= 1e-10 * max(float(np.abs(u).max()), 1e-6))
         st = st_new
     else:
-        if nR >= tol and not pas_negligeable:
+        # même tolérance que dans la boucle (tol + bruit d'arrondi) : un résidu accepté en cours
+        # d'itération ne doit pas être refusé à la sortie
+        if nR >= tol_it and not pas_negligeable:
             raise RuptureEquilibre(f"non-convergence après {max_iter} itérations (résidu {nR:.3e} kN)")
     return u, it, float(nR)
 

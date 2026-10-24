@@ -84,14 +84,24 @@ def resultat(nom: str, element: str, phase: str | None, taux: float | None, deta
     return Verif(nom, categorie, element, phase, etat_de(taux), float(taux), detail, sources, [], list(reperes or []))
 
 
+# Score de défaveur d'un résultat sans taux : un « non_ok » sans taux (section insuffisante, instabilité)
+# passe devant tout taux chiffré ; un « non vérifiable » passe derrière tout résultat chiffré.
+_RANG_SANS_TAUX = {"non_ok": float("inf"), "attention": 1.0, "ok": 0.0, "non_verifiable": -1.0}
+
+
+def score_defaveur(v: Verif) -> float:
+    """Plus grand = plus défavorable (taux de travail, ou rang de l'état si le taux manque)."""
+    if v.taux is not None:
+        return float(v.taux)
+    return _RANG_SANS_TAUX.get(v.etat, -1.0)
+
+
 def pire(verifs: list[Verif]) -> list[Verif]:
     """Garde, pour chaque (nom, élément), le résultat le plus défavorable."""
-    rang = {"non_verifiable": -1}
     meilleur: dict[tuple, Verif] = {}
     for v in verifs:
         cle = (v.nom, v.element)
         cur = meilleur.get(cle)
-        score = v.taux if v.taux is not None else rang[v.etat]
-        if cur is None or score > (cur.taux if cur.taux is not None else rang[cur.etat]):
+        if cur is None or score_defaveur(v) > score_defaveur(cur):
             meilleur[cle] = v
     return list(meilleur.values())

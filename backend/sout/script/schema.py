@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
 
 
 class _Base(BaseModel):
@@ -274,7 +274,22 @@ class AppuiPlan(_Base):
 
 
 class Plan(_Base):
-    contour: list[list[float]] = Field(description="polygone de la fouille [[x, y], ...] (m)")
+    contour: list[list[float]] = Field(description="polygone de la fouille [[x, y], ...] (m) ; le polygone est fermé "
+                                       "automatiquement (un dernier point égal au premier est ignoré)")
+
+    @field_validator("contour")
+    @classmethod
+    def _contour_sans_doublon(cls, v: list[list[float]]) -> list[list[float]]:
+        """Retire le point de fermeture répété ; refuse deux sommets consécutifs confondus (segment de
+        longueur nulle, qui rendrait le maillage du pseudo-3D singulier)."""
+        import math
+        pts = [list(p) for p in v]
+        if len(pts) >= 2 and all(len(p) == 2 for p in pts) and math.dist(pts[0], pts[-1]) < 1e-9:
+            pts = pts[:-1]
+        for i in range(1, len(pts)):
+            if len(pts[i]) == 2 and len(pts[i - 1]) == 2 and math.dist(pts[i], pts[i - 1]) < 1e-9:
+                raise ValueError(f"deux sommets consécutifs confondus ({pts[i - 1]}) : segment de longueur nulle")
+        return pts
     appuis: list[AppuiPlan] = Field(default_factory=list, description="positions des appuis en plan")
     cote_terrain: float | None = Field(None, description="cote du terrain autour de la fouille (m)")
     cotes: dict[str, int] = Field(default_factory=dict, description="noms des côtés de la fouille → numéro d'arête du contour (0 = premier segment)")
