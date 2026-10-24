@@ -3,7 +3,7 @@
 - `Hydrostatique` : nappes amont et aval indépendantes, u = γw·(z_nappe − z)
   (régime existant, conservé pour la non-régression) ;
 - `Simplifie` : perte de charge Δh = h_amont − h_aval répartie uniformément le long
-  du cheminement amont → pied → fouille (Bligh ; longueur pondérée de Lane pour les
+  du cheminement amont -> pied -> fouille (Bligh ; longueur pondérée de Lane pour les
   parcours horizontaux d'un bouchon) ; pressions sur l'écran en conséquence ;
 - `DifferencesFinies` : écoulement 2D sur la coupe (sout.hydraulique.grille),
   couches anisotropes (k_h, k_v), écran imperméable, substratum, bouchon.

@@ -13,7 +13,7 @@ export function demanderNombre(message: string, defaut: number | string): number
   return n
 }
 
-/** Texte → nombre (virgule acceptée) ; null si vide ou non numérique. */
+/** Texte -> nombre (virgule acceptée) ; null si vide ou non numérique. */
 export function lireNombre(texte: string): number | null {
   const t = texte.trim().replace(/\s/g, '').replace(',', '.')
   if (t === '') return null

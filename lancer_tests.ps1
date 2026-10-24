@@ -35,5 +35,5 @@ if ($echecs.Count -gt 0) {
     Write-Host "Étapes en échec : $($echecs -join ' ; ')" -ForegroundColor Red
     exit 1
 }
-Write-Host "Tout est vert." -ForegroundColor Green
+Write-Host "Toutes les étapes ont réussi." -ForegroundColor Green
 exit 0

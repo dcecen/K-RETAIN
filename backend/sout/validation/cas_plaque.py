@@ -107,7 +107,7 @@ def plaque_isotropie_du_grillage() -> Cas:
     ref = float(np.abs(r1["W"]).max())
     cas.grandeurs = [
         Grandeur("écart max de w après rotation", 0.0, float(np.abs(r2["W"] - r1["W"].T).max()), 1e-8, "symétrie du grillage", "m", echelle=ref),
-        Grandeur("écart max Mz ↔ Ms après rotation", 0.0, float(np.abs(r2["Ms"] - r1["Mz"].T).max()), 1e-8, "symétrie du grillage", "kN·m/m",
+        Grandeur("écart max Mz <-> Ms après rotation", 0.0, float(np.abs(r2["Ms"] - r1["Mz"].T).max()), 1e-8, "symétrie du grillage", "kN·m/m",
                  echelle=float(np.abs(r1["Mz"]).max())),
     ]
     return cas

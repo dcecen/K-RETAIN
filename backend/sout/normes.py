@@ -17,7 +17,7 @@ DOSSIER = Path(__file__).resolve().parents[2] / "docs" / "normes"
 class ValeurNormeManquante(Exception):
     def __init__(self, fichier: str, cle: str, raison: str = "valeur manquante"):
         self.fichier, self.cle = fichier, cle
-        super().__init__(f"TODO-NORME : {raison} {fichier}.yaml → {cle}")
+        super().__init__(f"TODO-NORME : {raison} {fichier}.yaml -> {cle}")
 
     @property
     def reference(self) -> str:

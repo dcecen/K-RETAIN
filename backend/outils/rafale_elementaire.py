@@ -77,7 +77,7 @@ def _ecart(g) -> str:
 
 
 def _verdict(ok: bool) -> str:
-    return "✅ conforme" if ok else "❌ écart"
+    return "conforme" if ok else "ECART"
 
 
 def tableau_md(cas: Cas) -> str:

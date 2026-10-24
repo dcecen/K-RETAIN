@@ -359,7 +359,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `k_h` | nombre |  |  | perméabilité horizontale (m/s), nécessaire au calcul d'écoulement (> 0) |
 | `k_v` | nombre |  |  | perméabilité verticale (m/s) ; défaut : k_h (> 0) |
 | `cu` | nombre |  |  | cohésion non drainée (kPa), stabilité du fond en argile molle (> 0) |
-| `sol_lane` | texte |  |  | type de sol de la table de Lane (clé de docs/normes/hydraulique.yaml → lane.C) |
+| `sol_lane` | texte |  |  | type de sol de la table de Lane (clé de docs/normes/hydraulique.yaml -> lane.C) |
 
 ### terrain
 
@@ -466,7 +466,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `contour` | liste de liste de nombre | oui |  | polygone de la fouille [[x, y], ...] (m) ; le polygone est fermé automatiquement (un dernier point égal au premier est ignoré) |
 | `appuis` | liste de bloc |  |  | positions des appuis en plan |
 | `cote_terrain` | nombre |  |  | cote du terrain autour de la fouille (m) |
-| `cotes` | blocs nommés de entier |  |  | noms des côtés de la fouille → numéro d'arête du contour (0 = premier segment) |
+| `cotes` | blocs nommés de entier |  |  | noms des côtés de la fouille -> numéro d'arête du contour (0 = premier segment) |
 
 ### pseudo3d
 

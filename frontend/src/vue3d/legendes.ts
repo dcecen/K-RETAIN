@@ -1,4 +1,4 @@
-// Légendes des calques de résultats actifs (fonctions pures : description → rendu par Legendes.tsx).
+// Légendes des calques de résultats actifs (fonctions pures : description -> rendu par Legendes.tsx).
 import type { Resultats } from '../lib/api'
 import { nb } from '../lib/format'
 import { reglageCalque, type EtatCalquesScene } from './scene'

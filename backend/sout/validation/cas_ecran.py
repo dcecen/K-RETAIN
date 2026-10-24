@@ -52,7 +52,7 @@ def h_critique_autostable_equilibre_limite(D: float, ka: float, kp: float, gamma
 def h_critique_ancre_butee_simple(D: float, ka: float, kp: float, gamma: float) -> tuple[float, float]:
     """Écran rigide ancré en tête, méthode de la butée simple (free earth support) : rotation autour
     de l'ancrage, poussée limite sur toute la hauteur derrière, butée limite sous le fond devant ;
-    équilibre des moments autour de l'ancrage ⇒ hauteur d'excavation critique h, puis effort
+    équilibre des moments autour de l'ancrage => hauteur d'excavation critique h, puis effort
     d'ancrage T = Pa − Pp (Costet & Sanglerat ; Craig, Soil Mechanics, chapitre des écrans ancrés)."""
     Ma = ka * gamma * D ** 3 / 3                         # moment de la poussée autour de la tête
 

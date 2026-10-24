@@ -11,7 +11,7 @@ export const PALETTES: Record<NomPalette, number[][]> = {
 }
 
 export const NOMS_PALETTES: Record<NomPalette, string> = {
-  divergente: 'Bleu → rouge',
+  divergente: 'Bleu vers rouge',
   sequentielle: 'Séquentielle (viridis)',
   signe: 'Signée (bleu −, rouge +)',
 }

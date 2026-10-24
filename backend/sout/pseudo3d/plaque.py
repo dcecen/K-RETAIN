@@ -31,7 +31,7 @@ __all__ = ["largeurs_tributaires", "assembler", "moments", "torsion", "forces_tr
 
 def largeurs_tributaires(x: np.ndarray, fermeture: float | None = None) -> np.ndarray:
     """Largeur tributaire de chaque nœud ; `fermeture` : longueur de l'élément qui referme la
-    boucle (dernier nœud → premier nœud) pour une fouille fermée."""
+    boucle (dernier nœud -> premier nœud) pour une fouille fermée."""
     t = np.zeros(len(x))
     t[1:] += 0.5 * np.diff(x)
     t[:-1] += 0.5 * np.diff(x)
@@ -99,7 +99,7 @@ def assembler(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.nda
     kt = np.array([[1.0, -1.0], [-1.0, 1.0]])
     l1, c1, v1 = _entrees(ddl_v, _blocs_flexion(EIv, Lv))
     l2, c2, v2 = _entrees(ddl_tv, (GJv / Lv)[:, None, None] * kt[None])
-    # --- poutres horizontales : élément (i, j) entre les nœuds i·nz+j et (i+1)·nz+j (et le dernier → le premier
+    # --- poutres horizontales : élément (i, j) entre les nœuds i·nz+j et (i+1)·nz+j (et le dernier -> le premier
     # si la boucle est fermée)
     nh = ns if fermeture is not None else ns - 1
     a = (np.arange(nh)[:, None] * nz + np.arange(nz)[None, :]).ravel()

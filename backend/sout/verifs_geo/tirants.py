@@ -2,7 +2,7 @@
 
 R = π · Ds · Ls · qs (frottement latéral limite qs le long du scellement, donné
 dans le script à partir des essais ou de l'abaque retenu par l'ingénieur).
-Critère : gamma_effet · T ≤ R / gamma_a (docs/normes/nf_p94_282.yaml → tirants).
+Critère : gamma_effet · T ≤ R / gamma_a (docs/normes/nf_p94_282.yaml -> tirants).
 """
 from __future__ import annotations
 

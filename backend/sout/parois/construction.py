@@ -3,7 +3,7 @@
 Rigidité par mètre linéaire (mécanique des poutres, sans valeur normative) :
 - palplanches : EI = E·I (I par mètre de rideau, catalogue) ; profils en U :
   EI multiplié par β_D (EN 1993-5, valeur à fournir : script `beta_D` ou
-  docs/normes/ec3.yaml → palplanches.beta_D) ;
+  docs/normes/ec3.yaml -> palplanches.beta_D) ;
 - paroi moulée : EI = Ecm·e³/12, multiplié par le rapport EI fissuré / non
   fissuré choisi par l'ingénieur ;
 - pieux : EI d'un pieu = Ecm·πD⁴/64 (× rapport fissuré) + Es·I du profilé
@@ -77,7 +77,7 @@ def _largeur_reaction(p, b_physique: float, normes) -> float:
             pass
     raise ErreurParoi(
         "TODO-NORME : fiche discontinue — largeur de réaction sous le fond de fouille inconnue. "
-        "Donnez paroi.largeur_reaction_fiche (m) ou docs/normes/nf_p94_282.yaml → fiche_discontinue.rapport_largeur."
+        "Donnez paroi.largeur_reaction_fiche (m) ou docs/normes/nf_p94_282.yaml -> fiche_discontinue.rapport_largeur."
     )
 
 
@@ -105,7 +105,7 @@ def construire_ecran(p, catalogue=None, normes=None) -> Ecran:
             if beta_D is None:
                 raise ErreurParoi(
                     f"TODO-NORME : palplanche en U {p.profil} — coefficient β_D (EN 1993-5) manquant : "
-                    "paroi.beta_D ou docs/normes/ec3.yaml → palplanches.beta_D")
+                    "paroi.beta_D ou docs/normes/ec3.yaml -> palplanches.beta_D")
             EI *= beta_D
         infos.update(section=pal, acier=acier, beta_D=beta_D, demo=bool(pal.get("demo") or acier.get("demo")))
     elif p.type == "paroi_moulee" and p.EI is None:

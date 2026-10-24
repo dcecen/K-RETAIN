@@ -13,7 +13,7 @@ Hypothèses : pressions interstitielles hydrostatiques (nappe amont pour x < 0,
 nappe aval pour x > 0) ; tirants et écran négligés (du côté de la sécurité) ;
 surcharges amont (répartie, bande) comptées en poids sur les tranches.
 Paramètres de calcul : tan φ'/gamma_phi, c'/gamma_c, surcharges × gamma_Q ;
-critère F ≥ gamma_R_d (docs/normes/nf_p94_282.yaml → stabilite_generale).
+critère F ≥ gamma_R_d (docs/normes/nf_p94_282.yaml -> stabilite_generale).
 """
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ class Profil:
 
 
 def _colonne(p: Profil, x: float, z_bas: float, z_haut: float, n: int = 12) -> float:
-    """Poids d'une colonne de sol de largeur unité (kPa·m → kN/m²), totaux sous la nappe."""
+    """Poids d'une colonne de sol de largeur unité (kPa·m -> kN/m²), totaux sous la nappe."""
     if z_haut <= z_bas:
         return 0.0
     hw = p.nappe(x)

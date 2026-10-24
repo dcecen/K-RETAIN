@@ -8,7 +8,7 @@ extraits de norme fournis lors de la relecture croisée) :
 - liernes : poutre continue sur deux travées (cas défavorable des poutres continues
   courantes), M = q·e²/8, V = 0,625·q·e ; flexion bi-axiale linéaire ; sections de classe 1 ou 2 ;
 - sections de classe 4 (tubes, âmes ou ailes élancées) : refusées, la section efficace
-  n'étant pas implémentée (limites lues dans docs/normes/ec3.yaml → classification) ;
+  n'étant pas implémentée (limites lues dans docs/normes/ec3.yaml -> classification) ;
 - palplanches : propriétés réduites par la corrosion au prorata de l'épaisseur
   ((t − perte)/t) ; une âme par largeur de palplanche pour le cisaillement ;
 - paroi moulée : flexion simple (effort normal négligé, du côté de la sécurité en flexion composée).
@@ -75,7 +75,7 @@ def classe_compression(sec: dict, lect: Lecteur) -> str | None:
     """Contrôle de classe 4 d'une section comprimée (EN 1993-1-1 tableau 5.2).
 
     Les limites d'élancement (coefficients de ε² pour les tubes, de ε pour les parois
-    planes) sont lues dans docs/normes/ec3.yaml → classification ; ε² = 235/fy.
+    planes) sont lues dans docs/normes/ec3.yaml -> classification ; ε² = 235/fy.
     Renvoie un message si la section est de classe 4 (section efficace non
     implémentée), None sinon."""
     eps2 = 235.0 / sec["fy"]

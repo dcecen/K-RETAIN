@@ -100,7 +100,7 @@ class Couche(_Base):
     k_h: float | None = Field(None, gt=0, description="perméabilité horizontale (m/s), nécessaire au calcul d'écoulement")
     k_v: float | None = Field(None, gt=0, description="perméabilité verticale (m/s) ; défaut : k_h")
     cu: float | None = Field(None, gt=0, description="cohésion non drainée (kPa), stabilité du fond en argile molle")
-    sol_lane: str | None = Field(None, description="type de sol de la table de Lane (clé de docs/normes/hydraulique.yaml → lane.C)")
+    sol_lane: str | None = Field(None, description="type de sol de la table de Lane (clé de docs/normes/hydraulique.yaml -> lane.C)")
 
 
 class BouchonScript(_Base):
@@ -293,7 +293,7 @@ class Plan(_Base):
         return pts
     appuis: list[AppuiPlan] = Field(default_factory=list, description="positions des appuis en plan")
     cote_terrain: float | None = Field(None, description="cote du terrain autour de la fouille (m)")
-    cotes: dict[str, int] = Field(default_factory=dict, description="noms des côtés de la fouille → numéro d'arête du contour (0 = premier segment)")
+    cotes: dict[str, int] = Field(default_factory=dict, description="noms des côtés de la fouille -> numéro d'arête du contour (0 = premier segment)")
 
 
 class TraceCoupe(_Base):

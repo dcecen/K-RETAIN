@@ -105,7 +105,7 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
             ajouts_par_phase.setdefault(debut, []).append(obj)
         if fin is not None and fin + 1 <= len(s.phases):
             retraits_par_phase.setdefault(fin + 1, []).append(obj.nom)
-    # objets de terrain (risbermes, talus, gradins côté fouille ; profil côté terre) → bandes équivalentes phasées
+    # objets de terrain (risbermes, talus, gradins côté fouille ; profil côté terre) -> bandes équivalentes phasées
     objets: list[ObjetTerrain] = []
     terrassements: dict[str, int] = {}
     for k_ph, ph in enumerate(s.phases, start=1):

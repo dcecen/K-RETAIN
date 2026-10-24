@@ -14,7 +14,7 @@ point B), la droite de rupture BA, et un écran fictif vertical passant par A
   du côté de la sécurité ; φ' le plus faible des couches traversées), effort d'ancrage
   T selon l'axe du tirant.
 - T_max résout l'équilibre des forces (2 équations, inconnues T_max et R).
-Critère : gamma_effet · T ≤ T_max / gamma_R (docs/normes/nf_p94_282.yaml → kranz).
+Critère : gamma_effet · T ≤ T_max / gamma_R (docs/normes/nf_p94_282.yaml -> kranz).
 Hypothèses : contraintes effectives (γ' sous la nappe amont, pas de poussée d'eau
 sur les limites du massif), surcharges en bande non prises en compte sur P1,
 surcharges réparties initiales seules (comptées dans le poids du massif), chaque

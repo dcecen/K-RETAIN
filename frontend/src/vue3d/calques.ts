@@ -408,7 +408,7 @@ export interface DefReglage {
 }
 
 const CHOIX_ECHELLE = [{ id: 'fixe', nom: 'fixe (toutes phases)' }, { id: 'phase', nom: 'par phase' }]
-const CHOIX_PALETTE = [{ id: 'divergente', nom: 'bleu → rouge' }, { id: 'sequentielle', nom: 'viridis' }, { id: 'signe', nom: 'signée' }]
+const CHOIX_PALETTE = [{ id: 'divergente', nom: 'bleu vers rouge' }, { id: 'sequentielle', nom: 'viridis' }, { id: 'signe', nom: 'signée' }]
 
 export const REGLAGES: Record<string, DefReglage[]> = {
   'resultats.deformee': [

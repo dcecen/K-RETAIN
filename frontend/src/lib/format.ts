@@ -36,7 +36,7 @@ export function interp(xs: number[], ys: number[], x: number): number | null {
 
 
 /** Nom du projet affiché : la clé `projet` doit être un texte ; pendant la frappe (ou si elle est écrite
- *  comme un bloc), on n'affiche jamais « [object Object] » : bloc avec `nom` → ce nom, sinon vide
+ *  comme un bloc), on n'affiche jamais « [object Object] » : bloc avec `nom` -> ce nom, sinon vide
  *  (la validation du script signale l'erreur). */
 export function nomProjet(v: unknown): string {
   if (typeof v === 'string') return v

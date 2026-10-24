@@ -6,7 +6,7 @@
 //   long de la verticale à l'abscisse s), le tranchant est lu dans le champ (statique de chaque
 //   ligne verticale) ou, à défaut, dérivé numériquement du moment ; les pressions et l'eau
 //   viennent du calcul 2D d'accompagnement.
-// Le pseudo-3D s'y branche par `sourceChamp` : toute fonction (s → courbes) convient, ce qui permet
+// Le pseudo-3D s'y branche par `sourceChamp` : toute fonction (s -> courbes) convient, ce qui permet
 // de tester l'extraction avec un champ analytique.
 import type { AppuiPhase, PhaseRes, ProjetCoupes, Resultats } from '../lib/api'
 import { indiceCoupePour, phaseCorrespondante, resultatsCoupe } from './coupes'

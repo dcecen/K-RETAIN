@@ -229,7 +229,7 @@ class MoteurPseudo3D:
                 for j in range(nz):
                     k = i * nz + j
                     diag[3 * k] = self.pen          # w = 0
-                    diag[3 * k + 1] = self.pen      # θz = 0 : w nul tout le long du bord ⇒ pente tangente nulle
+                    diag[3 * k + 1] = self.pen      # θz = 0 : w nul tout le long du bord => pente tangente nulle
                     if bords == "encastres":
                         diag[3 * k + 2] = self.pen  # θs = 0 : rotation normale au bord bloquée
         self.i_angle = None

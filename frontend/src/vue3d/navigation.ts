@@ -9,7 +9,7 @@ export interface SelectionAnalysee { type: TypeSelection; nom: string; k?: numbe
 
 const TYPES: TypeSelection[] = ['paroi', 'appui', 'lierne', 'assemblage', 'coupe', 'coupe_locale', 'fond', 'bouchon', 'couche', 'surcharge', 'terrain']
 
-/** « appui:B1 » → { type: 'appui', nom: 'B1' } ; « paroi:2 » → { type: 'paroi', k: 2 } ; null si inconnu. */
+/** « appui:B1 » -> { type: 'appui', nom: 'B1' } ; « paroi:2 » -> { type: 'paroi', k: 2 } ; null si inconnu. */
 export function analyserSelection(id: string | null | undefined): SelectionAnalysee | null {
   if (!id) return null
   const [type, ...reste] = id.split(':')

@@ -210,7 +210,7 @@ export default function App() {
     renommerAppui: (a: string, n: string) => setTexteBrut((t) => sd.renommerAppui(t, a, n)),
   }), [])
 
-  /** Sélection depuis la maquette : « appui:B1 » → inspecteur de l'appui, « couche:1 » → couche. */
+  /** Sélection depuis la maquette : « appui:B1 » -> inspecteur de l'appui, « couche:1 » -> couche. */
   const selectionner3d = useCallback((id: string | null) => {
     setSelection3d(id)
     if (id?.startsWith('appui:')) setSelection({ type: 'appui', nom: id.slice(6) })

@@ -277,7 +277,7 @@ PREFIXE_TERRAIN = "~terrain:"
 
 @dataclass(frozen=True)
 class ObjetTerrain:
-    """Volume de sol décrit par une ligne (distance à la paroi → cote), sur une face de l'écran,
+    """Volume de sol décrit par une ligne (distance à la paroi -> cote), sur une face de l'écran,
     présent entre deux phases. Côté fouille : risberme, talus, gradins (volume au-dessus de `base`,
     la cote du fond général). Côté terre : terrain en pente ou remblai localisé (volume au-dessus de
     la cote du terrain amont)."""

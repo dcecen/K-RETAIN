@@ -2,7 +2,7 @@
 
 Bm = butée mobilisée : intégrale des pressions côté aval sous le fond de fouille.
 Bt = butée limite : intégrale des pressions passives limites sur la même hauteur.
-Critère (forme des coefficients : docs/normes/nf_p94_282.yaml → butee) :
+Critère (forme des coefficients : docs/normes/nf_p94_282.yaml -> butee) :
     gamma_effet · Bm ≤ Bt / (gamma_R_e · gamma_R_d)
 Taux = gamma_effet · gamma_R_e · gamma_R_d · Bm / Bt.
 """

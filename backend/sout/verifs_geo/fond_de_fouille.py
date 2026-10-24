@@ -13,7 +13,7 @@ calcul d'écoulement (réseau de Terzaghi ou éléments finis) pour un projet.
 - Boulance (HYD, EN 1997-1 § 2.4.7.5) sur la colonne aval :
   gamma_dst · Δu ≤ gamma_stb · σ'v, Δu = γw · Δh_aval (surpression au pied).
 - Renard : gradient de sortie moyen i = Δh_aval / (fond − pied) ≤ gradient admissible.
-Coefficients : docs/normes/nf_p94_282.yaml → fond_de_fouille.
+Coefficients : docs/normes/nf_p94_282.yaml -> fond_de_fouille.
 """
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def verifier(modele: Modele, res: ResultatCalcul, normes) -> list[Verif]:
     gs = lect.v("nf_p94_282", "fond_de_fouille.soulevement.gamma_stb")
     ph, c = max(cas, key=lambda t: t[1]["u_pied_amont"] / max(t[1]["sigma_v_total"], 1e-9))
     rk = c["u_pied_amont"] / max(c["sigma_v_total"], 1e-9)
-    detail = (f"u au pied (charge amont) = {c['u_pied_amont']:.0f} kPa, σv total fond→pied = "
+    detail = (f"u au pied (charge amont) = {c['u_pied_amont']:.0f} kPa, σv total fond->pied = "
               f"{c['sigma_v_total']:.0f} kPa, rapport caractéristique {rk:.2f}")
     sorties.append(resultat("Fond de fouille — soulèvement (UPL)", "fond de fouille", ph.nom,
                             None if lect.manquants else gd * c["u_pied_amont"] / (gs * c["sigma_v_total"]),

@@ -8,7 +8,7 @@ import { COULEURS_SOL, lambert } from './elements'
 import { hacher, versThree, type Arete, type Contour, type Point2 } from './geometrie'
 import type { Contexte, Element, Spec } from './scene'
 
-/** Ligne (d → z) d'un objet, prolongée jusqu'à la base aux deux bouts, en polygone fermé (d, z). */
+/** Ligne (d -> z) d'un objet, prolongée jusqu'à la base aux deux bouts, en polygone fermé (d, z). */
 export function polygoneObjet(profil: number[][], base: number): Point2[] {
   const pts = profil.map(([d, z]) => [d, Math.max(z, base)] as Point2)
   const d0 = pts[0][0]

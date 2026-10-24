@@ -234,7 +234,7 @@ function Paroi({ ctx }: { ctx: Ctx }) {
           {t?.startsWith('pieux') && ref('profil_armature', "Profilé d'armature", ['profiles'])}
           {t === 'pieux_secants' && <label>Pieux primaires armés<div><Case ctx={ctx} chemin={ch('primaires_armes')} valeur={p.primaires_armes} /></div></label>}
           {(t === 'paroi_moulee' || t?.startsWith('pieux')) && champ('rapport_EI_fissure', 'Rapport EI fissuré / non fissuré')}
-          {(t === 'paroi_moulee' || t?.startsWith('pieux')) && champ('enrobage', "Distance parement → axe des armatures (m)")}
+          {(t === 'paroi_moulee' || t?.startsWith('pieux')) && champ('enrobage', "Distance du parement à l'axe des armatures (m)")}
           {t === 'paroi_moulee' && champ('armatures_fouille', 'Armatures côté fouille (cm²/m)')}
           {t === 'paroi_moulee' && champ('armatures_terre', 'Armatures côté terre (cm²/m)')}
           {t?.startsWith('pieux') && champ('armatures_pieu', 'Armatures par pieu (cm²)')}

@@ -102,7 +102,7 @@ def efforts_assemblage(s: Script, ex: Execution, a, normes=None) -> tuple[dict, 
     - `efforts:` imposés dans le script : pris tels quels (efforts de calcul, déjà pondérés).
     - depuis un appui : effort caractéristique maximal H (kN/m) de toutes les phases et de tous les
       jeux d'eau, ramené à l'appui (× espacement / cos θ) puis **multiplié par gamma_effets de la
-      combinaison ELU fondamentale** (nf_p94_282.yaml → combinaisons.ELU_fondamental.gamma_effets),
+      combinaison ELU fondamentale** (nf_p94_282.yaml -> combinaisons.ELU_fondamental.gamma_effets),
       même convention que sout.verifs_struct.elements (effets caractéristiques × γ). Si le coefficient
       manque, les efforts sont renvoyés non pondérés et la liste `manquants` le signale : la
       vérification doit alors être « non vérifiable ».

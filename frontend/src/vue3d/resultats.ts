@@ -21,7 +21,7 @@ const COULEUR_TERRE = 0x8b6b3e
 const COULEUR_FOUILLE = 0x2e7d4f
 
 // ------------------------------------------------------------------ accès aux résultats
-/** Fonction z → valeur pour un point de paroi (abscisse développée s), d'après le profil 2D ou le champ pseudo-3D. */
+/** Fonction z -> valeur pour un point de paroi (abscisse développée s), d'après le profil 2D ou le champ pseudo-3D. */
 export function profilValeur(res: Resultats, phase: number, quoi: 'y' | 'M' | 'V', s: number): ((z: number) => number) | null {
   const ph = res.phases[phase]
   if (!ph?.ok) return null

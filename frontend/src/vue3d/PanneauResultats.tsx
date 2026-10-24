@@ -82,7 +82,7 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
   const sel = useMemo(() => analyserSelection(selection), [selection])
   const coupe = projet && !projet.unique ? projet.coupes[coupeActive] : null
   const assemblages = useMemo(() => res.maquette?.assemblages ?? {}, [res])
-  // résultats « vus » par la sélection (tronçon → coupe)
+  // résultats « vus » par la sélection (tronçon -> coupe)
   const ctxSel = useMemo(() => {
     if (sel?.type === 'paroi' && resultatsPour) {
       const r = resultatsPour(sel.k ?? 0, 1, phase)
