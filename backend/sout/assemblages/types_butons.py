@@ -63,7 +63,6 @@ def g_platine(p: dict, e: dict, ctx: Contexte) -> Schema:
     for k in range(n):
         ang = 2 * math.pi * k / n + math.pi / n
         u, v = math.cos(ang), math.sin(ang)
-        pts = [[0, D / 2], [0, D / 2 + min(p["l_nervure"], min(bp, hp) / 2 - D / 2 - 5)], [p["l_nervure"], D / 2]]
         # prisme dans le plan (x, radial) — représenté comme boîte inclinée simplifiée
         s.ajouter(boite(4, "Nervure", [h + tp + p["l_nervure"] / 2, u * (D / 2 + 40), v * (D / 2 + 40)],
                         [p["l_nervure"], max(p["t_nervure"], 80 * abs(v)), max(p["t_nervure"], 80 * abs(u))], "acier",

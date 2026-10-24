@@ -20,7 +20,7 @@ from sout.script.schema import Appui, Paroi
 from sout.verifications import executer
 from sout.verifs_struct import ec2
 from sout.verifs_struct.elements import (_barre, _blindage, _dalle, _efforts_appuis_3d, _lierne, _tirant,
-                                         section_element, verifier_appuis, verifier_paroi)
+                                         section_element, verifier_paroi)
 from test_verifs_struct import NORMES_TEST, NORMES_TEST_EC2
 
 RACINE = Path(__file__).resolve().parents[3]

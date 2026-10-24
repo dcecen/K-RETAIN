@@ -114,7 +114,7 @@ def efforts_assemblage(s: Script, ex: Execution, a, normes=None) -> tuple[dict, 
         return e, []
     app = s.appuis[a.appui]
     H = 0.0
-    for _, (m, r) in ex.jeux.items():
+    for _jeu, (_m, r) in ex.jeux.items():
         for ph in r.phases:
             if ph.ok:
                 for x in ph.appuis:

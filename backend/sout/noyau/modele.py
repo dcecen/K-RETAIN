@@ -6,7 +6,7 @@ Le lecteur de script (sout.script) produit un `Modele` ; le moteur de phases
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 

@@ -85,7 +85,6 @@ def assembler(s: np.ndarray, z: np.ndarray, Dz_elem: np.ndarray, Ds_elem: np.nda
     ns, nz = len(s), len(z)
     ds = largeurs_tributaires(s, fermeture)
     dz = largeurs_tributaires(z)
-    Dz_noeud = _moyenne_noeuds(Dz_elem, nz)
     Ds_noeud = _moyenne_noeuds(Ds_elem, nz)
     GJ_elem = np.sqrt(Ds_elem * Dz_elem) if GJ_elem is None else np.asarray(GJ_elem, float)
     GJ_noeud = _moyenne_noeuds(GJ_elem, nz)

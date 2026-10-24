@@ -103,23 +103,23 @@ class PoutreRDM:
         return i
 
     # --- appuis
-    def appui_simple(self, x: float) -> "PoutreRDM":
+    def appui_simple(self, x: float) -> PoutreRDM:
         self.bloc_y.add(self.noeud(x))
         return self
 
-    def encastrement(self, x: float) -> "PoutreRDM":
+    def encastrement(self, x: float) -> PoutreRDM:
         i = self.noeud(x)
         self.bloc_y.add(i)
         self.bloc_t.add(i)
         return self
 
-    def ressort(self, x: float, k_y: float = 0.0, k_theta: float = 0.0) -> "PoutreRDM":
+    def ressort(self, x: float, k_y: float = 0.0, k_theta: float = 0.0) -> PoutreRDM:
         i = self.noeud(x)
         self.k_y[i] += k_y
         self.k_t[i] += k_theta
         return self
 
-    def ressorts_repartis(self, k: float) -> "PoutreRDM":
+    def ressorts_repartis(self, k: float) -> PoutreRDM:
         """Fondation de Winkler k (kN/m par mètre) : raideur concentrée aux nœuds au prorata des
         longueurs tributaires dans le système résolu, et réaction répartie sur ces longueurs dans la
         statique (comme les ressorts de sol du moteur : V nul aux extrémités libres)."""
@@ -128,20 +128,20 @@ class PoutreRDM:
         return self
 
     # --- charges
-    def force(self, x: float, P: float) -> "PoutreRDM":
+    def force(self, x: float, P: float) -> PoutreRDM:
         self.F[self.noeud(x)] += P
         return self
 
-    def couple(self, x: float, C: float) -> "PoutreRDM":
+    def couple(self, x: float, C: float) -> PoutreRDM:
         self.C[self.noeud(x)] += C
         return self
 
-    def repartie(self, x1: float, x2: float, q: float) -> "PoutreRDM":
+    def repartie(self, x1: float, x2: float, q: float) -> PoutreRDM:
         zm = 0.5 * (self.z[1:] + self.z[:-1])
         self.q[(zm > x1) & (zm < x2)] += q
         return self
 
-    def repartie_lineaire(self, x1: float, x2: float, q1: float, q2: float) -> "PoutreRDM":
+    def repartie_lineaire(self, x1: float, x2: float, q1: float, q2: float) -> PoutreRDM:
         """Charge variant linéairement de q1 (en x1) à q2 (en x2), prise uniforme par élément à la
         valeur du milieu de l'élément (erreur en O(h²))."""
         zm = 0.5 * (self.z[1:] + self.z[:-1])

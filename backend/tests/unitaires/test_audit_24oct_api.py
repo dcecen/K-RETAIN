@@ -3,7 +3,6 @@ coupe confinés, limites de taille, authentification allégée, import de catalo
 import base64
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -129,7 +128,7 @@ def base_temporaire(tmp_path, monkeypatch):
 def test_import_d_un_catalogue_fautif_laisse_la_base_intacte(base_temporaire):
     chemin, catalogues = base_temporaire
     n0 = len(base.catalogue_par_defaut().lister("aciers"))
-    mauvais = ("nuance;fy_MPa;fu_MPa;E_MPa\nS999;abc;490;210000\n").encode("utf-8")
+    mauvais = (b"nuance;fy_MPa;fu_MPa;E_MPa\nS999;abc;490;210000\n")
     r = CLIENT.post("/api/materiaux/import", files={"fichier": ("aciers_test.csv", mauvais, "text/csv")})
     assert r.status_code == 400
     assert "nombre attendu" in r.json()["detail"] and "fy_MPa" in r.json()["detail"] and "S999" in r.json()["detail"]
@@ -137,7 +136,7 @@ def test_import_d_un_catalogue_fautif_laisse_la_base_intacte(base_temporaire):
     assert len(base.catalogue_par_defaut().lister("aciers")) == n0  # base inchangée
     r = CLIENT.post("/api/materiaux/import", files={"fichier": ("modele_aciers.csv", mauvais, "text/csv")})
     assert r.status_code == 400 and "modele_" in r.json()["detail"]
-    bon = ("nuance;fy_MPa;fu_MPa;E_MPa\nS999;355;490;210000\n").encode("utf-8")
+    bon = (b"nuance;fy_MPa;fu_MPa;E_MPa\nS999;355;490;210000\n")
     r = CLIENT.post("/api/materiaux/import", files={"fichier": ("aciers_test.csv", bon, "text/csv")})
     assert r.status_code == 200 and r.json()["ok"]
     assert len(base.catalogue_par_defaut().lister("aciers")) == n0 + 1

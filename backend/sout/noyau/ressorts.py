@@ -41,7 +41,7 @@ class Ressorts:
     pp: np.ndarray      # kPa, pression limite de butée
 
     @classmethod
-    def vide(cls) -> "Ressorts":
+    def vide(cls) -> Ressorts:
         z = np.zeros(0)
         return cls(np.zeros(0, dtype=int), z, z, z, z, z, z, z)
 

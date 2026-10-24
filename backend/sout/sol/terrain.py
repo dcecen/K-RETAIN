@@ -56,7 +56,7 @@ class CoupeCalcul:
     nom: str | None = None
 
     @staticmethod
-    def depuis_dict(d: dict | None) -> "CoupeCalcul | None":
+    def depuis_dict(d: dict | None) -> CoupeCalcul | None:
         if not d:
             return None
         return CoupeCalcul(x=float(d["x"]), y=float(d["y"]), ni=(float(d["ni"][0]), float(d["ni"][1])),

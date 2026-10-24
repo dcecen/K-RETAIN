@@ -11,3 +11,4 @@ frontend/dist/
 backend/data/*.sqlite
 backend/data/utilisateurs.json
 sorties/
+backend/data/*.tmp

@@ -13,9 +13,11 @@ RUN npm run build
 # 2) Serveur de calcul
 FROM python:3.12.7-slim
 WORKDIR /app
-COPY backend/pyproject.toml backend/
-RUN pip install --no-cache-dir "numpy>=2.0" "scipy>=1.13" "pydantic>=2.7" "fastapi>=0.110" \
-    "uvicorn[standard]>=0.29" "ruamel.yaml>=0.18" "openpyxl>=3.1" "python-multipart>=0.0.9"
+COPY backend/pyproject.toml backend/requirements.lock.txt backend/
+# Mêmes versions que le poste de développement (backend/requirements.lock.txt, généré par pip freeze) :
+# les résultats d'un logiciel de calcul ne doivent pas dépendre de la version de numpy ou scipy installée.
+RUN pip install --no-cache-dir -c backend/requirements.lock.txt numpy scipy pydantic fastapi \
+    "uvicorn[standard]" ruamel.yaml openpyxl python-multipart
 COPY backend/sout backend/sout
 COPY docs docs
 COPY exemples exemples

@@ -546,7 +546,7 @@ def chaine_principale(phases: list) -> list:
     return chaine[::-1]
 
 
-def moteur_depuis_script(ex) -> "MoteurPseudo3D":
+def moteur_depuis_script(ex) -> MoteurPseudo3D:
     """Moteur pseudo-3D du script : fouille fermée sur le contour du bloc plan quand pseudo3d.longueur
     est absent, paroi droite de `longueur` sinon."""
     s = ex.script

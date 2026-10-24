@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from ..verifs import Lecteur, resultat
-from .base import (lierne_de, Contexte, Param, TypeAssemblage, enregistrer, grille_boulons, p_boulons, p_soudure, v_boulons_cisaillement,
+from .base import (lierne_de, Contexte, Param, TypeAssemblage, enregistrer, grille_boulons, p_soudure, v_boulons_cisaillement,
                    v_compression_beton, v_plaque_flexion, v_section, v_soudure)
 from .geometrie import Cote, Effort, Schema, Soudure, Vue, boite, boulons, prisme
 from .types_butons import lierne
@@ -104,7 +104,7 @@ def g_eclisse(p: dict, e: dict, ctx: Contexte) -> Schema:
                 Cote([h + ta + 40, 0, -b / 2], [h + ta + 40, 0, b / 2], f"b = {b:.0f}", "elevation", None, 40),
                 Cote([-ta - 40, p["jeu"] / 2, b / 2 + 20], [-ta - 40, p["jeu"] / 2 + p["e1"], b / 2 + 20], f"e1 = {p['e1']:.0f}", "dessus", "e1", 60),
                 Cote([h + ta + 20, 0, -b / 2 - 30], [h + ta + 20, 0, -b / 2 - 30 - 1], f"éclisse d'aile {ta:.0f} mm", "elevation", "t_eclisse_aile", 10)]
-    M, V, N = e.get("M", 0.0), e.get("V", 0.0), e.get("N", 0.0)
+    M, V = e.get("M", 0.0), e.get("V", 0.0)
     s.efforts += [Effort([h / 2, -le / 2 - 150, 0], [0, 1, 0], V, f"V = {V:.0f} kN"), Effort([h + ta, le / 2 + 150, 0], [-1, 0, 0], M / (h / 1000) if h else 0, f"M = {M:.0f} kN·m → F aile = {M / (h / 1000) if h else 0:.0f} kN")]
     s.vues = [Vue("Vue de dessus", "xy"), Vue("Élévation (côté fouille)", "yz"), Vue("Coupe A-A", "xz", {"axe": "y", "pos": p["jeu"] / 2 + p["e1"]})]
     s.notes.append("Joint de continuité de lierne : le moment passe par les éclisses d'aile (couple F = M/h), l'effort tranchant par les éclisses d'âme.")

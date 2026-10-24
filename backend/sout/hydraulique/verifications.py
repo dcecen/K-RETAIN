@@ -157,7 +157,6 @@ def verifier(modele: Modele, res: ResultatCalcul, normes) -> list[Verif]:
         lect = Lecteur(normes)
         Nc = lect.v("hydraulique", "fond_argile.N_c")
         Fmin = lect.v("hydraulique", "fond_argile.F_min")
-        H_exc = ph.terrain_amont - ph.terrain_aval
         sv_tot, u_h = contraintes_verticales([ph.terrain_aval], ph.terrain_amont, ph.eau_amont, couches, gw)
         from ..verifs_geo.surcharges_stabilite import mention, q_uniforme_amont
         q, ignorees = q_uniforme_amont(modele)

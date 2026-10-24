@@ -197,7 +197,7 @@ def resoudre_general(
     it = 0
     pas_negligeable = False
     tol_it = tol
-    for it in range(1, max_iter + 1):
+    for it in range(1, max_iter + 1):   # noqa: B007 (it est renvoyé après la boucle)
         # Tolérance : forces en jeu + bruit d'arrondi du produit K·u, estimé par max|K_ii·u_i|
         # (pour un degré de liberté pénalisé — bord, angle du pseudo-3D — c'est la réaction
         # physique, et non la pénalité multipliée par un déplacement quelconque).
@@ -211,7 +211,7 @@ def resoudre_general(
         du = spsolve(J, -R)
         if not np.all(np.isfinite(du)):
             raise RuptureEquilibre("système singulier : aucun équilibre (mécanisme)")
-        alpha = _recherche_lineaire(lambda a: float(residu_et_tangente(u + a * du)[0] @ du))
+        alpha = _recherche_lineaire(lambda a: float(residu_et_tangente(u + a * du)[0] @ du))   # noqa: B023 (utilisée dans l'itération)
         u_new = u + alpha * du
         R_new, kt_new, ka = residu_et_tangente(u_new)
         n_new = np.abs(R_new).max()

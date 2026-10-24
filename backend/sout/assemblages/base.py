@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Callable
+from collections.abc import Callable
 
 from ..verifs import Lecteur, Verif, resultat
 from . import ec3_assemblages as ec3
@@ -51,7 +51,7 @@ LIERNE_REPLI = {"h_mm": 300, "b_mm": 300, "tw_mm": 11, "tf_mm": 19, "r_mm": 27} 
 TUBE_REPLI = (508.0, 12.5)                                                       # idem (D_mm, t_mm)
 
 
-def lierne_de(ctx: "Contexte") -> dict:
+def lierne_de(ctx: Contexte) -> dict:
     """Profilé de lierne du contexte, ou gabarit de repli (signalé)."""
     return ctx.lierne or ctx.repli("profilé de lierne (clé lierne : référence de la base matériaux)", dict(LIERNE_REPLI))
 

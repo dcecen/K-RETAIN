@@ -461,7 +461,7 @@ class MoteurPhases:
             q = (r.A[:nd] * solution.p[:nd] - r.A[nd:] * solution.p[nd:]) / self.d_L + (u_am - u_av)
             z_diag, M_diag, V_diag = efforts_par_statique(self.z, self.d_zb, self.d_zh, q,
                                                           appuis.noeud, -solution.efforts_appuis)
-            present, fl, pa, pp, sv = sol["present"], sol["fl"], sol["pa"], sol["pp"], sol["sv"]
+            present, fl, pa, pp = sol["present"], sol["fl"], sol["pa"], sol["pp"]
 
             pressions = {}
             for nom_cote, sl in (("amont", slice(0, self.nd)), ("aval", slice(self.nd, 2 * self.nd))):

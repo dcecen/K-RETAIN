@@ -10,7 +10,6 @@ pseudo-3D quand il est disponible).
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 
 import numpy as np
@@ -19,7 +18,7 @@ ICI = Path(__file__).resolve().parent
 RECTANGLE_DEFAUT = [[0.0, 0.0], [20.0, 0.0], [20.0, 12.0], [0.0, 12.0]]
 
 
-from ..plan.geometrie import intersection_rayon as _intersection, placer_appuis  # noqa: E402  (géométrie partagée)
+from ..plan.geometrie import placer_appuis  # noqa: E402  (géométrie partagée)
 
 
 def _l(a) -> list:
@@ -101,7 +100,7 @@ def surcharges_maquette(ex) -> list[dict]:
     """Surcharges du script avec leur fenêtre de phases et le profil Δσv au droit de la coupe (maquette, panneau)."""
     from ..sol.terrain import CoupeCalcul, SurchargePlan, profil_pour_affichage
 
-    s, m = ex.script, ex.modele
+    m = ex.modele
     coupe = CoupeCalcul.depuis_dict(m.coupe)
     z_terrain = m.terrain_amont if m.terrain_amont is not None else max(c.toit for c in m.couches)
     objets = []

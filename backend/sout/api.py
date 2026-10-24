@@ -150,7 +150,7 @@ def _empreinte_environnement() -> str:
             st = f.stat()
         except OSError:
             continue
-        h.update(f"{f.name}:{st.st_mtime_ns}:{st.st_size};".encode("utf-8"))
+        h.update(f"{f.name}:{st.st_mtime_ns}:{st.st_size};".encode())
     return h.hexdigest()[:16]
 
 

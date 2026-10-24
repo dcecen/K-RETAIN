@@ -22,7 +22,7 @@ P_TETE_L = [Param("angle", "Inclinaison du tirant", "°", 20, 0, 45), Param("t_p
 def g_tete_lierne(p: dict, e: dict, ctx: Contexte) -> Schema:
     s = Schema()
     L = lierne(s, ctx)
-    h, b = L["h"], L["b"]
+    h = L["h"]
     a = math.radians(p["angle"])
     tc, tp, bp, hp = p["t_cale"], p["t_plaque"], p["b_plaque"], p["h_plaque"]
     # cale biaise : prisme dans le plan (x, z) extrudé selon y

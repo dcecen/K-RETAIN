@@ -197,9 +197,8 @@ def figures(cas_par_nom: dict[str, Cas]) -> dict[str, tuple[Path, str]]:
 
 # ---------------------------------------------------------------------------
 def rapport_md(cas: list[Cas], figs: dict, rapide: bool) -> str:
-    par_nom = {c.nom: c for c in cas}
     n_ok = sum(c.ok for c in cas)
-    L = [f"# Rafale d'exemples élémentaires — RetainWall", "",
+    L = ["# Rafale d'exemples élémentaires — RetainWall", "",
          f"Généré le {dt.date.today().isoformat()} par `python -m outils.rafale_elementaire`"
          + (" (mode rapide : balayages 3D longs omis)" if rapide else "") + ".", "",
          "Chaque cas compare une grandeur calculée par le logiciel à une **référence analytique citée** (formulaires de "

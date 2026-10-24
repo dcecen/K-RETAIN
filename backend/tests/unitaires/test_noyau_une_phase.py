@@ -1,7 +1,6 @@
 """J1 — noyau 2D, une phase : solutions analytiques et équilibre limite."""
 import numpy as np
 import pytest
-from scipy.optimize import fsolve
 from scipy.sparse.linalg import spsolve
 
 from sout.noyau.modele import Ecran, Modele, Phase

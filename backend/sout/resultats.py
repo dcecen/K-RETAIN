@@ -8,7 +8,9 @@ import numpy as np
 
 from .appuis.raideurs import effort_axial
 from .noyau.modele import Modele
-from .noyau.phasage import ResultatCalcul
+from .noyau.phasage import ErreurModele, ResultatCalcul
+from .sol.kerisel_absi import TableAbsente
+from .sol.terrain import ErreurTerrain
 
 CONVENTIONS = {
     "deplacement": "y positif vers la fouille (mm)",
@@ -131,7 +133,7 @@ def _pp_sans_terrain(modele: Modele, res: ResultatCalcul) -> list:
         kph_z = np.array([kph[indice_couche(couches, zz)] for zz in z])
         try:
             sup = effet_butee(actifs, kph_z, z, ph.terrain_aval, coupe)
-        except Exception:
+        except (ErreurTerrain, ValueError, KeyError, IndexError):   # objet inapplicable à cette phase : courbe absente
             out.append(None)
             continue
         out.append(_l(np.asarray(ph.pressions["aval"]["pp"], float) - sup))
@@ -149,12 +151,12 @@ def _couches(modele: Modele) -> list[dict]:
         try:
             kah, kph, k0, _, _, _ = _coefficients_couche(c, modele.coefficients)
             d.update({"kah": kah, "kph": kph, "k0": k0})
-        except Exception:   # coefficients refusés (butée hors domaine, tables absentes) : la vue affiche « — »
+        except (ErreurModele, ValueError, TableAbsente):   # coefficients refusés (butée hors domaine, tables absentes) : « — »
             pass
         try:
             EI = float(np.asarray(modele.ecran.EI_en(np.array([c.toit - 0.5])))[0])
             d["kh"] = _kh_couche(c, EI)
-        except Exception:
+        except (ErreurModele, ValueError, TypeError):   # EM/alpha absents ou kh non calculable : « — »
             pass
         out.append(d)
     return out
