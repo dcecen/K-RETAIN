@@ -9,6 +9,10 @@ import { couleurEtat, etatHydraulique } from '../lib/verifs'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Obj = any
 
+// Couleur de l'effort tranchant (gris-bleu neutre) et hachures des lithologies (cycle par couche)
+const COULEUR_V = '#4f6d8f'
+const HACHURES = ['/', '\\', 'x', '-', '|', '+', '.', '']
+
 // Domaines horizontaux des cinq panneaux (coupe, y, M, V, pressions)
 const DOM = [[0, 0.27], [0.31, 0.45], [0.49, 0.64], [0.68, 0.81], [0.85, 1]] as const
 
@@ -51,7 +55,7 @@ function extreme(xs: number[], zs: number[], quoi: 'max' | 'min' | 'abs') {
   return { x: xs[k], z: zs[k] }
 }
 
-function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enveloppe: boolean, indexPhase: number) {
+function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enveloppe: boolean, indexPhase: number, unite: string) {
   const c = couleurs()
   const H = res.paroi.tete - res.paroi.pied
   const zBas = res.paroi.pied - 0.08 * H
@@ -73,9 +77,16 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
     const bas = i + 1 < res.couches.length ? res.couches[i + 1].toit : zBas
     for (const [x0, x1, terrain] of [[-L, 0, ph.terrain_amont], [0, L, ph.terrain_aval]] as const) {
       const haut = Math.min(ch.toit, terrain)
-      if (haut > bas) formes.push({ type: 'rect', xref: 'x', yref: 'y', x0, x1, y0: bas, y1: haut, line: { width: 0 }, fillcolor: COULEURS_SOL[i % COULEURS_SOL.length], opacity: 0.55, layer: 'below' })
+      if (haut > bas) traces.push({
+        x: [x0, x1, x1, x0, x0], y: [bas, bas, haut, haut, bas], xaxis: 'x', yaxis: 'y', mode: 'lines', line: { width: 0.5, color: c.filetFort },
+        fill: 'toself', fillcolor: COULEURS_SOL[i % COULEURS_SOL.length], opacity: 0.6,
+        fillpattern: { shape: HACHURES[i % HACHURES.length], fgcolor: 'rgba(40,40,40,0.35)', bgcolor: COULEURS_SOL[i % COULEURS_SOL.length], size: 7, solidity: 0.25 },
+        hoverinfo: 'skip',
+      })
     }
     annotations.push({ text: ch.nom, xref: 'x', yref: 'y', x: -L * 0.97, y: (Math.min(ch.toit, ph.terrain_amont) + bas) / 2, xanchor: 'left', showarrow: false, font: { size: 10, color: c.texte } })
+    // cote du toit de la couche, en marge gauche de la coupe
+    if (ch.toit <= ph.terrain_amont + 1e-9) annotations.push({ text: nb(ch.toit, 2), xref: 'x', yref: 'y', x: -L, y: ch.toit, xanchor: 'right', yanchor: 'middle', showarrow: false, font: { size: 9, color: c.doux } })
   })
   // réseau d'écoulement (régime simplifié ou différences finies)
   const hy = ph.hydro
@@ -125,16 +136,22 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
   if (ph.eau_aval !== null && ph.eau_aval > ph.terrain_aval) {
     formes.push({ type: 'rect', xref: 'x', yref: 'y', x0: 0, x1: L, y0: ph.terrain_aval, y1: ph.eau_aval, line: { width: 0 }, fillcolor: c.accent, opacity: 0.15, layer: 'below' })
   }
-  for (const [x0, x1, z] of [[-L, 0, ph.eau_amont], [0, L, ph.eau_aval]] as const) {
-    if (z !== null) traces.push({ x: [x0, x1], y: [z, z], xaxis: 'x', yaxis: 'y', mode: 'lines', line: { color: c.accent, width: 1.5, dash: 'dash' }, hoverinfo: 'none' })
+  for (const [x0, x1, z, cote] of [[-L, 0, ph.eau_amont, 'amont'], [0, L, ph.eau_aval, 'aval']] as const) {
+    if (z === null) continue
+    traces.push({ x: [x0, x1], y: [z, z], xaxis: 'x', yaxis: 'y', mode: 'lines', line: { color: c.accent, width: 1.5, dash: 'dash' }, hoverinfo: 'none' })
+    annotations.push({ text: `nappe ${cote} ${nb(z, 2)}`, xref: 'x', yref: 'y', x: cote === 'amont' ? -L * 0.5 : L * 0.97, y: z, xanchor: cote === 'amont' ? 'center' : 'right', yanchor: 'bottom', showarrow: false, font: { size: 9, color: c.accent } })
   }
   traces.push({ x: [0, L], y: [ph.terrain_aval, ph.terrain_aval], xaxis: 'x', yaxis: 'y', mode: 'lines', line: { color: c.texte, width: 2 }, hoverinfo: 'none' })
+  annotations.push({ text: `fond ${nb(ph.terrain_aval, 2)}`, xref: 'x', yref: 'y', x: L * 0.97, y: ph.terrain_aval, xanchor: 'right', yanchor: 'top', showarrow: false, font: { size: 9, color: c.texte } })
+  if (Math.abs(ph.terrain_amont - res.paroi.tete) > 0.05) annotations.push({ text: `terrain ${nb(ph.terrain_amont, 2)}`, xref: 'x', yref: 'y', x: -L * 0.97, y: ph.terrain_amont, xanchor: 'left', yanchor: 'bottom', showarrow: false, font: { size: 9, color: c.texte } })
+  annotations.push({ text: `tête ${nb(res.paroi.tete, 2)}`, xref: 'x', yref: 'y', x: 0.04 * L, y: res.paroi.tete, xanchor: 'left', yanchor: 'bottom', showarrow: false, font: { size: 9, color: c.texte } })
+  annotations.push({ text: `pied ${nb(res.paroi.pied, 2)}`, xref: 'x', yref: 'y', x: 0.04 * L, y: res.paroi.pied, xanchor: 'left', yanchor: 'top', showarrow: false, font: { size: 9, color: c.texte } })
   traces.push({ x: [0, 0], y: [res.paroi.pied, res.paroi.tete], xaxis: 'x', yaxis: 'y', mode: 'lines', line: { color: c.texte, width: 5 }, hoverinfo: 'none' })
   if (ph.ok && ph.z) {
     const ymax = Math.max(...ph.y_mm!.map(Math.abs), 1e-6)
     const f = (0.25 * L) / ymax
-    traces.push({ x: ph.y_mm!.map((y) => y * f), y: ph.z, xaxis: 'x', yaxis: 'y', mode: 'lines', line: { color: c.rouge, width: 1.5 }, hoverinfo: 'none' })
-    annotations.push({ text: `déformée ×${nb(f * 1000, 0)}`, xref: 'x', yref: 'y', x: L * 0.97, y: zBas + 0.03 * H, xanchor: 'right', showarrow: false, font: { size: 10, color: c.rouge } })
+    traces.push({ x: ph.y_mm!.map((y) => y * f), y: ph.z, xaxis: 'x', yaxis: 'y', mode: 'lines', line: { color: c.doux, width: 1.5, dash: 'dash' }, hoverinfo: 'none' })
+    annotations.push({ text: `déformée amplifiée ×${nb(f * 1000, 0)}`, xref: 'x', yref: 'y', x: L * 0.97, y: zBas + 0.03 * H, xanchor: 'right', showarrow: false, font: { size: 10, color: c.doux } })
   }
   for (const a of ph.appuis ?? []) {
     const def = res.appuis.find((d) => d.nom === a.nom)
@@ -144,7 +161,7 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
     const dz = a.type === 'buton' || a.type === 'dalle' ? 0 : -lg * Math.sin(Math.abs(ang))
     traces.push({ x: [0, sens * lg * Math.cos(ang)], y: [a.cote, a.cote + dz], xaxis: 'x', yaxis: 'y', mode: 'lines',
       line: { color: a.actif ? c.vert : c.faible, width: a.type === 'dalle' ? 6 : 3 }, hoverinfo: 'none' })
-    annotations.push({ text: `${a.nom} ${nb(a.effort_axial_kN, 0)} kN`, xref: 'x', yref: 'y', x: sens * lg * 0.55, y: a.cote + dz / 2,
+    annotations.push({ text: `${a.nom} (${nb(a.cote, 2)}) : ${nb(a.effort_axial_kN, 0)} kN`, xref: 'x', yref: 'y', x: sens * lg * 0.55, y: a.cote + dz / 2,
       yanchor: 'bottom', showarrow: false, font: { size: 10, color: c.texte } })
   }
 
@@ -162,9 +179,9 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
       env(e.M_min!, e.M_max!, e.z_diag!, 'x3')
       env(e.V_min!, e.V_max!, e.z_diag!, 'x4')
     }
-    traces.push({ x: ph.y_mm, y: ph.z, xaxis: 'x2', yaxis: 'y', mode: 'lines', line: { color: c.rouge, width: 2 }, hoverinfo: 'none' })
+    traces.push({ x: ph.y_mm, y: ph.z, xaxis: 'x2', yaxis: 'y', mode: 'lines', line: { color: c.accent, width: 2 }, hoverinfo: 'none' })
     traces.push({ x: ph.M, y: ph.z_diag, xaxis: 'x3', yaxis: 'y', mode: 'lines', line: { color: c.accent, width: 1.5 }, fill: 'tozerox', fillcolor: 'rgba(80,130,190,0.18)', hoverinfo: 'none' })
-    traces.push({ x: ph.V, y: ph.z_diag, xaxis: 'x4', yaxis: 'y', mode: 'lines', line: { color: '#8a6bb8', width: 1.5 }, fill: 'tozerox', fillcolor: 'rgba(138,107,184,0.16)', hoverinfo: 'none' })
+    traces.push({ x: ph.V, y: ph.z_diag, xaxis: 'x4', yaxis: 'y', mode: 'lines', line: { color: COULEUR_V, width: 1.5 }, fill: 'tozerox', fillcolor: 'rgba(79,109,143,0.16)', hoverinfo: 'none' })
     traces.push({ x: neg(p.amont.pa), y: p.amont.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: c.orange, width: 1, dash: 'dot' }, hoverinfo: 'none' })
     if (ph.pp_sans_terrain) {   // butée limite sans la risberme / le talus (méthode de la surcharge équivalente)
       traces.push({ x: ph.pp_sans_terrain, y: p.aval.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: c.doux, width: 1, dash: 'dot' }, hoverinfo: 'none' })
@@ -179,28 +196,29 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
     // extrêmes annotés
     const marque = (ax: string, pt: { x: number; z: number }, texte: string, couleur: string) => {
       traces.push({ x: [pt.x], y: [pt.z], xaxis: ax, yaxis: 'y', mode: 'markers', marker: { size: 6, color: couleur }, hoverinfo: 'none' })
-      annotations.push({ text: texte, xref: ax, yref: 'y', x: pt.x, y: pt.z, ax: pt.x >= 0 ? -28 : 28, ay: -16, arrowwidth: 1, arrowcolor: couleur, arrowhead: 0, font: { size: 10.5, color: couleur }, bgcolor: c.fond })
+      annotations.push({ text: texte, xref: ax, yref: 'y', x: pt.x, y: pt.z, ax: pt.x >= 0 ? -34 : 34, ay: -18, arrowwidth: 1, arrowcolor: couleur, arrowhead: 0, font: { size: 10, color: couleur }, bgcolor: c.fond, bordercolor: c.filet, borderwidth: 0.5, borderpad: 2 })
     }
-    marque('x2', extreme(ph.y_mm!, ph.z, 'abs'), `${nb(extreme(ph.y_mm!, ph.z, 'abs').x)} mm`, c.rouge)
+    const yext = extreme(ph.y_mm!, ph.z, 'abs')
+    marque('x2', yext, `${nb(yext.x)} mm à ${nb(yext.z, 2)}`, c.accent)
     const mmax = extreme(ph.M!, ph.z_diag!, 'max'), mmin = extreme(ph.M!, ph.z_diag!, 'min')
-    if (mmax.x > 0.5) marque('x3', mmax, nb(mmax.x, 0), c.accent)
-    if (mmin.x < -0.5) marque('x3', mmin, nb(mmin.x, 0), c.accent)
+    if (mmax.x > 0.5) marque('x3', mmax, `${nb(mmax.x, 0)} à ${nb(mmax.z, 2)}`, c.accent)
+    if (mmin.x < -0.5) marque('x3', mmin, `${nb(mmin.x, 0)} à ${nb(mmin.z, 2)}`, c.accent)
     const vabs = extreme(ph.V!, ph.z_diag!, 'abs')
-    marque('x4', vabs, nb(vabs.x, 0), '#8a6bb8')
+    marque('x4', vabs, `${nb(vabs.x, 0)} à ${nb(vabs.z, 2)}`, COULEUR_V)
   }
 
   // fonds et niveaux sur tous les diagrammes
   formes.push({ type: 'line', xref: 'paper', yref: 'y', x0: DOM[1][0], x1: 1, y0: ph.terrain_aval, y1: ph.terrain_aval, line: { color: c.filetFort, width: 1, dash: 'dot' } })
 
-  titre(0, 'Coupe')
+  titre(0, `Coupe (cotes en ${unite})`)
   titre(1, 'Déplacement y (mm)')
   titre(2, 'Moment M (kN·m/m)')
-  titre(3, 'Tranchant V (kN/m)')
-  titre(4, 'Pressions (kPa)')
+  titre(3, 'Effort tranchant V (kN/m)')
+  titre(4, 'Pressions horizontales (kPa)')
   // conventions de signe et légende des pressions dans la figure elle-même (donc dans le PNG exporté)
-  annotations.push({ text: 'y > 0 vers la fouille · M > 0 : face côté fouille tendue · V = dM/dz · déformée amplifiée sur la coupe',
+  annotations.push({ text: `Phase ${indexPhase + 1} : ${ph.nom}. y > 0 vers la fouille ; M > 0 : face côté fouille tendue ; V = dM/dz ; valeurs extrêmes annotées avec leur cote.`,
     xref: 'paper', yref: 'paper', x: 0, y: -0.075, xanchor: 'left', yanchor: 'top', showarrow: false, font: { size: 10, color: c.doux } })
-  annotations.push({ text: `Pressions : <span style="color:${c.orange}">— amont mobilisée</span> · <span style="color:${c.orange}">··· poussée limite</span> · <span style="color:${c.vert}">— aval mobilisée</span> · <span style="color:${c.vert}">- - butée limite</span> · <span style="color:${c.accent}">-·- eau</span> (amont à gauche, aval à droite)`,
+  annotations.push({ text: `Pressions : <span style="color:${c.orange}">— amont mobilisée</span> ; <span style="color:${c.orange}">··· poussée limite</span> ; <span style="color:${c.vert}">— aval mobilisée</span> ; <span style="color:${c.vert}">- - butée limite</span> ; <span style="color:${c.accent}">-·- eau</span> (amont à gauche, aval à droite)`,
     xref: 'paper', yref: 'paper', x: 1, y: -0.075, xanchor: 'right', yanchor: 'top', showarrow: false, font: { size: 10, color: c.doux } })
 
   const axe = (k: number, range: [number, number]) => ({
@@ -209,9 +227,9 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
     showticklabels: true, ticks: 'outside', ticklen: 3, tickcolor: c.filetFort,
   })
   const layout: Obj = {
-    paper_bgcolor: c.fond, plot_bgcolor: c.fond, font: { family: 'IBM Plex Sans, sans-serif', size: 11, color: c.texte },
-    margin: { l: 52, r: 10, t: 26, b: 58 }, showlegend: false, hovermode: 'y', dragmode: false, separators: ', ',
-    yaxis: { range: [zBas, zHaut], title: { text: 'cote (m)', font: { size: 11, color: c.doux } }, gridcolor: c.filet, zeroline: false,
+    paper_bgcolor: c.fond, plot_bgcolor: c.fond, font: { family: 'Segoe UI, system-ui, sans-serif', size: 11, color: c.texte },
+    margin: { l: 56, r: 10, t: 26, b: 58 }, showlegend: false, hovermode: 'y', dragmode: false, separators: ', ',
+    yaxis: { range: [zBas, zHaut], title: { text: `cote (${unite})`, font: { size: 11, color: c.doux } }, gridcolor: c.filet, zeroline: false,
       linecolor: c.filetFort, showline: true, tickfont: { size: 10, color: c.doux }, ticks: 'outside', ticklen: 3, tickcolor: c.filetFort },
     xaxis: { ...axe(0, [-L, L]), showgrid: false, zeroline: false, showticklabels: false, ticks: '' },
     xaxis2: axe(1, b.y), xaxis3: axe(2, b.M), xaxis4: axe(3, b.V), xaxis5: axe(4, b.p),
@@ -235,10 +253,12 @@ function valeursA(ph: PhaseRes, z: number) {
   }
 }
 
-export function CoupeDiagrammes({ res, phase, theme, curseurZ, onSurvolZ }: {
+export function CoupeDiagrammes({ res, phase, theme, unite = 'm NGF', curseurZ, onSurvolZ }: {
   res: Resultats
   phase: number
   theme: Theme
+  /** Unité des cotes (en-têtes et axe) : « m NGF » ou le système du projet. */
+  unite?: string
   /** Cote imposée au réticule (survol d'une cote dans la maquette 3D). */
   curseurZ?: number | null
   /** Cote survolée sur les courbes (repère dans la maquette 3D). */
@@ -257,7 +277,7 @@ export function CoupeDiagrammes({ res, phase, theme, curseurZ, onSurvolZ }: {
   useEffect(() => {
     const el = hote.current as Obj
     if (!el) return
-    const { traces, layout } = figure(res, ph, b, enveloppe, Math.min(phase, res.phases.length - 1))
+    const { traces, layout } = figure(res, ph, b, enveloppe, Math.min(phase, res.phases.length - 1), unite)
     void Plotly.react(el, traces, layout, { responsive: true, displayModeBar: false, doubleClick: 'reset', locale: 'fr' }).then(() => {
       if (el.__retainwall) return
       el.__retainwall = true
@@ -271,7 +291,7 @@ export function CoupeDiagrammes({ res, phase, theme, curseurZ, onSurvolZ }: {
         if (!boite) return
         boite.style.display = 'block'
         const l = (t: string, x: number | null | undefined, u: string, d = 1) => `<tr><td>${t}</td><td>${x === null || x === undefined ? '—' : nb(x, d)} ${u}</td></tr>`
-        boite.innerHTML = `<div class="cote">z = ${nb(z, 2)} m</div><table>${
+        boite.innerHTML = `<div class="cote">cote ${nb(z, 2)}</div><table>${
           v ? l('Déplacement', v.y, 'mm') + l('Moment', v.M, 'kN·m/m', 0) + l('Tranchant', v.V, 'kN/m', 0)
             + l('Pression amont', v.pam, 'kPa') + l('Pression aval', v.pav, 'kPa') : ''}</table>`
       })
@@ -293,7 +313,7 @@ export function CoupeDiagrammes({ res, phase, theme, curseurZ, onSurvolZ }: {
         void Plotly.relayout(el, { 'yaxis.range': [zc - (zc - a) * f, zc + (bb - zc) * f] })
       }, { passive: false })
     })
-  }, [res, ph, b, enveloppe, theme, phase])
+  }, [res, ph, b, enveloppe, theme, phase, unite])
 
   // réticule piloté depuis la maquette 3D
   useEffect(() => {
@@ -321,7 +341,7 @@ export function CoupeDiagrammes({ res, phase, theme, curseurZ, onSurvolZ }: {
       <div className="barre-outils">
         <label><input type="checkbox" checked={enveloppe} onChange={(e) => setEnveloppe(e.target.checked)} /> Enveloppes toutes phases</label>
         <span className="espace" />
-        <span className="legende-signes">Maj+molette : zoom vertical · double-clic : rétablir · conventions et légende au bas de la figure</span>
+        <span className="legende-signes">Maj+molette : zoom vertical ; double-clic : rétablir. Conventions et légende au bas de la figure.</span>
       </div>
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         {!ph.ok && <div className="alerte rouge" style={{ position: 'absolute', top: 8, left: 60, zIndex: 6 }}>{ph.message}</div>}

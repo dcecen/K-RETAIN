@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { api, ErreurServeur, messageErreur, type ErreurScript, type Exemple, type ProjetCoupes, type ReponseCalcul, type Resultats } from './lib/api'
 import type { EtatCalcul, Onglet, Section, Selection } from './lib/etat'
 import { exporterImage, imprimerNote, telechargerTexte } from './lib/exporter'
-import { nomProjet } from './lib/format'
+import { nomProjet, uniteCote } from './lib/format'
 import { IconeAppui, IconeBase, IconeCoupe, IconeCube, IconeFichier, IconePlaque, IconeProjet, IconeScript, IconeTableau, IconeVerif } from './lib/icones'
 import * as sd from './lib/scriptDoc'
 import { appliquerTheme, choisirTheme, themeInitial, type Theme } from './lib/theme'
@@ -346,7 +346,7 @@ export default function App() {
         </nav>
         <div className="contenu-onglet">
           <Suspense fallback={CHARGEMENT}>
-          {onglet === 'coupe' && (res ? <CoupeDiagrammes res={res} phase={phase} theme={theme} /> : sansResultats)}
+          {onglet === 'coupe' && (res ? <CoupeDiagrammes res={res} phase={phase} theme={theme} unite={uniteCote(modele)} /> : sansResultats)}
           {retour3d && onglet !== '3d' && (
             <div className="barre-retour"><button className="btn" onClick={() => { setOnglet('3d'); setRetour3d(false) }}>Retour à la maquette 3D</button>
               {selection3d && <span className="doux">Ouvert depuis la maquette : {selection3d}</span>}</div>
