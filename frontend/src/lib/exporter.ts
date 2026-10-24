@@ -29,7 +29,7 @@ export function telechargerTexte(texte: string, nom: string, type: string) {
 
 const echapper = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 
-const ETATS: Record<string, string> = { ok: 'Vérifié', attention: 'Limite', non_ok: 'Non vérifié', non_verifiable: 'Non vérifiable' }
+const ETATS: Record<string, string> = { ok: 'Vérifié', attention: 'Vérifié', non_ok: 'Non vérifié', non_verifiable: 'Non vérifiable' }
 
 /** Note de synthèse (HTML imprimable) : résultats clés, appuis, vérifications, réserves. */
 export function noteSynthese(res: Resultats): string {

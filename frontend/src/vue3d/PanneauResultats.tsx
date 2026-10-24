@@ -10,7 +10,7 @@ import { Efforts } from '../vues/Efforts'
 import { analyserSelection, pointsAttention, titreFiltre, verifsPour } from './navigation'
 
 export type Volet = 'courbes' | 'efforts' | 'verifications'
-const LIBELLE: Record<Verif['etat'], string> = { ok: 'Vérifié', attention: 'Limite', non_ok: 'Non vérifié', non_verifiable: 'Prévu' }
+const LIBELLE: Record<Verif['etat'], string> = { ok: 'Vérifié', attention: 'Vérifié', non_ok: 'Non vérifié', non_verifiable: 'Non vérifiable' }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Obj = any
@@ -131,8 +131,8 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
             <dt>Tranchant max</dt><dd>{nb(d.tranchant?.valeur, 0)} kN/m</dd>
             {Object.entries(d.appuis ?? {}).map(([n, a]) => <span key={n} style={{ display: 'contents' }}><dt>{n} max</dt><dd>{nb(a.effort_kN_m, 0)} kN/m · {nb(a.effort_axial_kN, 0)} kN</dd></span>)}
           </dl>
-          <div className="insp-titre" style={{ marginTop: 10 }}>Points d'attention</div>
-          {attention.length === 0 ? <div className="note">Aucune vérification au-delà de 90 %.</div> : (
+          <div className="insp-titre" style={{ marginTop: 10 }}>Vérifications non vérifiées ou à taux ≥ 90 %</div>
+          {attention.length === 0 ? <div className="note">Aucune : toutes les vérifications ont un taux inférieur à 90 %.</div> : (
             <ul className="points-attention">
               {attention.map((p, i) => (
                 <li key={i} className={p.etat === 'non_ok' || (p.taux ?? 0) >= 1 ? 'rouge' : 'orange'} onClick={() => { onSelection(p.selection); onCentrer(p.selection) }} title="Centrer la maquette et ouvrir la vérification">

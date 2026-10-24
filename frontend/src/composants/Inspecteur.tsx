@@ -36,7 +36,7 @@ export function Inspecteur({ res, phase, selection, modele, onSelection }: {
 
 function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase: number; onSelection: (s: Selection) => void }) {
   if (!res) {
-    return <div className="insp-section doux">Aucun résultat. Lancez le calcul (Recalculer ou Ctrl+Entrée).</div>
+    return <div className="insp-section doux">Aucun calcul. Calcul : bouton « Calculer » ou Ctrl+Entrée.</div>
   }
   const ph = res.phases[Math.min(phase, res.phases.length - 1)]
   const s = ph.synthese
@@ -98,15 +98,15 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
         )}
       </div>
       <div className="insp-section">
-        <div className="insp-titre">Alertes</div>
+        <div className="insp-titre">Avertissements et vérifications à taux ≥ 90 %</div>
         {res.avertissements.map((a, i) => <div key={i} className="alerte orange"><IconeAlerte />{a}</div>)}
         {alertes.map((v, i) => (
           <div key={`v${i}`} className={`alerte ${v.etat === 'non_ok' ? 'rouge' : 'orange'}`}><IconeAlerte />
-            <span>{v.nom} — {v.element} : {v.taux !== null ? pourcent(v.taux) : 'non vérifié'}</span></div>
+            <span>{v.nom}, {v.element} : {v.taux !== null ? `taux ${pourcent(v.taux)}` : 'non vérifiable'}{v.etat === 'non_ok' ? ', non vérifié' : ''}</span></div>
         ))}
         {res.avertissements.length === 0 && alertes.length === 0 && (
-          <div className="alerte info"><IconeInfo />Aucune vérification au-delà de 90 %.
-            {(res.verifications ?? []).some((v) => v.etat === 'non_verifiable') && ' Certaines sont non vérifiables (valeurs de norme manquantes).'}</div>
+          <div className="alerte info"><IconeInfo />Aucun avertissement ; toutes les vérifications ont un taux inférieur à 90 %.
+            {(res.verifications ?? []).some((v) => v.etat === 'non_verifiable') && ' Certaines sont non vérifiables (valeur de norme manquante).'}</div>
         )}
       </div>
     </>

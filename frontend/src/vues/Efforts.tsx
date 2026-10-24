@@ -83,7 +83,7 @@ export function Efforts({ res, phase, onPhase, onAppui }: {
             </tr>
           </tfoot>
         </table>
-        <p className="note" style={{ padding: '8px 12px' }}>Effort positif : l'appui retient l'écran (buton comprimé, tirant tendu). Grisé : appui décollé. Clic sur une ligne : phase ; clic sur un nom d'appui : inspecteur.</p>
+        <p className="note" style={{ padding: '8px 12px' }}>Effort positif : l'appui retient l'écran (buton comprimé, tirant tendu). Grisé : appui décollé. Clic sur une ligne : phase active ; clic sur un nom d'appui : détail de l'appui.</p>
       </div>
     </div>
   )

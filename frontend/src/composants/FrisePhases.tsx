@@ -30,7 +30,7 @@ export function FrisePhases({ res, phase, onPhase }: { res: Resultats | null; ph
   }, [lecture, phase, n])
 
   if (!res) {
-    return <div className="frise zone-frise"><span className="doux">Aucun calcul : la frise des phases apparaîtra après le calcul.</span></div>
+    return <div className="frise zone-frise"><span className="doux">Aucun calcul : la frise des phases s'affiche après le calcul.</span></div>
   }
   const ph = res.phases[Math.min(phase, n - 1)]
   const ancetres = new Set<number>()
@@ -39,8 +39,8 @@ export function FrisePhases({ res, phase, onPhase }: { res: Resultats | null; ph
   const suivant = ph.enfants?.[0] ?? Math.min(n - 1, phase + 1)
   return (
     <div className="frise zone-frise">
-      <button className="btn icone" onClick={() => onPhase(precedent)} title="Phase précédente dans la branche (←)"><IconePrec /></button>
-      <button className="btn icone" onClick={() => onPhase(suivant)} title="Phase suivante dans la branche (→)"><IconeSuiv /></button>
+      <button className="btn icone" onClick={() => onPhase(precedent)} title="Phase précédente dans la branche (flèche gauche)"><IconePrec /></button>
+      <button className="btn icone" onClick={() => onPhase(suivant)} title="Phase suivante dans la branche (flèche droite)"><IconeSuiv /></button>
       <button className="btn icone" onClick={() => { if (!lecture && phase >= n - 1) onPhase(0); setLecture(!lecture) }}
         title={lecture ? 'Arrêter la lecture' : 'Lire les phases'}>{lecture ? <IconePause /> : <IconeLecture />}</button>
       <div className="cases" role="tablist" aria-label="Phases">

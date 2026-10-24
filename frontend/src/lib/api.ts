@@ -93,6 +93,7 @@ export interface PhaseRes {
   parent: number | null
   enfants: number[]
   depuis: string | null
+  iterations?: number
   hydro?: Hydro | null
   synthese?: {
     y_max_mm: number

@@ -69,15 +69,15 @@ export function BarreTitre(p: {
                   </button>
                 ))}
                 <button onClick={() => { window.open('/api/validation/rapport', '_blank', 'noopener'); fermer() }}>
-                  Rapport de validation complet…
+                  Rapport de validation complet
                   <span className="detail-entree">45 cas : poutres RDM, Winkler, plaque, écran 2D, balayages, pseudo-3D</span>
                 </button>
               </>
             )}
             <hr />
-            <button onClick={() => { choisirFichier('.yaml,.yml,.txt', p.onOuvrir); fermer() }}>Ouvrir un script…</button>
+            <button onClick={() => { choisirFichier('.yaml,.yml,.txt', p.onOuvrir); fermer() }}>Ouvrir un script</button>
             <button onClick={() => { p.onEnregistrer(); fermer() }}>Enregistrer le script</button>
-            <button onClick={() => { choisirFichier('*', p.onRido); fermer() }}>Importer un fichier RIDO…</button>
+            <button onClick={() => { choisirFichier('*', p.onRido); fermer() }}>Importer un fichier RIDO</button>
             <hr />
             <button onClick={() => { p.onMateriaux(); fermer() }}>Base matériaux</button>
           </>
@@ -94,14 +94,14 @@ export function BarreTitre(p: {
         {p.enCours ? 'Calcul en cours' : p.etat.texte}
       </span>
       <span className="espace" />
-      <button className="btn principal" onClick={p.onRecalculer} disabled={p.enCours} title="Recalculer (Ctrl+Entrée)">
-        <IconeCalcul /> Recalculer <span className="raccourci masquer-etroit">Ctrl+↵</span>
+      <button className="btn principal" onClick={p.onRecalculer} disabled={p.enCours} title="Lancer le calcul (Ctrl+Entrée)">
+        <IconeCalcul /> Calculer <span className="raccourci masquer-etroit">Ctrl+Entrée</span>
       </button>
       <Menu droite bouton={<><IconeExport /> <span className="masquer-etroit">Exporter</span></>} titre="Exporter">
         {(fermer) => (
           <>
             <button disabled={!p.imagePossible} onClick={() => { p.onImage(); fermer() }}>Image PNG de la vue active</button>
-            <button disabled={!p.resultatsDisponibles} onClick={() => { p.onNote(); fermer() }}>Note de synthèse imprimable</button>
+            <button disabled={!p.resultatsDisponibles} onClick={() => { p.onNote(); fermer() }}>Note de calcul (HTML imprimable)</button>
             <button disabled={!p.resultatsDisponibles} onClick={() => { p.onMaquette(); fermer() }}>Maquette 3D (fichier HTML autonome)</button>
             <hr />
             <button onClick={() => { p.onEnregistrer(); fermer() }}>Script de calcul (.yaml)</button>

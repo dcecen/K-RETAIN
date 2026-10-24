@@ -30,7 +30,7 @@ export function Materiaux({ surImport }: { surImport: () => void }) {
       try { r = await fetch('/api/materiaux/import', { method: 'POST', body: corps }) } catch { throw new Error(MESSAGE_INJOIGNABLE) }
       const d = (await r.json().catch(() => null)) as { lignes?: Record<string, number>; detail?: unknown; erreurs?: { message?: string }[] } | null
       if (r.ok && d?.lignes) {
-        setMessage(`Import réussi : ${Object.entries(d.lignes).map(([t, n]) => `${t} ${n}`).join(', ')}`)
+        setMessage(`Import terminé : ${Object.entries(d.lignes).map(([t, n]) => `${TABLES[t] ?? t} ${n} ligne${n > 1 ? 's' : ''}`).join(', ')}`)
         void charger()
         surImport()
       } else {
@@ -67,7 +67,7 @@ export function Materiaux({ surImport }: { surImport: () => void }) {
       <div style={{ flex: 1, overflow: 'auto' }}>
         {message && <div className="alerte info" style={{ margin: 8 }}>{message}</div>}
         {lignes.some((l) => l.demo) && (
-          <div className="alerte orange" style={{ margin: 8 }}><IconeAlerte />Lignes DEMO (fond teinté) : valeurs d'illustration, à remplacer par les catalogues fournisseurs avant tout usage.</div>
+          <div className="alerte orange" style={{ margin: 8 }}><IconeAlerte />Lignes DEMO (fond teinté) : valeurs d'illustration, à remplacer par les catalogues fournisseurs avant tout usage en projet.</div>
         )}
         <table className="tableau">
           <thead><tr>{colonnes.map((c) => <th key={c}>{c}</th>)}</tr></thead>

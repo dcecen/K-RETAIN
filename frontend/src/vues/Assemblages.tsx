@@ -9,7 +9,7 @@ import { Detail3D } from './Detail3D'
 import { SchemaSvg } from './SchemaSvg'
 
 type Params = Record<string, number | string>
-const LIBELLE: Record<string, string> = { ok: 'Vérifié', attention: 'Limite', non_ok: 'Non vérifié', non_verifiable: 'Prévu' }
+const LIBELLE: Record<string, string> = { ok: 'Vérifié', attention: 'Vérifié', non_ok: 'Non vérifié', non_verifiable: 'Non vérifiable' }
 
 async function post<T>(url: string, corps: unknown): Promise<T> {
   let r: Response

@@ -17,10 +17,10 @@ export class GardeErreur extends Component<{ children: ReactNode }, { erreur: Er
     if (!this.state.erreur) return this.props.children
     return (
       <div className="vide-centre bloque" style={{ height: '100vh', padding: 24 }}>
-        <b>L’affichage a rencontré une erreur</b>
-        <span>Votre script est conservé. Rechargez la page ; si l’erreur se reproduit, copiez le message ci-dessous avec le script.</span>
+        <b>Erreur d'affichage</b>
+        <span>Le script est conservé dans le navigateur. Recharger la page ; si l'erreur se reproduit, transmettre le message ci-dessous avec le script.</span>
         <pre className="mono" style={{ whiteSpace: 'pre-wrap', maxWidth: 720, textAlign: 'left' }}>{String(this.state.erreur.message || this.state.erreur)}</pre>
-        <button className="btn" onClick={() => window.location.reload()}>Recharger l’interface</button>
+        <button className="btn" onClick={() => window.location.reload()}>Recharger l'interface</button>
       </div>
     )
   }

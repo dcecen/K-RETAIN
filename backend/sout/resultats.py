@@ -186,6 +186,7 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "", catalogue=
                 **({"pp_sans_terrain": pp_sans[k]} if pp_sans[k] is not None else {}),
                 "eau": {k: _l(v) for k, v in ph.eau.items()},
                 "hydro": ph.hydro,
+                "iterations": int(ph.iterations),
                 "appuis": [],
                 "synthese": {
                     "y_max_mm": float(y_mm[i]), "z_y_max": float(ph.z[i]),

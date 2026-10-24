@@ -2,7 +2,7 @@ import type { ProjetCoupes, Resultats, Verif } from '../lib/api'
 import { analyserSelection, verifsPour } from '../vue3d/navigation'
 import { pourcent } from '../lib/format'
 
-const LIBELLE: Record<Verif['etat'], string> = { ok: 'Vérifié', attention: 'Limite', non_ok: 'Non vérifié', non_verifiable: 'Non vérifiable' }
+const LIBELLE: Record<Verif['etat'], string> = { ok: 'Vérifié', attention: 'Vérifié', non_ok: 'Non vérifié', non_verifiable: 'Non vérifiable' }
 
 function famille(v: Verif): string {
   if (v.categorie === 'geotechnique') return 'Géotechnique'

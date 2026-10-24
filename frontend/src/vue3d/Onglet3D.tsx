@@ -283,7 +283,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
         <button className={`btn ${voirResultats ? 'actif' : ''}`} title="Panneau de résultats (R)" onClick={() => setVoirResultats(!voirResultats)}><IconeTableau taille={14} /> Résultats</button>
         <button className={`btn ${voirCalques ? 'actif' : ''}`} title="Calques (L)" onClick={() => setVoirCalques(!voirCalques)}><IconeCalques taille={14} /> Calques</button>
         <select className="btn" value="" aria-label="Exporter" onChange={(e) => { const v = e.target.value; e.target.value = ''; if (v === 'png') exporterImage(1); else if (v === 'png2') exporterImage(2); else if (v === 'glb') void exporterScene(); else if (v === 'html') void exporterHtml() }}>
-          <option value="">{exportEnCours ? 'Génération…' : 'Exporter…'}</option>
+          <option value="">{exportEnCours ? 'Génération en cours' : 'Exporter'}</option>
           <option value="png">Image PNG avec légendes (×1)</option>
           <option value="png2">Image PNG avec légendes (×2)</option>
           <option value="glb">Scène glTF (.glb), phase active</option>
@@ -297,7 +297,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
             <button className="miette" onClick={() => onSelection(m.selection)}>{m.libelle}</button>
           </span>
         ))}
-        {!selection && <span className="doux" style={{ marginLeft: 8 }}>Cliquez un objet de la maquette pour ouvrir ses résultats.</span>}
+        {!selection && <span className="doux" style={{ marginLeft: 8 }}>Sélection d'un objet (clic) : ses résultats s'affichent dans le panneau.</span>}
       </nav>
       <div className="onglet-3d-corps">
         <Vue3D res={res} extra={extra} phase={phase} theme={theme} selection={selection} onSelection={choisir} onSurvol={survoler} onPret={pret} animationMs={animation ? 350 : 0} surCalques={appliquer} fabriques={FABRIQUES}
@@ -305,8 +305,8 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
             <Legendes liste={liste} />
             {infobulle && <div className="vue3d-infobulle" style={{ left: infobulle.x, top: infobulle.y }}>{infobulle.lignes.map((l, i) => <div key={i} className={i === 0 ? 'titre' : ''}>{l}</div>)}</div>}
             <div className="vue3d-note">
-              {res.maquette?.plan_defaut && <div>Plan par défaut (rectangle 20 × 12 m) : ajoutez un bloc « plan » au script.</div>}
-              <div>Glisser : tourner · clic droit ou Maj+glisser : déplacer · molette : zoom.</div>
+              {res.maquette?.plan_defaut && <div>Plan par défaut (rectangle 20 × 12 m) : la géométrie réelle se déclare dans le bloc « plan » du script.</div>}
+              <div>Glisser : rotation ; clic droit ou Maj+glisser : translation ; molette : zoom.</div>
               <div>Déplacement positif vers la fouille ; moment positif quand la face côté fouille est tendue.</div>
             </div>
           </>} />

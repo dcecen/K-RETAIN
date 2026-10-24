@@ -105,7 +105,7 @@ function Projet({ ctx }: { ctx: Ctx }) {
   return (
     <div className="saisie">
       <h2>Projet et options de calcul</h2>
-      <p className="aide">Le script YAML reste la référence : chaque champ modifié met à jour la ligne correspondante du script, et inversement.</p>
+      <p className="aide">Le script YAML est la référence du modèle : chaque champ modifié met à jour la ligne correspondante du script, et inversement.</p>
       <div className="bloc"><div className="bloc-titre">Projet</div>
         <div className="grille-form">
           <label>Nom du projet<Champ ctx={ctx} chemin={projetBloc ? ['projet', 'nom'] : ['projet']} valeur={projetBloc ? projetBloc.nom : m.projet} type="text" large /></label>
@@ -517,7 +517,7 @@ function Verifs({ ctx }: { ctx: Ctx }) {
   return (
     <div className="saisie">
       <h2>Vérifications à mener</h2>
-      <p className="aide">Les coefficients partiels viennent exclusivement de docs/normes/*.yaml. Tant qu'une valeur y manque, la vérification est « prévue » et affiche la valeur caractéristique.</p>
+      <p className="aide">Les coefficients partiels sont lus dans docs/normes/*.yaml. Tant qu'une valeur y manque, la vérification est « non vérifiable » et affiche la valeur caractéristique.</p>
       <div className="bloc">
         <table className="tableau">
           <tbody>

@@ -76,7 +76,7 @@ function specAlertes(ctx: Contexte): Spec[] {
           }
           if (!pos) continue
           const qui = type === 'paroi' ? 'paroi' : type === 'lierne' ? `lierne ${nom}` : type === 'fond' ? 'fond de fouille' : type === 'bouchon' ? 'bouchon' : nom
-          o.push({ id: `alerte.${pt.selection}`, pos, texte: `⚠ ${pt.taux !== null ? `${nb(pt.taux * 100, 0)} %` : 'non vérifié'} · ${qui}`,
+          o.push({ id: `alerte.${pt.selection}`, pos, texte: `${qui} : ${pt.taux !== null ? `taux ${nb(pt.taux * 100, 0)} %` : 'non vérifiable'}${pt.etat === 'non_ok' ? ', non vérifié' : ''}`,
             calque: 'resultats.alertes', classe: pt.etat === 'non_ok' || (pt.taux ?? 0) >= 1 ? 'alerte rouge' : 'alerte orange', selection: pt.selection })
         }
       }

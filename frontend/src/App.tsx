@@ -94,9 +94,9 @@ export default function App() {
           const e = r.erreurs[0]
           setEtat({ genre: 'erreur', texte: e.ligne ? `Erreur ligne ${e.ligne}` : 'Script invalide', ligne: e.ligne })
         } else if (texte !== texteCalcule.current) {
-          setEtat(res ? { genre: 'modifie', texte: 'Script modifié — à recalculer' } : { genre: 'aucun', texte: 'Prêt à calculer' })
+          setEtat(res ? { genre: 'modifie', texte: 'Script modifié depuis le dernier calcul' } : { genre: 'aucun', texte: 'Aucun calcul' })
         } else if (res) {
-          setEtat((e) => (e.genre === 'ok' || e.genre === 'rupture' ? e : { genre: 'ok', texte: `Calculé · ${res.phases.length} phases` }))
+          setEtat((e) => (e.genre === 'ok' || e.genre === 'rupture' ? e : { genre: 'ok', texte: `Calcul terminé : ${res.phases.length} phases` }))
         }
       }).catch(() => {})
     }, 500)
@@ -115,7 +115,7 @@ export default function App() {
       if (prep.ok && !prep.unique && prep.coupes.length > 1) {
         // une requête par coupe, lancées en parallèle (cache serveur par coupe), puis la synthèse
         const faites = new Set<string>()
-        const avancement = () => setEtat({ genre: 'calcul', texte: `Calcul des coupes ${faites.size}/${prep.coupes.length} · ${prep.coupes.map((c) => `${faites.has(c.nom) ? '✓' : '…'} ${c.nom.split(' — ')[0]}`).join(' · ')}` })
+        const avancement = () => setEtat({ genre: 'calcul', texte: `Calcul des coupes : ${faites.size}/${prep.coupes.length} terminées (${prep.coupes.map((c) => `${c.nom.split(' — ')[0]}${faites.has(c.nom) ? '' : ' en cours'}`).join(', ')})` })
         avancement()
         const reps = await Promise.all(prep.coupes.map(async (c) => { const rc = await api.calcul(texte, c.nom); faites.add(c.nom); avancement(); return rc }))
         const echec = reps.find((x) => !x.ok || !x.resultats)
@@ -143,9 +143,10 @@ export default function App() {
         setPhase(Math.max(0, nPhases - 1))
         const derniere = nPhases ? r.resultats.phases[nPhases - 1] : null
         const rompue = r.resultats.phases.find((p) => !p.ok)
+        const itMax = Math.max(0, ...r.resultats.phases.map((p) => p.iterations ?? 0))
         setEtat(r.resultats.complet
-          ? { genre: 'ok', texte: `Calculé · ${nPhases} phases · ${ms} ms` }
-          : { genre: 'rupture', texte: `Calcul interrompu — ${(rompue ?? derniere)?.nom ?? 'aucune phase'}` })
+          ? { genre: 'ok', texte: `Calcul terminé : ${nPhases} phases, convergence atteinte (au plus ${itMax} itérations), ${ms} ms` }
+          : { genre: 'rupture', texte: `Calcul interrompu à la phase « ${(rompue ?? derniere)?.nom ?? 'aucune'} » : ${(rompue ?? derniere)?.message ?? 'rupture'}` })
         if (onglet === 'script' || onglet === 'saisie') setOnglet('coupe')
       } else {
         const e = r.erreurs[0]
@@ -260,7 +261,7 @@ export default function App() {
       setProjet(null)
       setRapportRido(Array.isArray(d.rapport) ? d.rapport : [])
       setOnglet('script')
-      setEtat({ genre: 'aucun', texte: 'Fichier RIDO converti — relisez le rapport puis calculez' })
+      setEtat({ genre: 'aucun', texte: 'Fichier RIDO converti : rapport de conversion à relire avant calcul' })
     } catch (e) {
       setEtat({ genre: 'erreur', texte: `Import RIDO impossible : ${messageErreur(e)}` })
     }
@@ -295,7 +296,7 @@ export default function App() {
   const sansResultats = erreurs.length > 0 ? (
     <div className="vide-centre bloque">
       <b>Le calcul ne peut pas être lancé : {erreurs.length} erreur{erreurs.length > 1 ? 's' : ''} dans le script</b>
-      <span>Corrigez-les (clic : aller à la ligne) puis « Recalculer ». Les mots-clés inconnus, eux, sont ignorés et n'empêchent pas le calcul.</span>
+      <span>Un clic sur une erreur ouvre la ligne du script. Les mots-clés inconnus sont ignorés et n'empêchent pas le calcul.</span>
       <ul className="erreurs-bloquantes">
         {erreurs.slice(0, 12).map((e, i) => (
           <li key={i} onClick={() => allerLigne(e.ligne)}>
@@ -305,14 +306,14 @@ export default function App() {
         {erreurs.length > 12 && <li className="doux">… et {erreurs.length - 12} autre(s) (onglet Script)</li>}
       </ul>
     </div>
-  ) : <div className="vide-centre"><b>Aucun résultat</b><span>Lancez le calcul avec « Recalculer » ou Ctrl+Entrée.</span></div>
+  ) : <div className="vide-centre"><b>Aucun calcul</b><span>Calcul : bouton « Calculer » ou Ctrl+Entrée.</span></div>
 
   const classes = ['appli', nav ? '' : 'sans-nav', insp ? '' : 'sans-insp', tiroirNav ? 'nav-ouvert' : '', tiroirInsp ? 'insp-ouvert' : ''].join(' ')
   return (
     <div className={classes}>
       <BarreTitre projet={nomProjet(modele?.projet)} etat={etat} enCours={enCours} exemples={exemples} theme={theme}
         imagePossible={!!res && (onglet === 'coupe' || onglet === '3d')} resultatsDisponibles={!!res}
-        onRecalculer={() => void calculer()} onExemple={(t) => { setTexteBrut(t); setRes(null); setProjet(null); setEtat({ genre: 'aucun', texte: 'Exemple chargé — à calculer' }) }}
+        onRecalculer={() => void calculer()} onExemple={(t) => { setTexteBrut(t); setRes(null); setProjet(null); setEtat({ genre: 'aucun', texte: 'Exemple chargé, non calculé' }) }}
         onOuvrir={(f) => void f.text().then((t) => { setTexteBrut(t); setRes(null) })} onEnregistrer={enregistrer} onRido={(f) => void importerRido(f)}
         onMateriaux={() => setOnglet('materiaux')} onImage={exporterImage} onNote={() => res && imprimerNote(res)} onMaquette={() => void exporterMaquette()}
         onTheme={() => { const t: Theme = theme === 'sombre' ? 'clair' : 'sombre'; choisirTheme(t); setTheme(t) }} onAllerErreur={allerErreur}
@@ -345,10 +346,10 @@ export default function App() {
           <Suspense fallback={CHARGEMENT}>
           {onglet === 'coupe' && (res ? <CoupeDiagrammes res={res} phase={phase} theme={theme} /> : sansResultats)}
           {retour3d && onglet !== '3d' && (
-            <div className="barre-retour"><button className="btn" onClick={() => { setOnglet('3d'); setRetour3d(false) }}>← Retour à la maquette 3D</button>
-              {selection3d && <span className="doux">Ouvert depuis la maquette · {selection3d}</span>}</div>
+            <div className="barre-retour"><button className="btn" onClick={() => { setOnglet('3d'); setRetour3d(false) }}>Retour à la maquette 3D</button>
+              {selection3d && <span className="doux">Ouvert depuis la maquette : {selection3d}</span>}</div>
           )}
-          {onglet === '3d' && (res ? (res.maquette ? <Onglet3D res={res} texte={texteCalcule.current} phase={phase} theme={theme} projet={projet} coupeActive={coupeActive} onCoupe={changerCoupe} cotes={cotesPlan} onEpingler={(e) => ajouterDepuis3d(['coupes'], e, 'Coupe épinglée dans le script — à recalculer')} onAjouterSurcharge={(e) => ajouterDepuis3d(['surcharges'], e, 'Surcharge ajoutée au script — à recalculer')} onAjouterRisberme={(e) => ajouterDepuis3d(['fouille', 'risbermes'], e, 'Risberme ajoutée au script — à recalculer')}
+          {onglet === '3d' && (res ? (res.maquette ? <Onglet3D res={res} texte={texteCalcule.current} phase={phase} theme={theme} projet={projet} coupeActive={coupeActive} onCoupe={changerCoupe} cotes={cotesPlan} onEpingler={(e) => ajouterDepuis3d(['coupes'], e, 'Coupe ajoutée au script : à recalculer')} onAjouterSurcharge={(e) => ajouterDepuis3d(['surcharges'], e, 'Surcharge ajoutée au script : à recalculer')} onAjouterRisberme={(e) => ajouterDepuis3d(['fouille', 'risbermes'], e, 'Risberme ajoutée au script : à recalculer')}
             selection={selection3d} onSelection={selectionner3d} modele={erreurYaml ? null : modele} onPhase={setPhase}
             onOuvrir={(o) => { setOnglet(o); setRetour3d(true) }} prereglageInitial={ancreInitiale.current?.prereglage ?? prereglage} onPrereglage={setPrereglage} />
             : <div className="vide-centre"><b>Maquette non disponible</b><span>Le serveur n’a pas renvoyé la géométrie de la maquette pour ce calcul.</span></div>) : sansResultats)}
@@ -376,7 +377,7 @@ export default function App() {
                 {erreurYaml ? <ul><li><b>YAML</b> {erreurYaml}</li></ul>
                   : erreurs.length === 0 && avertScript.length === 0 ? <div className="ok">Script valide.</div> : (
                     <ul>
-                      {erreurs.length === 0 && <li className="ok-ligne">Script calculable : les avertissements ci-dessous n'empêchent pas le calcul.</li>}
+                      {erreurs.length === 0 && <li className="ok-ligne">Script calculable ; les avertissements ci-dessous n'empêchent pas le calcul.</li>}
                       {[...erreurs, ...avertScript].map((e, i) => (
                         <li key={i} className={e.niveau === 'avertissement' ? 'avert' : ''}
                           onClick={() => viserLigne(e.ligne)}>
