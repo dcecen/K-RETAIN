@@ -16,6 +16,7 @@ from sout.verifs_geo import bishop
 SABLE = Couche("Sable", 0.0, 20, 10, 30, EM=10000, alpha=1 / 3)
 
 
+@pytest.mark.lent
 def test_bishop_affinage_au_moins_aussi_bon_qu_une_grille_fine():
     p = bishop.Profil([SABLE], 0.0, -5.0, 25.0, None, None, 10.0, [])
     F_affine, _ = bishop.recherche(p, 0.0, -10.0)

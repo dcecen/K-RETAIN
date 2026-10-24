@@ -25,4 +25,5 @@ include = ["sout*"]
 testpaths = ["tests"]
 markers = [
   "validation: cas de validation contre K-Réa / RIDO (tolérance 5 %)",
+  "lent: test de plus de 30 s (à exclure avec -m 'not lent' pendant le développement)",
 ]
