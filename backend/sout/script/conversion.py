@@ -49,6 +49,21 @@ def _liste(v) -> list[str]:
     return [v] if isinstance(v, str) else list(v or [])
 
 
+def _hydraulique(s: Script) -> dict | None:
+    """Bloc hydraulique du modèle ; la phase d'activation d'un bouchon donnée par son nom est
+    convertie en indice (1 = première phase) : le bouchon est actif à partir de cette phase."""
+    if s.hydraulique is None:
+        return None
+    h = s.hydraulique.model_dump()
+    b = h.get("bouchon")
+    if b and isinstance(b.get("phase"), str):
+        noms = [p.nom for p in s.phases]
+        if b["phase"] not in noms:
+            raise ErreurConversion(f"bouchon : phase « {b['phase']} » inconnue")
+        b["phase"] = noms.index(b["phase"]) + 1
+    return h
+
+
 def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) -> Modele:
     """Modèle de calcul ; `jeu` choisit le jeu de niveaux d'eau (défaut : calcul.jeu_eau ou le premier)."""
     try:
@@ -155,9 +170,10 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
             (d0, z0), (d1, z1) = t.profil[0], t.profil[-1]
             beta = math.degrees(math.atan2(z1 - z0, d1 - d0))
     cc = s.coupe_calcul
+    from ..plan.geometrie import cote_concerne
     for o in objets:
         # objet rattaché à certains côtés : ignoré par les coupes des autres côtés
-        if o.cotes_paroi is not None and cc is not None and not (cc.cote in o.cotes_paroi or f"#{cc.k}" in o.cotes_paroi):
+        if not cote_concerne(o.cotes_paroi, cc):
             continue
         if o.methode == "coin_de_rupture":
             raise ErreurConversion(f"{o.type} « {o.nom} » : méthode du coin de rupture non disponible — TODO-NORME : "
@@ -205,7 +221,7 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
         eau_amont=eau0.amont if eau0 else None, eau_aval=eau0.aval if eau0 else None,
         surcharges=surcharges, gamma_w=s.calcul.gamma_w, coefficients=s.calcul.coefficients,
         pas=s.calcul.pas,
-        hydraulique=s.hydraulique.model_dump() if s.hydraulique is not None else None,
+        hydraulique=_hydraulique(s),
         coupe=s.coupe_calcul.model_dump() if s.coupe_calcul is not None else None,
         beta_amont=beta, terrain_objets=objets,
     )

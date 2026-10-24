@@ -15,9 +15,9 @@ DOSSIER = Path(__file__).resolve().parents[2] / "docs" / "normes"
 
 
 class ValeurNormeManquante(Exception):
-    def __init__(self, fichier: str, cle: str):
+    def __init__(self, fichier: str, cle: str, raison: str = "valeur manquante"):
         self.fichier, self.cle = fichier, cle
-        super().__init__(f"TODO-NORME : valeur manquante {fichier}.yaml → {cle}")
+        super().__init__(f"TODO-NORME : {raison} {fichier}.yaml → {cle}")
 
     @property
     def reference(self) -> str:
@@ -40,9 +40,12 @@ class Normes:
         if noeud is None:
             raise ValeurNormeManquante(fichier, cle)
         if isinstance(noeud, dict) and "valeur" in noeud:
-            if noeud["valeur"] is None:
+            noeud = noeud["valeur"]
+            if noeud is None:
                 raise ValeurNormeManquante(fichier, cle)
-            return noeud["valeur"]
+        if isinstance(noeud, (int, float)) and not isinstance(noeud, bool) and noeud == 0:
+            # un coefficient nul diviserait par zéro : traité comme non renseigné
+            raise ValeurNormeManquante(fichier, cle, "valeur nulle")
         return noeud
 
     def source(self, fichier: str, cle: str) -> str:

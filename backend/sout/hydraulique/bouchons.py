@@ -28,11 +28,17 @@ class Bouchon:
         return self.toit - self.base
 
     def actif(self, indice_phase: int, nom_phase: str) -> bool:
-        """indice_phase : 0 = état initial, 1 = première phase du script."""
+        """Actif à partir de la phase `phase` (indice_phase : 0 = état initial, 1 = première phase du
+        script). Un nom de phase est normalement résolu en indice à la conversion du script
+        (`script.conversion._hydraulique`) ; s'il reste un nom, l'activation commence à la phase de ce
+        nom et se poursuit ensuite (mémorisée)."""
         if self.phase is None:
             return True
         if isinstance(self.phase, str):
-            return nom_phase == self.phase or indice_phase >= 10**9
+            if nom_phase == self.phase:
+                object.__setattr__(self, "_indice_activation", indice_phase)
+            i0 = getattr(self, "_indice_activation", None)
+            return i0 is not None and indice_phase >= i0
         return indice_phase >= int(self.phase)
 
 

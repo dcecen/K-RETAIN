@@ -107,11 +107,12 @@ def _pp_sans_terrain(modele: Modele, res: ResultatCalcul) -> list:
     par phase : pp − Kph(z) × Δσv des bandes équivalentes actives. None si aucun objet côté fouille."""
     from .noyau.phasage import _coefficients_couche
     from .sol.couches import indice_couche, trier
+    from .plan.geometrie import cote_concerne
     from .sol.terrain import CoupeCalcul, PREFIXE_TERRAIN, effet_butee
 
     coupe = CoupeCalcul.depuis_dict(modele.coupe)
-    concerne = lambda o: o.cotes_paroi is None or coupe is None or (coupe.cote in o.cotes_paroi or f"#{coupe.k}" in o.cotes_paroi)
-    objets = [o for o in modele.terrain_objets if o.face == "aval" and o.methode == "surcharge_equivalente" and concerne(o)]
+    objets = [o for o in modele.terrain_objets
+              if o.face == "aval" and o.methode == "surcharge_equivalente" and cote_concerne(o.cotes_paroi, coupe)]
     if not objets:
         return [None] * len(res.phases)
     couches = trier(modele.couches)

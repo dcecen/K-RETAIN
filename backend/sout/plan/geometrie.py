@@ -33,6 +33,18 @@ def aretes(contour: list) -> list[dict]:
     return out
 
 
+def cote_concerne(cotes_paroi, coupe) -> bool:
+    """Un objet rattaché à certains côtés de la fouille (`cotes_paroi` : noms du bloc plan.cotes ou
+    « #k », numéro d'arête) concerne-t-il la coupe de calcul `coupe` (attributs `cote` et `k`) ?
+    Sans restriction (None) ou sans coupe : toujours. Règle unique pour les surcharges, les objets de
+    terrain et l'affichage (quatre copies auparavant, dont une qui ignorait la forme « #k »)."""
+    if cotes_paroi is None or coupe is None:
+        return True
+    if getattr(coupe, "cote", None) is not None and coupe.cote in cotes_paroi:
+        return True
+    return f"#{getattr(coupe, 'k', None)}" in cotes_paroi
+
+
 def perimetre(contour: list) -> float:
     return sum(a["L"] for a in aretes(contour))
 

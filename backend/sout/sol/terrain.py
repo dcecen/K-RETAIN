@@ -173,9 +173,8 @@ def ligne_quelconque(Q: float, A: tuple[float, float], B: tuple[float, float], p
 # rapport à la coupe
 # ---------------------------------------------------------------------------
 def _concerne(s: SurchargePlan, coupe: CoupeCalcul | None) -> bool:
-    if s.cotes_paroi is None or coupe is None:
-        return True
-    return coupe.cote is not None and coupe.cote in s.cotes_paroi
+    from ..plan.geometrie import cote_concerne
+    return cote_concerne(s.cotes_paroi, coupe)
 
 
 def delta_sigma_v_plan(s: SurchargePlan, z: np.ndarray, z_terrain: float, coupe: CoupeCalcul | None) -> np.ndarray:
@@ -220,6 +219,8 @@ def delta_sigma_v_plan(s: SurchargePlan, z: np.ndarray, z_terrain: float, coupe:
     if s.type == "rectangulaire" or (s.type == "ponctuelle" and s.emprise is not None):
         if s.position is None or s.emprise is None:
             raise ErreurTerrain(f"surcharge « {s.nom} » : position et emprise nécessaires")
+        if len(s.emprise) < 2 or s.emprise[0] <= 0 or s.emprise[1] <= 0:
+            raise ErreurTerrain(f"surcharge « {s.nom} » : emprise [lx, ly] strictement positive attendue, reçu {list(s.emprise)}")
         q = s.q if s.type == "rectangulaire" else s.q / (s.emprise[0] * s.emprise[1])
         # rectangle aligné sur le repère de la coupe (approximation si la fouille n'est pas rectangulaire)
         ux, vx = local(s.position[0], s.position[1])
@@ -358,9 +359,10 @@ def bandes_equivalentes(o: ObjetTerrain) -> list[Surcharge]:
 
 def surcharges_terrain(objets, coupe: CoupeCalcul | None) -> list[tuple[ObjetTerrain, list[Surcharge]]]:
     """Bandes équivalentes des objets concernant la coupe (les autres méthodes n'en produisent pas)."""
+    from ..plan.geometrie import cote_concerne
     out = []
     for o in objets:
-        if o.cotes_paroi is not None and coupe is not None and not (coupe.cote in o.cotes_paroi or f"#{coupe.k}" in o.cotes_paroi):
+        if not cote_concerne(o.cotes_paroi, coupe):
             continue
         if o.methode == "coin_de_rupture":
             raise ErreurTerrain(f"{o.type} « {o.nom} » : méthode du coin de rupture non disponible — "

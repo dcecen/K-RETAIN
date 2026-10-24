@@ -148,11 +148,18 @@ def construire_ecran(p, catalogue=None, normes=None) -> Ecran:
     if p.EI is not None:
         EI = p.EI
         infos["EI_source"] = "imposé"
-        if p.type in ("pieux_disjoints", "berlinoise") and largeur is None and p.entraxe:
+        if p.type in ("pieux_disjoints", "berlinoise") and largeur is None:
+            # Fiche discontinue : la largeur de réaction sous le fond doit être connue, sinon la butée
+            # serait prise sur toute la largeur (côté insécurité) sans que rien ne le signale.
+            if not p.entraxe:
+                raise ErreurParoi(f"paroi {p.type} avec EI imposé : entraxe obligatoire (fiche discontinue)")
             b = p.diametre if p.type == "pieux_disjoints" else None
-            if p.largeur_reaction_fiche is not None or b is not None:
-                infos["rapport_largeur_fiche"] = min(_largeur_reaction(p, b or 0.0, normes) / p.entraxe, 1.0)
-                largeur = _fonction_fiche(infos["rapport_largeur_fiche"])
+            if p.largeur_reaction_fiche is None and b is None:
+                raise ErreurParoi(
+                    "paroi berlinoise avec EI imposé : largeur du profilé inconnue, donnez paroi.largeur_reaction_fiche (m) "
+                    "pour la butée sous le fond de fouille (fiche discontinue)")
+            infos["rapport_largeur_fiche"] = min(_largeur_reaction(p, b or 0.0, normes) / p.entraxe, 1.0)
+            largeur = _fonction_fiche(infos["rapport_largeur_fiche"])
     elif EI is None:
         attendu = {"palplanche": "profil et acier", "berlinoise": "profil, acier et entraxe",
                    "paroi_moulee": "epaisseur et beton", "pieux_secants": "diametre, entraxe et beton",

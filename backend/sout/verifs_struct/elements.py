@@ -29,6 +29,16 @@ SRC_EC35 = "EN 1993-5 — coefficients : docs/normes/ec3.yaml"
 SRC_EC2 = "EN 1992-1-1 (§ 3.1.7, 6.1, 6.2.2) — coefficients : docs/normes/ec2.yaml"
 
 
+def _classe_section(valeur) -> int | None:
+    """Classe de section (1 à 4) telle que lue dans le script ou dans un catalogue (entier, réel ou texte « 2 », « 2.0 »)."""
+    if valeur in (None, ""):
+        return None
+    try:
+        return int(round(float(str(valeur).strip().replace(",", "."))))
+    except ValueError:
+        return None
+
+
 def _cle_combinaison(jeu: str | None) -> str:
     return "ELU_accidentel" if jeu and re.search("except|accid", jeu, re.I) else "ELU_fondamental"
 
@@ -382,12 +392,12 @@ def verifier_paroi(s, m, r, catalogue, normes, cle: str, suffixe: str, efforts: 
         reduc = 1.0
         if p.perte_epaisseur and sec.get("t_mm"):
             reduc = max(0.0, 1 - p.perte_epaisseur / sec["t_mm"])
-        classe = p.classe_section or sec.get("classe")
+        classe = _classe_section(p.classe_section or sec.get("classe"))
         if classe is None:
             lect.manquants.append("classe de section de la palplanche (catalogue ou paroi.classe_section)")
-        elif int(classe) == 4:
+        elif classe == 4:
             lect.manquants.append("palplanche de classe 4 : calcul de la section efficace non implémenté")
-        plastique = classe in (1, 2, 1.0, 2.0) and bool(sec.get("Wpl_cm3_m"))
+        plastique = classe in (1, 2) and bool(sec.get("Wpl_cm3_m"))
         W = (sec["Wpl_cm3_m"] if plastique else sec["Wel_cm3_m"]) * reduc
         detail = f"M_k = {Mk:.0f} kN·m/m, V_k = {Vk:.0f} kN/m ; {p.profil}" + (" (DEMO)" if inf.get("demo") else "")
         taux = None

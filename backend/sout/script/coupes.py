@@ -244,6 +244,14 @@ def phasage_projet(phases_par_coupe: list[list[str]]) -> tuple[list[str], list[l
 _ORDRE_ETAT = {"non_ok": 3, "attention": 2, "ok": 1, "non_verifiable": 0}
 
 
+def _score_synthese(v: dict) -> float:
+    """Même règle que sout.verifs.score_defaveur : taux chiffré, sinon un non_ok sans taux passe devant
+    tout, un non vérifiable derrière tout."""
+    if v.get("taux") is not None:
+        return float(v["taux"])
+    return {"non_ok": float("inf"), "attention": 1.0, "ok": 0.0}.get(v["etat"], -1.0)
+
+
 def synthese_projet(verifs_par_coupe: dict[str, list[dict]]) -> list[dict]:
     """Pour chaque vérification (nom + élément), la coupe la plus défavorable : taux maximal,
     sinon l'état le plus grave. Chaque ligne indique la coupe retenue."""
@@ -254,13 +262,7 @@ def synthese_projet(verifs_par_coupe: dict[str, list[dict]]) -> list[dict]:
             cand = {"nom": v["nom"], "element": v["element"], "categorie": v.get("categorie"), "coupe": coupe,
                     "taux": v.get("taux"), "etat": v["etat"], "phase": v.get("phase"), "detail": v.get("detail", "")}
             cur = lignes.get(cle)
-            if cur is None:
-                lignes[cle] = cand
-                continue
-            t_new, t_cur = cand["taux"], cur["taux"]
-            if t_new is not None and (t_cur is None or t_new > t_cur):
-                lignes[cle] = cand
-            elif t_new is None and t_cur is None and _ORDRE_ETAT[cand["etat"]] > _ORDRE_ETAT[cur["etat"]]:
+            if cur is None or _score_synthese(cand) > _score_synthese(cur):
                 lignes[cle] = cand
     return list(lignes.values())
 

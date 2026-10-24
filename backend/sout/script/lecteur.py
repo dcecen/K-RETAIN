@@ -18,7 +18,7 @@ from io import StringIO
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.error import MarkedYAMLError
+from ruamel.yaml.error import MarkedYAMLError, YAMLError
 
 from .schema import Script
 
@@ -171,6 +171,10 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
             e.append((("appuis", nom), f"tirant {nom} : longueur_libre obligatoire"))
     noms_surcharges = {sc.nom for sc in s.surcharges if sc.nom}
     noms_phases = [ph.nom for ph in s.phases]
+    for i, n in enumerate(noms_phases):
+        if n in noms_phases[:i]:
+            e.append((("phases", i, "nom"), f"plusieurs phases s'appellent « {n} » : renommez-les "
+                                            "(les résultats, les coupes et le pseudo-3D repèrent les phases par leur nom)"))
     parents: list[int] = []   # indice du parent (−1 = état initial)
     for i, ph in enumerate(s.phases):
         if ph.depuis is None:
@@ -193,6 +197,9 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
                 if nom not in s.appuis:
                     e.append((("phases", i, cle), f"appui « {nom} » non défini dans le bloc appuis"))
                 elif cle == "poser":
+                    if nom in poses:
+                        e.append((("phases", i, cle), f"appui « {nom} » déjà posé : déposez-le avant de le reposer "
+                                                      "(sinon sa mise en charge serait comptée deux fois)"))
                     poses.add(nom)
                 elif nom not in poses:
                     e.append((("phases", i, cle), f"appui « {nom} » déposé avant d'avoir été posé"))
@@ -213,9 +220,14 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
         for i, c in enumerate(s.sol):
             if c.k_h is None:
                 e.append((("sol", i, "nom"), f"couche « {c.nom} » : k_h (m/s) obligatoire avec hydraulique.regime = {s.hydraulique.regime}"))
+    if s.hydraulique is not None:
         b = s.hydraulique.bouchon
         if b is not None and b.base >= b.toit:
             e.append((("hydraulique", "bouchon", "base"), "la base du bouchon doit être sous son toit"))
+        if b is not None and isinstance(b.phase, str) and b.phase not in noms_phases:
+            e.append((("hydraulique", "bouchon", "phase"), f"phase « {b.phase} » inconnue"))
+        if b is not None and isinstance(b.phase, int) and not (1 <= b.phase <= max(1, len(s.phases))):
+            e.append((("hydraulique", "bouchon", "phase"), f"numéro de phase {b.phase} hors de 1..{len(s.phases)}"))
     for nom, a in s.assemblages.items():
         from ..assemblages.service import REGISTRE
         if a.type not in REGISTRE:
@@ -374,7 +386,12 @@ def _lire(arbre, donnees) -> tuple[Script, list[ErreurScript]]:
                 raise ScriptInvalide(erreurs + avertissements) from None
             for loc in inconnues:
                 _retirer(donnees, loc)
-    return Script.model_validate(donnees), avertissements
+    try:
+        return Script.model_validate(donnees), avertissements
+    except ValidationError as ex:
+        erreurs = [ErreurScript(ligne_de(arbre, tuple(err["loc"])), _chemin_lisible(tuple(err["loc"]), donnees), _message(err))
+                   for err in ex.errors(include_url=False)]
+        raise ScriptInvalide(erreurs + avertissements) from None
 
 
 def lire_script(texte: str) -> Script:
@@ -387,6 +404,8 @@ def lire_script(texte: str) -> Script:
     except MarkedYAMLError as ex:
         ligne = ex.problem_mark.line + 1 if ex.problem_mark else None
         raise ScriptInvalide([ErreurScript(ligne, "", f"syntaxe YAML : {ex.problem}")]) from None
+    except YAMLError as ex:   # caractère interdit, encodage… (erreur sans position)
+        raise ScriptInvalide([ErreurScript(None, "", f"syntaxe YAML : {ex}")]) from None
     if not isinstance(arbre, CommentedMap):
         raise ScriptInvalide([ErreurScript(1, "", "le script doit être un bloc de mots-clés (projet:, paroi:, sol:…)")])
     donnees = _python(arbre)
