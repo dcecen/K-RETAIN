@@ -51,13 +51,20 @@ Chaque utilisateur s'identifie (nom et mot de passe) à l'ouverture.
 - Les scripts de calcul restent sur les postes des utilisateurs (ouvrir / enregistrer) :
   le serveur ne conserve aucune donnée de projet. Sauvegardez `docs/normes`,
   `docs/catalogues` et le volume des comptes.
-- Base matériaux : reconstruite au démarrage à partir de `docs/catalogues` ; après un
-  import par l'interface, sauvegarder `docs/catalogues`.
+- Base matériaux (`backend/data/materiaux.sqlite`) : créée au premier démarrage à partir du
+  jeu DEMO et de `docs/catalogues`, puis reconstruite à chaque import par l'interface ou par
+  `python -m sout.materiaux.importer --reconstruire` (à lancer après avoir déposé un catalogue
+  à la main dans `docs/catalogues`). Sauvegarder `docs/catalogues`.
+- Le serveur n'écoute que sur ce poste (`127.0.0.1`) : c'est le proxy HTTPS qui l'expose.
+  Pour l'exposer directement (réseau de confiance), définir `RETAINWALL_HOTE=0.0.0.0` avant
+  `lancer_production.ps1`.
 
 ## 5. Mise à jour des valeurs normatives
 
-Les fichiers `docs/normes/*.yaml` sont lus à chaque calcul : renseignez les valeurs
-(avec leur source) puis relancez un calcul ; aucune recompilation n'est nécessaire.
+Les fichiers `docs/normes/*.yaml` sont lus à chaque calcul et font partie de la clé du cache
+des résultats : modifiez une valeur (avec sa source) puis relancez un calcul, le résultat est
+recalculé sans redémarrage ni recompilation. Les valeurs livrées ont été renseignées de
+mémoire (octobre 2026) et sont toutes marquées « à confirmer ».
 Avec Docker, montez le dossier : `-v C:\retainwall\normes:/app/docs/normes`.
 
 ## 6. Questions ouvertes (à trancher par le bureau d'études)

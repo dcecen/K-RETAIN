@@ -486,3 +486,77 @@ pytest : 281 réussis, 6 ignorés (cas K-Réa/RIDO absents) ; vitest : 61 ; rafa
 - Vérifié dans Chrome sur localhost:8000 (bloc projet + mot-clé inconnu : calcul fait, avertissement affiché).
   Tests : pytest 294 (6 ignorés), vitest 62.
 
+
+## Audit complet et corrections (24 octobre 2026, session autonome)
+
+Trois audits indépendants en lecture seule (backend, interface, outillage/tests/docs), constats critiques
+vérifiés sur le code, puis neuf lots de corrections, chacun validé par la suite complète et commité.
+Règle 1 respectée : aucune valeur de norme écrite ; les TODO-NORME existants sont intacts.
+
+### Écarts corrigés (avec test de non-régression : `tests/unitaires/test_audit_24oct*.py`, `frontend/src/lib/__tests__/scriptDoc.test.ts`)
+
+| Gravité | Constat | Correction |
+| --- | --- | --- |
+| Critique | `verifs.pire` : un résultat **non_ok sans taux** (section de pieu insuffisante) levait `KeyError` → erreur 500 | rang complet des états ; même règle dans la synthèse projet (`coupes.synthese_projet`) |
+| Critique | Assemblages vérifiés sur des **efforts non pondérés** (H caractéristique × e / cos θ comparé à des résistances de calcul) | × `gamma_effets` ELU fondamental, comme `verifs_struct` ; coefficient absent → non vérifiable ; `efforts:` imposés = efforts de calcul (documenté) |
+| Critique | Import d'un catalogue fautif : base supprimée puis reconstruction en échec, fichier fautif conservé, message anglais | validation complète en mémoire **avant** copie ; reconstruction dans un fichier temporaire puis substitution ; erreurs en français (table, ligne, colonne) ; `modele_*` refusés |
+| Critique | Cache des résultats indexé par le texte seul : une norme corrigée ou un catalogue importé ne changeait rien avant redémarrage | clé = texte + empreinte (version, `docs/normes`, base, catalogues) ; verrou ; cache vidé après import |
+| Critique | Lanceur : tout processus sur le port 8000 était tué, même un autre logiciel | arrêt seulement si `/api/sante` répond comme RetainWall ; autre programme → message et refus |
+| Critique (interface) | Écran blanc possible : `toJS()` sur un alias YAML non défini, `scene.charger` sans `maquette`, aucune ErrorBoundary | lecture protégée, garde d'erreur globale (script conservé), message « maquette non disponible » |
+| Critique (interface) | Champ « Nom du projet » écrasait un bloc `projet:` (nom, affaire, client) par un texte | édition clé par clé ; champs du bloc affichés |
+| Majeur | Surcharge en plan limitée à une arête par numéro (`cote_paroi: 0` → « #0 ») **jamais appliquée** (une copie sur quatre de la règle « côté concerné » ignorait cette forme) | règle unique `plan.geometrie.cote_concerne`, utilisée partout |
+| Majeur | Bouchon dont la phase est donnée par son nom : actif **pendant** cette phase seulement | nom résolu en indice à la conversion : actif à partir de la phase ; contrôles du lecteur (phase connue, numéro dans l'intervalle) |
+| Majeur | Berlinoise / pieux disjoints à **EI imposé** sans `largeur_reaction_fiche` : butée sous le fond sur toute la largeur, sans message | refus explicite (même règle que le chemin EI calculé) |
+| Majeur | Bishop, Kranz, Bjerrum-Eide ignoraient les surcharges `uniforme` en plan et, en silence, les surcharges phasées / ponctuelles / le talus | `uniforme` comptée comme `repartie` ; surcharges non modélisées **listées dans le détail** |
+| Majeur | Jeu d'eau en rupture écarté des vérifications sans trace | résultat **non_ok** « Calcul — équilibre de l'écran » |
+| Majeur | Assemblages : S355, lierne 300×300×11×19, tube 508×12,5 utilisés en repli sans prévenir | gabarit de repli pour le dessin seulement ; vérification **non vérifiable** nommant la donnée manquante |
+| Majeur | Pseudo-3D : écoulement ignoré, branche unique, jeu principal seul, STR 3D omises après rupture, le tout en silence | avertissements explicites (`pseudo3d.avertissements_simplifications`) ; combinaison accidentelle déduite du nom du jeu annoncée |
+| Majeur | `coupes.script` acceptait un chemin absolu ou `..` (lecture de n'importe quel fichier du serveur) | confiné au dossier `exemples/` |
+| Majeur | Authentification : PBKDF2 (600 000 itérations) à chaque requête, dans la boucle d'événements ; fichier des comptes relu à chaque fois | vérification hors boucle, succès mis en cache 10 min, fichier relu seulement s'il change ; `lancer_production.ps1` sur 127.0.0.1 par défaut, variable d'auth non laissée dans le terminal |
+| Majeur | Aucun gestionnaire d'erreurs : exception imprévue, `TableAbsente` (Kérisel-Absi), paramètre d'assemblage texte, caractère interdit → « Internal Server Error » | gestionnaire global et 422 en français ; `TableAbsente` → message TODO-NORME ; 400 / 503 explicites |
+| Majeur | Limites absentes (script, fichier importé, longueur de plaque, domaine d'écoulement) | 2 Mo / 20 Mo / 2 000 m / 2 000 m (bornes de calculabilité, pas de norme) |
+| Majeur (interface) | Message serveur perdu (« Serveur injoignable (TypeError…) » pour une erreur 500) ; import RIDO sans contrôle ; `renommerAppui` oubliait assemblages et plan ; Ctrl+Entrée relançait un calcul concurrent ; ajout depuis la 3D perdu si YAML invalide | corrigés (`api.ts` lit `erreurs` / `detail`, `ErreurServeur`) |
+| Majeur (interface) | Objet `{}` recréé à chaque rendu → scène 3D rechargée et animation annulée ; petits graphiques redessinés au survol ; détail 3D en boucle de rendu continue sans libération | mémorisation, redessin sur changement de contenu, rendu à la demande + `dispose` |
+| Majeur (interface) | Gradient critique = 1 et seuils 0,5 / 0,9 codés dans l'interface | couleurs tirées de l'état des vérifications du serveur (aucun seuil numérique dans l'interface) |
+| Mineur | classe de section « 2 » (texte d'un catalogue) → W élastique silencieux ; re-pose d'un appui déjà posé (mise en charge comptée deux fois) ; phases homonymes ; valeur de norme nulle acceptée ; emprise nulle ; contour fermé par un point répété ; tolérance finale du solveur (`tol` au lieu de `tol_it`) | corrigés |
+| Mineur (interface) | virgule décimale refusée (assemblages, boîtes de la maquette), « Annuler » = 0 ; suppressions sans confirmation ; légende et conventions hors de la figure exportée ; « Aller à l'erreur » inopérant au second clic ; `alert(Error: …)` ; contraste du texte faible | corrigés ; `separators` français dans Plotly ; convention du tranchant dans les légendes 3D |
+| Outillage | bundle unique de 8,2 Mo ; versions Python non verrouillées ; pas de lint Python ; `lancer_tests.ps1` sans typage ni lint ; rafale calculée à la collecte ; `.ps1` sans BOM ; lanceur sans réinstallation ni journal | Monaco / three / Plotly en morceaux séparés (0,5 Mo au chargement) ; `requirements.lock.txt` (lanceur et Dockerfile) ; ruff configuré (0 signalement) ; `lancer_tests.ps1` = pytest + ruff + tsc + eslint + vitest ; rafale en fixtures ; BOM ; lanceur avec témoins d'installation, journal `%LOCALAPPDATA%\\RetainWall\\demarrage.log`, pause en cas d'erreur |
+| Documentation | « normes livrées vides », « base reconstruite au démarrage », « normes lues à chaque calcul », hydrostatique seul : périmés ; référence du guide limitée à 15 blocs | corrigés ; référence générée pour **tous** les blocs du schéma (hydraulique, fouille, coupes, assemblages, coupe_calcul…) |
+
+### Décisions prises sans l'utilisateur (à valider)
+- Efforts d'assemblage : ceux issus d'un appui sont pondérés par `gamma_effets` ; ceux saisis dans `efforts:` sont
+  réputés **efforts de calcul**. Si vous préférez saisir des efforts caractéristiques, le dire : un coefficient
+  sera appliqué.
+- Berlinoise à EI imposé : refus sans `largeur_reaction_fiche` (plutôt qu'une butée pleine largeur).
+- Bishop / Kranz / Bjerrum-Eide : surcharges `uniforme` prises en compte, les autres seulement signalées (pas de
+  refonte du modèle de massif).
+- Combinaison accidentelle toujours déduite du nom du jeu d'eau (« except », « accid »), désormais annoncée ;
+  une clé explicite par jeu pourrait la remplacer.
+- Authentification : un compte supprimé reste accepté au plus 10 minutes (cache).
+
+### Écarts documentés, non corrigés
+- Boucles de phasage dupliquées entre 2D (`noyau/phasage.py`) et pseudo-3D (`pseudo3d/calcul.py`) ; fonctions de
+  plus de 150 lignes (`lecteur._controles`, `MoteurPseudo3D.__init__`, `conversion.vers_modele`).
+- Tests dépendants de la base matériaux vivante (`backend/data`) et des valeurs de normes « de mémoire » (E07, E08,
+  `effort_elu == 1.35 × …`) : un vrai catalogue ou une norme corrigée fera échouer des tests sans que le code soit en cause.
+- Calculs synchrones sans délai maximal (pas de pool de processus) ; Dockerfile toujours non testé (Docker absent).
+- Dépôt Git sans dépôt distant ; `.venv` et `node_modules` synchronisés par OneDrive (lent, verrous) :
+  à déplacer ou à exclure de la synchronisation.
+- Plotly reste chargé avec l'onglet par défaut (4,5 Mo) ; locale française limitée aux séparateurs.
+- Interface : menus sans navigation au clavier, lignes cliquables non focusables, aide-mémoire des raccourcis absent.
+
+### Questions ouvertes pour l'utilisateur
+1. Valider les décisions ci-dessus (efforts d'assemblage, berlinoise à EI imposé).
+2. Source du seuil δp/φ ≤ 1/3 pour la butée de Coulomb (qualifié « seuil usuel » dans le code, sans référence dans docs/normes).
+3. Relecture des 119 valeurs de `docs/normes/*.yaml` sur le texte des normes (toutes « à confirmer »).
+4. Cas de référence K-Réa / RIDO (cas01 à cas05), manuel RIDO, tables de Kérisel-Absi : toujours absents.
+5. Hébergement : dépôt distant, sortie de OneDrive, HTTPS.
+
+### Testé
+`lancer_tests.ps1` tout vert : pytest 329 réussis, 6 ignorés (cas K-Réa/RIDO absents), ruff 0 signalement, tsc 0 erreur,
+eslint 0 erreur, vitest 74 (12 fichiers). Commits : d837409, 6f928cd, 0c5ed5d, eab4065, 501b9d9, 2d7557c, 6a0c10c,
+90e7471, 5ea4462 puis outillage et documentation. Lanceur vérifié
+en conditions réelles (premier lancement, « déjà lancé », version périmée → redémarrage en 7 s, port occupé par un
+autre programme → refus) ; test de fumée Chrome sans affichage sur l'interface reconstruite (calcul, 3D, saisie,
+vérifications : aucune erreur console).
+

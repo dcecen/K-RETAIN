@@ -15,23 +15,50 @@ from . import schema
 GUIDE = Path(__file__).resolve().parents[3] / "docs" / "guide_script.md"
 DEBUT, FIN = "<!-- REFERENCE:DEBUT -->", "<!-- REFERENCE:FIN -->"
 
-BLOCS = [
-    ("Racine du script", schema.Script),
-    ("calcul", schema.Calcul),
-    ("paroi", schema.Paroi),
-    ("paroi.blindage", schema.Blindage),
-    ("sol (chaque couche)", schema.Couche),
-    ("terrain", schema.Terrain),
-    ("eau (chaque jeu de niveaux)", schema.NiveauxEau),
-    ("surcharges (chaque surcharge)", schema.Surcharge),
-    ("appuis (chaque appui)", schema.Appui),
-    ("phases (chaque phase)", schema.Phase),
-    ("phases.remblayer", schema.Remblai),
-    ("criteres", schema.Criteres),
-    ("plan", schema.Plan),
-    ("plan.appuis (chaque position)", schema.AppuiPlan),
-    ("pseudo3d", schema.Pseudo3D),
-]
+def _modeles(t) -> list:
+    """Modèles pydantic contenus dans une annotation (bloc, liste de blocs, blocs nommés, optionnel)."""
+    o = get_origin(t)
+    if o is Literal:
+        return []
+    if o in (Union, types.UnionType, list, dict, tuple):
+        return [m for a in get_args(t) for m in _modeles(a)]
+    if isinstance(t, type) and issubclass(t, BaseModel):
+        return [t]
+    return []
+
+
+def _libelle(nom: str, t) -> str:
+    o = get_origin(t)
+    if o in (Union, types.UnionType):
+        o = next((get_origin(a) for a in get_args(t) if a is not type(None)), None)
+    if o is list:
+        return f"{nom} (chaque élément)"
+    if o is dict:
+        return f"{nom} (chaque bloc nommé)"
+    return nom
+
+
+def blocs() -> list[tuple[str, type]]:
+    """Tous les blocs du langage, parcourus depuis la racine : chaque modèle une fois, sous le premier
+    chemin qui y mène (ainsi les blocs ajoutés au schéma — hydraulique, fouille, coupes, assemblages… —
+    apparaissent dans le guide sans liste à entretenir)."""
+    out: list[tuple[str, type]] = [("Racine du script", schema.Script)]
+    vus = {schema.Script}
+    file = [("", schema.Script)]
+    while file:
+        prefixe, modele = file.pop(0)
+        for nom, champ in modele.model_fields.items():
+            for m in _modeles(champ.annotation):
+                if m in vus:
+                    continue
+                vus.add(m)
+                chemin = f"{prefixe}{nom}"
+                out.append((_libelle(chemin, champ.annotation), m))
+                file.append((chemin + ".", m))
+    return out
+
+
+BLOCS = blocs()
 
 
 def _type(t) -> str:

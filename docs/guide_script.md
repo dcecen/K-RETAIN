@@ -14,8 +14,11 @@ une indentation de deux espaces pour les sous-blocs et un tiret `- ` pour chaque
 d'une liste. Le script s'écrit dans l'éditeur de l'application (coloration, complétion
 avec Ctrl+Espace, aide au survol d'un mot-clé) ou dans n'importe quel éditeur de texte.
 
-Le script est validé avant le calcul. Chaque erreur est signalée en français avec son
-numéro de ligne ; un clic sur l'erreur place le curseur sur la ligne.
+Le script est validé avant le calcul. Chaque erreur bloquante (valeur hors bornes, mot-clé
+obligatoire absent, incohérence entre blocs) est signalée en français avec son numéro de
+ligne ; un clic sur l'erreur place le curseur sur la ligne. Un **mot-clé inconnu** (faute de
+frappe, clé d'une autre version) n'empêche pas le calcul : il est ignoré et signalé en orange.
+Le bloc `projet` peut être un simple texte ou un bloc (`nom`, `affaire`, `client`…).
 
 ### Unités (fixes, jamais implicites)
 
@@ -111,10 +114,11 @@ Le bloc `eau` contient un ou plusieurs **jeux de niveaux** (par exemple `service
 `exceptionnel`). Chaque jeu est calculé ; les vérifications retiennent le cas le plus
 défavorable. Un jeu dont le nom contient « except » ou « accid » est vérifié en
 combinaison accidentelle. Dans une phase, `eau: { aval: -7.0 }` ne change que les clés
-écrites (pour tous les jeux). Seul le régime hydrostatique est calculé (un avertissement
-le rappelle dès que les nappes amont et aval diffèrent : la butée peut être surestimée) ;
-le fond de fouille est vérifié par la méthode de la longueur de cheminement (simplifiée).
-Le poids volumique de l'eau vaut 10 kN/m³ par défaut (`calcul.gamma_w`).
+écrites (pour tous les jeux). Sans bloc `hydraulique`, le régime est hydrostatique (un
+avertissement le rappelle dès que les nappes amont et aval diffèrent : la butée peut être
+surestimée) et le fond de fouille est vérifié par la longueur de cheminement ; le bloc
+`hydraulique` (section suivante) active le régime simplifié ou l'écoulement 2D. Le poids
+volumique de l'eau vaut 10 kN/m³ par défaut (`calcul.gamma_w`).
 
 ### Écoulement autour de l'écran (bloc `hydraulique`)
 
@@ -190,9 +194,12 @@ Listez celles à mener dans `verifications` : `butee`, `equilibre_vertical`, `kr
 Chaque vérification affiche un **taux de travail** (sollicitation / résistance de calcul),
 sa source et son état : vert (≤ 90 %), orange (90 à 100 %), rouge (> 100 %), ou gris
 **« non vérifiable »** quand une valeur de norme manque. Les coefficients partiels et
-valeurs normatives sont lus uniquement dans `docs/normes/*.yaml` (livrés vides) : tant
-qu'ils ne sont pas renseignés, l'application donne les valeurs caractéristiques à titre
-indicatif et liste précisément les valeurs manquantes.
+valeurs normatives sont lus uniquement dans `docs/normes/*.yaml`. Ces fichiers ont été
+**renseignés de mémoire le 22 octobre 2026, chaque valeur marquée « à confirmer »** : ils
+doivent être relus sur le texte des normes par un ingénieur avant tout usage en projet (les
+modèles vides restent dans `docs/normes/modeles/`). Si une valeur manque ou vaut zéro, la
+vérification est « non vérifiable » : l'application donne les valeurs caractéristiques à
+titre indicatif et liste précisément les valeurs manquantes.
 
 Les critères de déplacement aux ELS sont fixés par l'ingénieur dans `criteres`.
 
@@ -237,8 +244,12 @@ assemblages:
 ```
 
 Les coefficients (γM, fub, k2, αv, βw, As, coefficients des axes et des âmes…) viennent de
-`docs/normes/ec3_assemblages.yaml`, livré vide : tant qu'ils manquent, les vérifications sont
-« prévues » et affichent les sollicitations. Les résistances des chevilles (ETE) se saisissent
+`docs/normes/ec3_assemblages.yaml` (renseigné de mémoire, à confirmer) : si l'un manque, les
+vérifications sont « prévues » et affichent les sollicitations. Les efforts issus d'un appui
+(`appui:`) sont pondérés par `gamma_effets` (ELU fondamental) ; les efforts écrits dans
+`efforts:` sont pris tels quels : ce sont des efforts de calcul. Une nuance d'acier, une lierne
+ou un tube absents de la base rendent la vérification « non vérifiable » (le dessin utilise un
+gabarit de repli, jamais le calcul). Les résistances des chevilles (ETE) se saisissent
 dans les paramètres. Les vérifications marquées « À confirmer » reposent sur des méthodes
 simplifiées (âme sous charge transversale sans χF, interaction linéaire N-M, 50 % de l'effort
 dans les nervures…) à valider par l'ingénieur.
@@ -325,15 +336,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `longueur_panneau` | nombre |  |  | paroi moulée (pseudo-3D) : longueur des panneaux (m) ; un joint entre panneaux ne transmet ni moment ni torsion horizontaux (> 0) |
 | `origine_panneaux` | nombre |  | 0.0 | paroi moulée (pseudo-3D) : abscisse du premier joint le long de la paroi (m) (≥ 0) |
 
-### paroi.blindage
-
-| Mot-clé | Type | Obligatoire | Défaut | Description |
-| --- | --- | --- | --- | --- |
-| `epaisseur` | nombre | oui |  | épaisseur du blindage (m) (> 0) |
-| `materiau` | bois / beton / acier | oui |  | matériau du blindage |
-| `resistance` | nombre |  |  | résistance de calcul en flexion (MPa) (> 0) |
-
-### sol (chaque couche)
+### sol (chaque élément)
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- | --- |
@@ -370,14 +373,22 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `cote_paroi` | texte ou entier ou liste de texte ou entier |  |  | côté(s) concerné(s) par le profil (défaut : tous) |
 | `remblai` | bloc |  |  | remblai côté terre mis en place à une phase (couche ajoutée) |
 
-### eau (chaque jeu de niveaux)
+### fouille
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `risbermes` | liste de bloc |  |  | risbermes contre la paroi (côté fouille) |
+| `talus` | liste de bloc |  |  | talus provisoires côté fouille (banquette puis pente) |
+| `gradins` | liste de bloc |  |  | fond de fouille en gradins |
+
+### eau (chaque bloc nommé)
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- | --- |
 | `amont` | nombre |  |  | cote de la nappe côté amont (m) ; vide = pas de nappe |
 | `aval` | nombre |  |  | cote de la nappe côté aval (m) ; vide = pas de nappe |
 
-### surcharges (chaque surcharge)
+### surcharges (chaque élément)
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- | --- |
@@ -398,7 +409,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `phase` | entier ou texte |  |  | phase d'application (numéro à partir de 1, ou nom) ; vide = dès le début |
 | `phases` | liste de entier ou texte |  |  | [première, dernière] phase d'existence |
 
-### appuis (chaque appui)
+### appuis (chaque bloc nommé)
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- | --- |
@@ -426,7 +437,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `beton` | texte |  |  | dalle : classe de béton (base matériaux) |
 | `pied_bracon` | nombre |  |  | bracon : cote de l'appui en pied (m) |
 
-### phases (chaque phase)
+### phases (chaque élément)
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- | --- |
@@ -440,13 +451,6 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `retirer_surcharges` | liste de texte |  |  | noms des surcharges retirées |
 | `depuis` | texte |  |  | phase de départ : nom d'une phase antérieure ou « État initial » ; vide = la phase précédente ; permet des branches (variantes) |
 | `terrasser_risberme` | texte ou liste de texte |  |  | risberme(s), talus ou gradins terrassés dans cette phase (noms) |
-
-### phases.remblayer
-
-| Mot-clé | Type | Obligatoire | Défaut | Description |
-| --- | --- | --- | --- | --- |
-| `amont` | nombre |  |  | nouvelle cote du terrain amont (m) |
-| `aval` | nombre |  |  | nouvelle cote du terrain aval (m) |
 
 ### criteres
 
@@ -464,14 +468,6 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `cote_terrain` | nombre |  |  | cote du terrain autour de la fouille (m) |
 | `cotes` | blocs nommés de entier |  |  | noms des côtés de la fouille → numéro d'arête du contour (0 = premier segment) |
 
-### plan.appuis (chaque position)
-
-| Mot-clé | Type | Obligatoire | Défaut | Description |
-| --- | --- | --- | --- | --- |
-| `appui` | texte | oui |  | nom de l'appui (bloc appuis) |
-| `de` | liste de nombre | oui |  | point de départ [x, y] (m) |
-| `a` | liste de nombre | oui |  | point d'arrivée [x, y] (m) |
-
 ### pseudo3d
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
@@ -484,5 +480,142 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `rapport_rigidite_horizontale` | nombre |  |  | rapport Ds/Dz imposé (sans unité ; 0 = aucune flexion horizontale, 1 = plaque isotrope) ; prioritaire sur le défaut du type, moins que rigidite_horizontale (≥ 0) |
 | `torsion` | nombre |  |  | rigidité de torsion GJ par mètre imposée (kN·m²/m) ; défaut √(Ds·Dz) (plaque de Huber) (≥ 0) |
 | `largeur_appui` | nombre |  |  | largeur sur laquelle chaque appui ponctuel est réparti le long de la paroi (m : plaque d'appui, semelle de lierne) ; sans cette clé l'appui agit sur un seul nœud et Ms, V à son droit dépendent du maillage (> 0) |
+
+### hydraulique
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `regime` | hydrostatique / simplifie / differences_finies |  | hydrostatique | régime de l'eau : hydrostatique, simplifié (cheminement) ou écoulement 2D en différences finies |
+| `substratum` | nombre |  |  | cote du toit du substratum imperméable (m) ; défaut : pied − 2 × hauteur |
+| `largeur_amont` | nombre |  |  | étendue du domaine amont (m) ; défaut : 4 × hauteur de paroi (> 0, ≤ 2000) |
+| `largeur_fouille` | nombre |  |  | largeur de la fouille (m), fouille symétrique ; défaut : 2 × hauteur (> 0) |
+| `pas` | nombre |  | 0.5 | taille des cellules du maillage d'écoulement (m) (> 0.05, ≤ 2.0) |
+| `bouchon` | bloc |  |  | bouchon de fond de fouille |
+| `sol_lane` | texte |  |  | type de sol pour Lane (sinon celui de la couche du fond) |
+
+### assemblages (chaque bloc nommé)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `type` | texte | oui |  | type d'assemblage (clé du registre : platine_about, chaise_buton, tete_tirant_lierne…) |
+| `appui` | texte |  |  | appui dont les efforts sont repris (bloc appuis) ; sinon donner efforts |
+| `efforts` | blocs nommés de nombre |  |  | efforts de calcul imposés, déjà pondérés (kN, kN·m) : N, V, M, T ; remplacent ceux déduits de l'appui (effort caractéristique × gamma_effets) |
+| `acier` | texte |  |  | nuance des pièces d'assemblage (base matériaux) |
+| `lierne` | texte |  |  | profilé de lierne (défaut : celui de l'appui) |
+| `buton` | texte |  |  | élément de buton (défaut : celui de l'appui) |
+| `parametres` | blocs nommés de nombre ou texte |  |  | paramètres géométriques du type (mm, kN, °) |
+
+### coupes (chaque élément)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `nom` | texte | oui |  | nom de la coupe de calcul |
+| `trace` | bloc |  |  | trace de la coupe en plan (segment) ; vide = perpendiculaire au milieu du tronçon |
+| `zone` | bloc | oui |  | tronçon de paroi auquel la coupe s'applique |
+| `script` | <class 'dict'> ou texte |  |  | données locales de la coupe : bloc YAML en ligne (ou chemin d'un fichier du dossier exemples) ; les clés absentes héritent du script principal |
+
+### coupe_calcul
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `x` | nombre | oui |  | point de la coupe sur la paroi, x (m) |
+| `y` | nombre | oui |  | point de la coupe sur la paroi, y (m) |
+| `ni` | liste de nombre | oui |  | normale unitaire vers la fouille [nx, ny] |
+| `t` | liste de nombre | oui |  | tangente unitaire du côté [tx, ty] |
+| `k` | entier |  | 0 | numéro d'arête du contour (≥ 0) |
+| `s` | nombre |  | 0.0 | abscisse de la coupe le long du côté (m) |
+| `cote` | texte |  |  | nom du côté (plan.cotes) |
+| `nom` | texte |  |  | nom de la coupe |
+
+### paroi.blindage
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `epaisseur` | nombre | oui |  | épaisseur du blindage (m) (> 0) |
+| `materiau` | bois / beton / acier | oui |  | matériau du blindage |
+| `resistance` | nombre |  |  | résistance de calcul en flexion (MPa) (> 0) |
+
+### terrain.remblai
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `cote` | nombre | oui |  | cote du terrain amont après remblai (m) |
+| `materiau` | texte |  |  | nom d'une couche du bloc sol dont le remblai prend les propriétés (défaut : 1re couche) |
+| `phase` | entier ou texte | oui |  | phase de mise en place (numéro à partir de 1, ou nom) |
+
+### fouille.risbermes (chaque élément)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `nom` | texte |  |  | nom (pour la terrasser dans une phase) |
+| `cote_paroi` | texte ou entier ou liste de texte ou entier |  |  | côté(s) de paroi concerné(s) |
+| `phases` | liste de entier ou texte | oui |  | [première, dernière] phase d'existence |
+| `cote_crete` | nombre | oui |  | cote du sommet contre la paroi (m) |
+| `largeur_crete` | nombre |  | 0.0 | largeur horizontale du sommet (m) (≥ 0) |
+| `pente` | nombre |  | 1.5 | pente du talus, horizontal / vertical (> 0) |
+| `cote_pied` | nombre | oui |  | cote du fond général au pied du talus (m) |
+| `largeur_banquette` | nombre |  |  | talus : largeur de la banquette contre la paroi (m) = largeur_crete (≥ 0) |
+| `methode` | surcharge_equivalente / fond_equivalent / coin_de_rupture |  | surcharge_equivalente | prise en compte : surcharge équivalente (bandes de poids), fond équivalent (cote_equivalente à donner), coin de rupture (à fournir) |
+| `cote_equivalente` | nombre |  |  | méthode fond_equivalent : cote de fond de fouille équivalente choisie (m) |
+
+### fouille.gradins (chaque élément)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `nom` | texte |  |  | nom |
+| `cote_paroi` | texte ou entier ou liste de texte ou entier |  |  | côté(s) de paroi concerné(s) |
+| `phases` | liste de entier ou texte | oui |  | [première, dernière] phase d'existence |
+| `marches` | liste de liste de nombre | oui |  | marches [cote, largeur] depuis la paroi (m) |
+| `cote_pied` | nombre |  |  | cote du fond général (m) ; défaut : fond de fouille à la première phase |
+| `methode` | surcharge_equivalente / coin_de_rupture |  | surcharge_equivalente | prise en compte |
+
+### surcharges.trace
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `de` | liste de nombre | oui |  | début du tracé en plan [x, y] (m) |
+| `a` | liste de nombre | oui |  | fin du tracé [x, y] (m) |
+
+### phases.remblayer
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `amont` | nombre |  |  | nouvelle cote du terrain amont (m) |
+| `aval` | nombre |  |  | nouvelle cote du terrain aval (m) |
+
+### plan.appuis (chaque élément)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `appui` | texte | oui |  | nom de l'appui (bloc appuis) |
+| `de` | liste de nombre | oui |  | point de départ [x, y] (m) |
+| `a` | liste de nombre | oui |  | point d'arrivée [x, y] (m) |
+
+### hydraulique.bouchon
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `type` | injecte / jet_grouting / radier_leste / substratum | oui |  | type de bouchon |
+| `toit` | nombre | oui |  | cote du toit du bouchon (m) |
+| `base` | nombre | oui |  | cote de la base du bouchon (m) |
+| `k` | nombre |  |  | perméabilité du bouchon (m/s) ; vide = imperméable (> 0) |
+| `gamma` | nombre |  | 20.0 | poids volumique du bouchon (kN/m3) (> 0) |
+| `phase` | entier ou texte |  |  | actif à partir de cette phase (numéro à partir de 1, ou nom) ; vide = dès le début |
+| `lest` | nombre |  | 0.0 | charge permanente sus-jacente, radier lesté (kPa) (≥ 0) |
+
+### coupes.trace
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `de` | liste de nombre | oui |  | point de départ de la trace en plan [x, y] (m) |
+| `a` | liste de nombre | oui |  | point d'arrivée [x, y] (m) |
+
+### coupes.zone
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `paroi` | texte ou entier | oui |  | côté de paroi auquel la coupe s'applique (nom du bloc plan.cotes ou numéro d'arête) |
+| `de` | nombre |  |  | début du tronçon, abscisse le long du côté depuis son origine (m) ; vide = début du côté |
+| `a` | nombre |  |  | fin du tronçon (m) ; vide = fin du côté |
 
 <!-- REFERENCE:FIN -->

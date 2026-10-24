@@ -6,7 +6,8 @@ vérifications géotechniques (NF P 94-282) et structurelles (EC2, EC3), maquett
 
 > **Outil en cours de validation.** Aucun résultat ne doit servir à un projet réel avant
 > comparaison à K-Réa ou RIDO sur plusieurs cas et visa d'un ingénieur. Les valeurs de
-> norme ne sont pas fournies : voir `docs/normes/` et l'état d'avancement `docs/ETAT.md`.
+> norme de `docs/normes/` ont été renseignées de mémoire (22 octobre 2026) et restent toutes
+> « à confirmer » sur le texte des normes : voir `docs/normes/README.md` et `docs/ETAT.md`.
 
 ## Lancer le logiciel
 
@@ -21,8 +22,12 @@ cd backend ; py -3.12 -m venv .venv ; .venv\Scripts\python -m pip install -e ".[
 cd frontend ; npm install ; cd ..
 .\lancer_backend.ps1      # terminal 1 : serveur de calcul (port 8000)
 .\lancer_frontend.ps1     # terminal 2 : interface, puis ouvrir http://localhost:5173
-.\lancer_tests.ps1        # tests
+.\lancer_tests.ps1        # tests du calcul, ruff, typage, lint et tests de l'interface
 ```
+
+Si PowerShell refuse d'exécuter les scripts : `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+(une fois). Outils facultatifs, dans `backend` : `pip install -e ".[dev]"` (ruff) et
+`pip install -e ".[rapport]"` (matplotlib, pour `python -m outils.rafale_elementaire`).
 
 ## Documentation
 
@@ -32,7 +37,7 @@ cd frontend ; npm install ; cd ..
 | `docs/guide_script.md` | Guide utilisateur du langage de script |
 | `docs/ETAT.md` | État d'avancement, limites, questions ouvertes |
 | `docs/INSTALLATION.md` | Déploiement sur le serveur interne |
-| `docs/normes/` | Valeurs normatives à fournir (modèles vides) |
+| `docs/normes/` | Valeurs normatives (renseignées de mémoire, à confirmer ; modèles vides dans `modeles/`) |
 | `docs/catalogues/` | Catalogues fournisseurs à importer |
 | `docs/rido/` | Manuel et exemples RIDO, table de correspondance |
 | `exemples/` | Scripts d'exemple (valeurs d'illustration) |

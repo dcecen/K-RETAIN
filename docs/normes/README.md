@@ -3,9 +3,12 @@
 Ce dossier contient **les seules valeurs normatives** que RetainWall a le droit d'utiliser
 (règle absolue n° 1 du CLAUDE.md). Le code ne contient aucun coefficient de norme en dur.
 
-Chaque fichier `*.yaml` est un modèle : toute valeur à `null` porte le marqueur
-`TODO-NORME`. Tant qu'une valeur vaut `null`, la vérification qui en dépend affiche
-« non vérifiable : valeur de norme manquante » avec le fichier et la clé concernés.
+Les fichiers `*.yaml` de ce dossier ont été **renseignés de mémoire le 22 octobre 2026**, à la
+demande de l'utilisateur, chaque valeur portant son article d'origine et la mention « à
+confirmer » : **ils doivent être relus sur le texte des normes par un ingénieur avant tout usage
+en projet.** Les modèles vides (valeurs à `null`, marqueur `TODO-NORME`) sont conservés dans
+`modeles/`. Une valeur absente, `null` ou égale à zéro rend la vérification qui en dépend
+« non vérifiable : valeur de norme manquante », avec le fichier et la clé concernés.
 
 Pour remplir : recopiez la valeur depuis votre exemplaire de la norme, et complétez le
 champ `source` (article, tableau, annexe nationale). Déposez aussi les extraits PDF ou
