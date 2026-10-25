@@ -57,6 +57,13 @@ def geometrie(ex) -> dict:
                        "pied_bracon": a.pied_bracon, "espacement": a.espacement, "D": D}
     defaut = s.plan is None
     contour = s.plan.contour if s.plan else RECTANGLE_DEFAUT
+    if getattr(s.paroi, "forme", "plane") == "circulaire" and s.paroi.rayon:
+        # paroi circulaire : polygone d'affichage (celui du calcul en pseudo-3D, 48 côtés en 2D axisymétrique)
+        from ..parois.anneau import contour_polygone, nombre_cotes_polygone
+        n = (nombre_cotes_polygone(s.paroi.rayon, s.pseudo3d.pas_horizontal)
+             if s.calcul.mode == "pseudo3d" and s.pseudo3d is not None else 48)
+        contour, defaut = contour_polygone(s.paroi.rayon, n), False
+        paroi.update(forme="circulaire", rayon=s.paroi.rayon)
     plan_appuis = ([ap.model_dump() for ap in s.plan.appuis] if s.plan and s.plan.appuis
                    else placer_appuis(contour, appuis))
     couches = sorted(({"nom": c.nom, "toit": c.toit} for c in m.couches), key=lambda c: -c["toit"])

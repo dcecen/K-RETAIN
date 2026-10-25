@@ -1,0 +1,17 @@
+# VÉRIFICATION ÉLÉMENTAIRE P06 — deux parois de 40 m à angle droit (pseudo-3D, angle au milieu de la longueur)
+# Paroi moulée EI = 1e5 kN·m²/m (Ds = Dz), de 0 à −12 m, sable kh imposé, terrassement à −4 m sans appui ;
+# longueur développée 80 m, angle de fouille à s = 40 m, bords libres aux extrémités.
+# ATTENDU : w = 0 sur la ligne d'angle (< 1e-3 du maximum, la paroi perpendiculaire la tient) ; champ symétrique
+# par rapport à l'angle (1e-6) ; le déplacement croît en s'éloignant de l'angle ; à 30 m de l'angle, déplacement
+# maximal égal au calcul 2D à 5 % ; bilan des forces nul (la réaction de l'angle équilibre le reste).
+# SOURCE : condition d'angle w = 0 (parois indéformables dans leur plan) ; flexion cylindrique d'une plaque loin des
+# appuis, bord libre sans effet pour ν = 0 (Timoshenko & Woinowsky-Krieger, Theory of Plates and Shells, ch. 1).
+projet: "P06 Paroi avec angle : w = 0 à l'angle, 2D loin de l'angle"
+calcul: { kh: impose, mode: pseudo3d, pas: 0.25 }
+pseudo3d: { longueur: 80, pas_horizontal: 1.0, bords: libres, angle: 90 }
+paroi: { type: paroi_moulee, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 12000 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: "Terrassement à -4,0", excaver: -4.0 }

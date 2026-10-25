@@ -51,6 +51,7 @@ export function Navigation({ modele, erreurs, vue, selection, resultats, pseudo3
       case 'ecran': return NOMS_PAROI[m.paroi?.type] ?? null
       case 'geometrie': {
         const g = m.geometrie
+        if (m.paroi?.forme === 'circulaire') return 'cercle'
         if (!g || typeof g !== 'object') return m.plan || m.fouille?.risbermes || m.fouille?.talus || m.fouille?.gradins ? 'forme ancienne' : '2D'
         const n = (g.fouille?.zones?.length ?? 0) + (g.fouille?.objets?.length ?? 0) + (g.terrain?.zones?.length ?? 0) + (g.surcharges?.length ?? 0)
         return n ? String(n) : (Array.isArray(g.ouvrages?.contour) ? `${g.ouvrages.contour.length} sommets` : null)

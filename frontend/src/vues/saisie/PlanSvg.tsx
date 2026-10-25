@@ -5,7 +5,7 @@ const COULEURS = { contour: 'var(--accent)', fouille: 'var(--accent-doux)', obje
 
 /** Dessin du plan : contour et côtés nommés (longueur), appuis en plan, objets de terrain sur leur tronçon, zones de
  *  fond, zones de terrain, surcharges positionnées (rectangle, point, tracé, bande le long d'un côté). */
-export function PlanSvg({ g, surbrillance }: { g: GeometrieP; surbrillance?: string | null }) {
+export function PlanSvg({ g, surbrillance, etiquettes = true }: { g: GeometrieP; surbrillance?: string | null; etiquettes?: boolean }) {
   const aretes = aretesContour(g.contour, g.ferme, g.cotes)
   const c = cadrage(g)
   const W = 640, H = 420
@@ -59,7 +59,7 @@ export function PlanSvg({ g, surbrillance }: { g: GeometrieP; surbrillance?: str
       {g.ferme && g.contour.length >= 3
         ? <polygon points={pts(g.contour)} fill="none" stroke={COULEURS.contour} strokeWidth={3} />
         : <polyline points={pts(g.contour)} fill="none" stroke={COULEURS.contour} strokeWidth={3} />}
-      {aretes.map((a) => {
+      {etiquettes && aretes.map((a) => {
         // nom du côté à l'extérieur du contour (18 px le long de la normale sortante), longueur empilée au-dessus
         // ou au-dessous selon le sens, pour ne jamais se chevaucher sur les côtés verticaux
         const mx = (a.A[0] + a.B[0]) / 2, my = (a.A[1] + a.B[1]) / 2
@@ -72,7 +72,7 @@ export function PlanSvg({ g, surbrillance }: { g: GeometrieP; surbrillance?: str
             <text x={tx} y={ty + dy} fontSize={10} textAnchor="middle" fill="var(--texte-doux)">{nb(a.L, 1)} m</text>
           </g>)
       })}
-      {g.contour.map(([x, y], i) => (
+      {etiquettes && g.contour.map(([x, y], i) => (
         <g key={`pt${i}`}><circle cx={X(x)} cy={Y(y)} r={3.5} fill="var(--panneau)" stroke={COULEURS.contour} strokeWidth={1.5} />
           <text x={X(x) + 6} y={Y(y) - 6} fontSize={9.5} fill="var(--texte-faible)">{i} ({nb(x, 1)} ; {nb(y, 1)})</text></g>))}
       <text x={8} y={H - 8} fontSize={10} fill="var(--texte-faible)">x vers la droite, y vers le haut (m) ; côté fouille à l'intérieur du contour</text>

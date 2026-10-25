@@ -350,6 +350,10 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `origine_panneaux` | nombre |  | 0.0 | paroi moulée (pseudo-3D) : abscisse du premier joint le long de la paroi (m) (≥ 0) |
 | `etancheite` | etanche / non_etanche / partielle |  |  | étanchéité hydraulique de l'écran : etanche (l'eau ne traverse pas l'écran), non_etanche (écran transparent pour l'eau : hors écoulement 2D, nappe côté terre ramenée au niveau côté fouille), partielle (résistance e_p/k_p en série avec le sol, écoulement 2D seulement) ; défaut selon le type, hypothèse de projet : paroi_moulee, pieux_secants, palplanche -> etanche ; pieux_disjoints, berlinoise -> non_etanche |
 | `k_paroi` | nombre |  |  | étanchéité partielle : perméabilité équivalente de l'écran (m/s) (> 0) |
+| `forme` | plane / circulaire |  | plane | forme en plan : plane (écran par mètre linéaire) ou circulaire (puits : anneau comprimé axisymétrique, ressort E·t/R² ajouté sur toute la hauteur, Timoshenko § 114) ; circulaire : paroi_moulee ou pieux_secants |
+| `rayon` | nombre |  |  | paroi circulaire : rayon de l'axe de la paroi (m) (> 0, ≤ 500) |
+| `epaisseur_anneau` | nombre |  |  | paroi circulaire : épaisseur de l'anneau comprimé (m) ; défaut : epaisseur de la paroi moulée, ou largeur du joint des pieux sécants √(D² − e²) (> 0) |
+| `tolerance_verticalite` | nombre |  | 0.0 | paroi circulaire en pieux sécants : écart de verticalité de chaque pieu (m/m, paramètre de projet) ; l'entraxe au joint croît de 2·tolérance·profondeur, l'anneau s'amincit (≥ 0, ≤ 0.05) |
 | `epaisseur_hydraulique` | nombre |  |  | étanchéité partielle : épaisseur d'écran traversée par l'eau (m) ; défaut : epaisseur ou diametre (> 0) |
 
 ### sol (chaque élément)

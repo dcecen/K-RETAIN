@@ -32,7 +32,12 @@ function Bloc({ titre, enfants, droite }: { titre: string; enfants: ReactNode; d
 export function Geometrie({ ctx }: { ctx: Ctx }) {
   const m: Modele = ctx.modele ?? {}
   const unite = uniteCote(m)
-  const g = lireGeometrie(m)
+  const circulaire = m.paroi?.forme === 'circulaire' && typeof m.paroi?.rayon === 'number'
+  const g0 = lireGeometrie(m)
+  // paroi circulaire : cercle d'affichage (48 côtés), comme la maquette 3D
+  const g = circulaire && !g0.contour.length
+    ? { ...g0, contour: Array.from({ length: 48 }, (_, i) => [m.paroi.rayon * Math.cos((2 * Math.PI * i) / 48), m.paroi.rayon * Math.sin((2 * Math.PI * i) / 48)] as [number, number]) }
+    : g0
   const geo: Modele = m.geometrie ?? {}
   const aretes = aretesContour(g.contour, g.ferme, g.cotes)
   const nomsCotes = aretes.map((a) => a.nom ?? String(a.k))
@@ -80,7 +85,13 @@ export function Geometrie({ ctx }: { ctx: Ctx }) {
       <p className="aide">La géométrie décrit le modèle 2D ou 3D : tracé de la paroi en plan et côtés nommés, terrain côté terre, fouille (zones de fond,
         risbermes, talus, gradins avec leur étendue le long des côtés), positions des surcharges et des appuis en plan. Le calcul 2D crée une
         coupe par tronçon homogène ; le pseudo-3D rapporte chaque donnée aux lignes verticales qu'elle concerne. Cotes en {unite}, x et y en m.</p>
-      {!nouvelleForme && (
+      {circulaire && (
+        <div className="alerte info" style={{ marginBottom: 12 }}>
+          Paroi circulaire de rayon {String(m.paroi?.rayon ?? '—')} m (étape Écran) : le tracé en plan est le cercle, sans bloc
+          geometrie.ouvrages. Le calcul pseudo-3D le représente par un polygone régulier.
+        </div>
+      )}
+      {!nouvelleForme && !circulaire && (
         <div className="alerte orange" style={{ marginBottom: 12 }}>
           {g.anciens.length
             ? <>Ce script décrit sa géométrie sous la forme ancienne ({g.anciens.join(', ')}), toujours lue et convertie automatiquement. Pour la modifier ici, convertissez-la vers le bloc <span className="mono">geometrie</span>. </>
@@ -92,9 +103,10 @@ export function Geometrie({ ctx }: { ctx: Ctx }) {
       )}
       <div className="geometrie-colonnes">
         <div>
-          <Bloc titre="Plan" enfants={<div style={{ padding: 8 }}><PlanSvg g={g} surbrillance={survol} /></div>} />
+          <Bloc titre="Plan" enfants={<div style={{ padding: 8 }}><PlanSvg g={g} surbrillance={survol} etiquettes={!circulaire} /></div>} />
         </div>
         <div style={{ minWidth: 0 }}>
+          {!circulaire && <>
           <Bloc titre="Ouvrages : contour de la paroi en plan" droite={nouvelleForme && <label className="doux" style={{ fontWeight: 400 }}><Case ctx={ctx} chemin={['geometrie', 'ouvrages', 'ferme']} valeur={geo.ouvrages?.ferme ?? true} bloc="OuvragesGeo" cle="ferme" libelle="Contour fermé" /> contour fermé</label>}
             enfants={(
               <table className="tableau compact">
@@ -120,6 +132,7 @@ export function Geometrie({ ctx }: { ctx: Ctx }) {
               </table>
             )} />
           {nouvelleForme && <button className="btn" onClick={ajouterSommet} style={{ marginBottom: 16 }}><IconePlus /> Ajouter un sommet</button>}
+          </>}
 
           <Bloc titre="Appuis en plan (vide : placement automatique à l'espacement)" enfants={(
             <table className="tableau compact">

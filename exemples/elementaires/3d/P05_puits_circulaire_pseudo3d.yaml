@@ -1,0 +1,19 @@
+# VÉRIFICATION ÉLÉMENTAIRE P05 — même puits circulaire que P04, calculé en pseudo-3D (plaque sur le pourtour)
+# Le cercle de rayon 6 m est représenté par un polygone régulier (côtés de 1 m au plus, 38 côtés), sans angle bloqué ;
+# chaque nœud de la plaque porte le ressort de l'anneau E·t/R² × surface tributaire en plus des ressorts du sol.
+# Chargement axisymétrique (même sol et mêmes phases tout autour) : toutes les lignes verticales se déplacent de la
+# même façon, la plaque ne fléchit pas horizontalement, et chaque ligne retrouve la coupe 2D axisymétrique de P04.
+# ATTENDU : déplacement identique sur tout le pourtour (écart < 1e-6 du maximum) ; déplacement maximal égal au calcul
+# 2D axisymétrique à 1e-6, profil de chaque ligne égal au 2D à l'arrondi d'affichage près (0,001 mm) ; bilan des forces
+# de la plaque nul, la réaction de l'anneau équilibrant la poussée du sol.
+# SOURCE : Timoshenko & Woinowsky-Krieger, Theory of Plates and Shells, 2e éd., ch. 15 § 114 ; symétrie de révolution.
+projet: "P05 Puits circulaire en pseudo-3D : identique au 2D axisymétrique"
+calcul: { kh: impose, pas: 0.25, mode: pseudo3d }
+pseudo3d: { pas_horizontal: 1.0 }
+paroi: { type: pieux_secants, beton: C30/37, diametre: 0.8, entraxe: 0.6, tete: 0.0, pied: -16.0, forme: circulaire, rayon: 6.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 18, gamma_dejauge: 10, phi: 30, c: 0, kh: 20000 }
+phases:
+  - { nom: "Terrassement à -5,0", excaver: -5.0 }
+  - { nom: "Terrassement à -10,0", excaver: -10.0 }
+verifications: [structure]

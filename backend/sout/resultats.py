@@ -82,6 +82,12 @@ def _fonds_par_zone(modele: Modele, res: ResultatCalcul, k: int, ph) -> dict | N
     return fonds
 
 
+def _trib(z) -> np.ndarray:
+    """Hauteur tributaire des nœuds (m), pour rapporter une force nodale à une pression."""
+    from .parois.anneau import longueur_tributaire
+    return longueur_tributaire(np.asarray(z, float))
+
+
 def _bilan_forces(ph) -> dict:
     """Bilan des forces horizontales sur l'écran à la fin de la phase : pressions des terres des deux faces,
     pressions d'eau et efforts d'appui (statique : la somme doit être nulle). `relatif` rapporte le résidu à la
@@ -90,10 +96,13 @@ def _bilan_forces(ph) -> dict:
     e = ph.eau
     L = np.repeat(np.diff(ph.z) / 2, 2)
     appuis = sum(a["effort"] for a in ph.appuis)
-    F = float(np.sum(am["L"] * am["p"]) - np.sum(av["L"] * av["p"]) + np.sum((e["u_amont"] - e["u_aval"]) * L) - appuis)
+    anneau = float(np.sum(ph.anneau["reaction"])) if getattr(ph, "anneau", None) else 0.0   # paroi circulaire
+    F = float(np.sum(am["L"] * am["p"]) - np.sum(av["L"] * av["p"]) + np.sum((e["u_amont"] - e["u_aval"]) * L) - appuis - anneau)
     brut = float(np.sum(am["L"] * np.abs(am["p"])) + np.sum(av["L"] * np.abs(av["p"]))
-                 + np.sum(np.abs(e["u_amont"] - e["u_aval"]) * L) + sum(abs(a["effort"]) for a in ph.appuis))
-    return {"residu_kN_m": F, "echelle_kN_m": brut, "relatif": F / max(brut, 1e-12)}
+                 + np.sum(np.abs(e["u_amont"] - e["u_aval"]) * L) + sum(abs(a["effort"]) for a in ph.appuis)
+                 + (float(np.sum(np.abs(ph.anneau["reaction"]))) if getattr(ph, "anneau", None) else 0.0))
+    return {"residu_kN_m": F, "echelle_kN_m": brut, "relatif": F / max(brut, 1e-12),
+            **({"anneau_kN_m": anneau} if getattr(ph, "anneau", None) else {})}
 
 
 def _butee_mobilisee(ph) -> float | None:
@@ -245,8 +254,14 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "", catalogue=
                     "butee_mobilisee": _butee_mobilisee(ph),
                     "Bm_kN_m": _butee_valeurs(ph)[0], "Bt_kN_m": _butee_valeurs(ph)[1],
                     "bilan": _bilan_forces(ph),
+                    **({"N_anneau_max": float(ph.anneau["N"].max()), "N_anneau_min": float(ph.anneau["N"].min())}
+                       if ph.anneau is not None else {}),
                 },
             })
+            if ph.anneau is not None:   # paroi circulaire : effort normal circonférentiel (compression > 0)
+                d["anneau"] = {"z": _l(ph.anneau["z"]), "N_kN_m": _l(ph.anneau["N"]), "t_m": _l(ph.anneau["t"]),
+                               "w_mm": _l(ph.anneau["w"] * 1e3),
+                               "p_kPa": _l(ph.anneau["reaction"] / np.maximum(_trib(ph.anneau["z"]), 1e-12))}
             for a in ph.appuis:
                 da = modele.appuis[a["nom"]]
                 esp = da.infos.get("espacement", 1.0)

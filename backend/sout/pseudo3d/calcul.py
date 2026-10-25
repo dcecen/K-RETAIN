@@ -110,15 +110,27 @@ class MoteurPseudo3D:
             self.s = np.array(s_list[:-1])            # le dernier nœud (s = périmètre) est le premier : boucle fermée
             self.fermeture = float(longueur - self.s[-1])   # élément horizontal qui referme la boucle
             self.i_sommets = [int(np.argmin(np.abs(self.s - a["s0"]))) for a in self.aretes]
+            if modele.ecran.anneau is not None:
+                # polygone qui représente un cercle : aucun angle bloqué, l'anneau comprimé tient la paroi
+                self.i_sommets = []
             if bords != "libres":
                 self.avertissements.append("Pseudo-3D : fouille fermée, la clé bords est sans objet (w = 0 à chaque sommet).")
             if angle is not None:
                 self.avertissements.append("Pseudo-3D : fouille fermée, la clé angle est sans objet (angles aux sommets du contour).")
             angle = None
-            self.avertissements.append(
-                f"Pseudo-3D : fouille fermée de périmètre {longueur:.1f} m à {len(self.aretes)} sommets (w = 0 aux angles) ; "
-                + ("butons reliant les parois en vis-à-vis (raideur EA/L sur la longueur entière, action = réaction)."
-                   if liens else "butons traités comme des ressorts vers le sol (règle L/2)."))
+            if modele.ecran.anneau is not None:
+                self.avertissements.append(
+                    f"Pseudo-3D : paroi circulaire de rayon {modele.ecran.anneau.rayon:g} m représentée par un polygone de "
+                    f"{len(self.aretes)} côtés (périmètre {longueur:.1f} m) ; aucun angle bloqué : l'anneau comprimé (ressort "
+                    "E·t/R² à chaque nœud, Timoshenko § 114) tient la paroi. Résultat exact pour un chargement axisymétrique ; "
+                    "une charge dissymétrique ovalise l'anneau en flexion dans son plan, non modélisée (rigidité de membrane seule).")
+            else:
+                self.avertissements.append(
+                    f"Pseudo-3D : fouille fermée de périmètre {longueur:.1f} m à {len(self.aretes)} sommets (w = 0 aux angles) ; "
+                    + ("butons reliant les parois en vis-à-vis (raideur EA/L sur la longueur entière, action = réaction)."
+                       if liens else "butons traités comme des ressorts vers le sol (règle L/2)."))
+        elif modele.ecran.anneau is not None:
+            raise ErreurModele("pseudo3d : paroi circulaire calculée sur le contour du cercle seulement (supprimez pseudo3d.longueur)")
         elif longueur is None:
             raise ErreurModele("pseudo3d : donnez longueur (paroi droite) ou un bloc plan avec contour (fouille fermée)")
         else:
@@ -260,7 +272,15 @@ class MoteurPseudo3D:
             for j in range(nz):
                 diag[3 * (i * nz + j)] = self.pen
         self.ddl_pen_w = np.flatnonzero(diag[0::3] > 0)   # nœuds dont w est pénalisé (réactions)
-        self._diag_pen = diag                              # pénalités sans lierne posée
+        # paroi circulaire : ressort de l'anneau k(z)·hauteur tributaire × largeur tributaire de la ligne, sur w
+        self.k_anneau3d = None
+        if modele.ecran.anneau is not None:
+            from ..parois.anneau import raideurs_nodales
+            self.k_anneau3d = np.outer(plaque.largeurs_tributaires(self.s, self.fermeture),
+                                       raideurs_nodales(modele.ecran.anneau, self.z)).ravel()
+            diag = diag.copy()
+            diag[0::3] += self.k_anneau3d
+        self._diag_pen = diag                              # pénalités (et anneau) sans lierne posée
         self.K = (K + sparse.diags(diag)).tocsc()          # sans lierne
         self._K_liernes: dict[frozenset, sparse.csc_matrix] = {frozenset(): self.K}
         self.ddl_w = np.arange(0, 3 * ns * nz, 3)
@@ -420,12 +440,20 @@ class MoteurPseudo3D:
         forces = {"sol": f_sol.reshape(ns, nz), "eau": f_eau.reshape(ns, nz), "appuis": f_app.reshape(ns, nz),
                   "reactions": (-reactions).reshape(ns, nz)}
         total = f_sol + f_eau + f_app - reactions
+        f_anneau = None
+        if self.k_anneau3d is not None:   # réaction de l'anneau (comprise dans les forces de transfert t = (K − K_v)·u)
+            f_anneau = -self.k_anneau3d * W
+            forces["anneau"] = f_anneau.reshape(ns, nz)
+            total = total + f_anneau
         Z = np.tile(self.z - self.z[0], ns)
         S = np.repeat(self.s, nz)
         bilan = {"sol": float(f_sol.sum()), "eau": float(f_eau.sum()), "appuis": float(f_app.sum()),
                  "reactions": float(-reactions.sum()), "residu": float(total.sum()),
                  "moment_residu_z": float((total * Z).sum()), "moment_residu_s": float((total * S).sum()),
-                 "echelle": float(np.abs(f_sol).sum() + np.abs(f_eau).sum() + np.abs(f_app).sum() + np.abs(reactions).sum())}
+                 "echelle": float(np.abs(f_sol).sum() + np.abs(f_eau).sum() + np.abs(f_app).sum() + np.abs(reactions).sum()
+                                  + (np.abs(f_anneau).sum() if f_anneau is not None else 0.0))}
+        if f_anneau is not None:
+            bilan["anneau"] = float(f_anneau.sum())
         return {"W": W.reshape(ns, nz), "Mz": Mz, "Ms": Ms, "Mzs": Mzs, "V": V, "V_diag": V_diag, "M_stat": M_stat,
                 "z_diag": z_diag, "p": p, "reactions": reactions.reshape(ns, nz), "forces": forces, "bilan": bilan}
 
@@ -616,7 +644,11 @@ def moteur_depuis_script(ex) -> MoteurPseudo3D:
     if p is None:
         raise ErreurModele("mode pseudo3d : bloc pseudo3d obligatoire (longueur pour une paroi droite, ou bloc plan)")
     contour = plan_appuis = None
-    if p.longueur is None:
+    if getattr(s.paroi, "forme", "plane") == "circulaire" and p.longueur is None:
+        # paroi circulaire : polygone régulier inscrit, côtés au plus égaux au pas horizontal (au moins 24)
+        from ..parois.anneau import contour_polygone, nombre_cotes_polygone
+        contour = contour_polygone(s.paroi.rayon, nombre_cotes_polygone(s.paroi.rayon, p.pas_horizontal))
+    elif p.longueur is None:
         if s.plan is None:
             raise ErreurModele("pseudo3d : donnez longueur (paroi droite) ou un bloc plan avec contour (fouille fermée)")
         contour = s.plan.contour

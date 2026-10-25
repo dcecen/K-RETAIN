@@ -22,6 +22,7 @@ import numpy as np
 
 from ..verifs import Lecteur, Verif, donnee, resultat
 from . import ec2, ec3
+from .anneau import verifier_anneau
 
 G = 9.81  # m/s²
 SRC_EC3 = "EN 1993-1-1 (§ 6.2, 6.3) — coefficients : docs/normes/ec3.yaml"
@@ -788,6 +789,7 @@ def executer(s, ex, catalogue, normes) -> tuple[list[Verif], list[dict]]:
         suffixe = f" [{jeu}]" if plusieurs and jeu else ""
         verifs += verifier_paroi(s, m, r, catalogue, normes, cle, suffixe)
         verifs += verifier_appuis(s, m, r, catalogue, normes, cle, suffixe)
+        verifs += verifier_anneau(s, m, r, normes, cle, suffixe)
     res3d = getattr(ex, "pseudo3d", None)
     if res3d is not None and res3d.complet:
         # seconde série sur les efforts de la plaque (jeu d'eau principal, branche principale)

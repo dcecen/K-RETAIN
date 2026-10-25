@@ -1,0 +1,21 @@
+# VÉRIFICATION ÉLÉMENTAIRE P04 — puits circulaire autostable en pieux sécants : anneau comprimé (2D axisymétrique)
+# Puits de rayon R = 6 m (axe de la paroi), pieux sécants D = 0,80 m à l'entraxe e = 0,60 m, béton C30/37 (Ecm de la
+# base de démonstration), de 0 à −16 m ; sable sec γ = 18 kN/m³, φ' = 30°, kh imposé 20 000 kN/m³ ; terrassement en
+# deux passes à −5 puis −10 m, sans aucun appui. Anneau : largeur du joint t = √(D² − e²) = 0,529 m, module de réaction
+# de l'anneau k = E·t/R². Loin du fond, la paroi fléchit à peine : la poussée au repos p0 = K0·σ'v est reprise par
+# l'anneau et par le ressort du sol côté terre, w = p0/(kh + E·t/R²) (solution particulière exacte pour une charge
+# linéaire d'une poutre sur fondation élastique de module E·t/R², bord libre en tête) et N_θ = E·t·w/R.
+# ATTENDU : entre −2 et −6 m, w = p0/(kh + E·t/R²) à 5 % ; pression reprise par l'anneau N_θ/R = k·w (équilibre de
+# l'anneau) à 1e-9 ; bilan des forces nul ; la même paroi plane (forme: plane) se déplace au moins 10 fois plus à −5 m
+# et ne tient pas à −10 m (rupture signalée par le calcul) : c'est l'effet de voûte horizontal de l'anneau.
+# SOURCE : Timoshenko & Woinowsky-Krieger, Theory of Plates and Shells, 2e éd., ch. 15 § 114 (coque cylindrique
+# chargée symétriquement) ; Hetényi (1946), Beams on Elastic Foundation (solution particulière d'une charge linéaire).
+projet: "P04 Puits circulaire autostable en pieux sécants : anneau comprimé"
+calcul: { kh: impose, pas: 0.25 }
+paroi: { type: pieux_secants, beton: C30/37, diametre: 0.8, entraxe: 0.6, tete: 0.0, pied: -16.0, forme: circulaire, rayon: 6.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 18, gamma_dejauge: 10, phi: 30, c: 0, kh: 20000 }
+phases:
+  - { nom: "Terrassement à -5,0", excaver: -5.0 }
+  - { nom: "Terrassement à -10,0", excaver: -10.0 }
+verifications: [structure]

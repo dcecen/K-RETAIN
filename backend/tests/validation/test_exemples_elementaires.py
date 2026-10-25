@@ -427,6 +427,132 @@ def test_E26_ecran_non_etanche():
     assert "à travers l'écran" in debit["detail"]
 
 
+def test_P04_puits_circulaire_pieux_secants():
+    """Puits circulaire autostable : loin du fond, w = p0/(kh + E·t/R²) (5 %) ; N_θ/R = pression reprise par l'anneau
+    (1e-9) ; bilan nul ; la même paroi plane se déplace au moins 10 fois plus à −5 m et ne tient pas à −10 m."""
+    texte = (DOSSIER_3D / "P04_puits_circulaire_pieux_secants.yaml").read_text(encoding="utf-8")
+    r = CLIENT.post("/api/calcul", json={"texte": texte}).json()
+    assert r["ok"], r.get("erreurs")
+    res = r["resultats"]
+    an = res["paroi"]["anneau"]
+    t = math.sqrt(0.8**2 - 0.6**2)
+    kr = an["E"] * t / an["rayon"] ** 2
+    ph = res["phases"][-1]
+    z, y = np.array(ph["z"]), np.array(ph["y_mm"]) / 1000
+    am = ph["pressions"]["amont"]
+    zp, p0 = np.array(am["z"]), np.array(am["p0"])
+    sel = (zp < -2.0) & (zp > -6.0)
+    np.testing.assert_allclose(np.interp(zp[sel], z, y), p0[sel] / (20000.0 + kr), rtol=0.05)
+    A = ph["anneau"]
+    np.testing.assert_allclose(np.array(A["p_kPa"])[1:-1], np.array(A["N_kN_m"])[1:-1] / an["rayon"], rtol=1e-9, atol=1e-9)
+    np.testing.assert_allclose(A["t_m"], t, rtol=1e-12)
+    assert abs(ph["synthese"]["bilan"]["relatif"]) < 1e-9
+    vs = {v["nom"]: v for v in res["verifications"]}
+    assert vs["Anneau — compression circonférentielle"]["etat"] in ("ok", "attention", "non_ok")
+    assert vs["Anneau — compression circonférentielle"]["famille"] == "anneau"
+    assert "p/p_cr" in vs["Anneau — stabilité de forme (indicatif)"]["detail"]
+    plane = CLIENT.post("/api/calcul", json={"texte": texte.replace(", forme: circulaire, rayon: 6.0", "")}).json()["resultats"]
+    assert abs(plane["phases"][1]["synthese"]["y_max_mm"]) > 10 * abs(res["phases"][1]["synthese"]["y_max_mm"])
+    assert plane["phases"][2]["ok"] is False
+
+
+def _plaque_3d(nom: str):
+    """(moteur, résultat pseudo-3D non arrondi, résultat 2D du même script) d'un exemple 3D du catalogue."""
+    from types import SimpleNamespace
+
+    from sout import normes as _normes
+    from sout.pseudo3d.calcul import moteur_depuis_script
+    texte = (DOSSIER_3D / f"{nom}.yaml").read_text(encoding="utf-8")
+    s = lire_script(texte)
+    m = vers_modele(s, catalogue_par_defaut(), _normes.charger())
+    mo = moteur_depuis_script(SimpleNamespace(script=s, modele=m))
+    return mo, mo.calculer(), calculer(m), s, m
+
+
+def test_P01_fouille_rectangulaire_autostable():
+    mo, r3, r2, _, _ = _plaque_3d("P01_fouille_rectangulaire_autostable")
+    assert r3.complet and r2.complet and [float(mo.s[i]) for i in mo.i_sommets] == [0.0, 60.0, 80.0, 140.0]
+    ph, ph2 = r3.phases[-1], r2.phases[-1]
+    W = ph.W
+    for i in mo.i_sommets:
+        assert np.abs(W[i]).max() < 1e-3 * np.abs(W).max()
+    sud, nord = W[0:61], W[80:141]
+    np.testing.assert_allclose(sud, nord[::-1], rtol=1e-6, atol=1e-9 * np.abs(W).max())
+    np.testing.assert_allclose(sud, sud[::-1], rtol=1e-6, atol=1e-9 * np.abs(W).max())
+    i30 = int(np.argmin(np.abs(mo.s - 30.0)))
+    assert np.abs(W[i30]).max() == pytest.approx(np.abs(ph2.y).max(), rel=0.05)
+    assert ph.Mz[i30].min() == pytest.approx(ph2.M.min(), rel=0.05)
+    assert abs(ph.bilan["residu"]) <= 1e-6 * ph.bilan["echelle"]
+
+
+def test_P02_fouille_butonnee_double_ecran():
+    from sout.pseudo3d.calcul import MoteurPseudo3D
+    mo, r3, r2, s, m = _plaque_3d("P02_fouille_butonnee_double_ecran")
+    p = s.pseudo3d
+    r_sol = MoteurPseudo3D(m, None, p.pas_horizontal, p.bords, p.angle, p.rigidite_horizontale, p.largeur_appui,
+                           p.rapport_rigidite_horizontale, p.torsion, s.paroi.longueur_panneau, s.paroi.origine_panneaux,
+                           s.plan.contour, None, liens=False, cotes_plan=s.plan.cotes).calculer()
+    for a, b in zip(r3.phases, r_sol.phases):
+        np.testing.assert_allclose(a.W, b.W, rtol=1e-7, atol=1e-12)
+    assert all(a["effort"] == pytest.approx(20.0, abs=1e-6) for a in r3.phases[2].appuis)     # précharge par buton
+    ph, ph2 = r3.phases[-1], r2.phases[-1]
+    i30 = int(np.argmin(np.abs(mo.s - 30.0)))
+    assert np.abs(ph.W[i30 - 2:i30 + 3]).max() == pytest.approx(np.abs(ph2.y).max(), rel=0.05)
+    milieu = [a["effort"] for a in ph.appuis if 20.0 <= a["s"] <= 40.0]
+    assert milieu and all(e == pytest.approx(ph2.appuis[0]["effort"] * 6.0, rel=0.05) for e in milieu)
+    assert abs(ph.bilan["residu"]) <= 1e-6 * ph.bilan["echelle"]
+
+
+def test_P03_risberme_cote_sud():
+    """Ds = 0 : ligne sud (x = 10 m) = 2D avec la risberme, ligne nord en vis-à-vis = 2D sans, à 1e-5."""
+    mo, r3, _, _, _ = _plaque_3d("P03_risberme_cote_sud")
+    texte = (DOSSIER_3D / "P03_risberme_cote_sud.yaml").read_text(encoding="utf-8")
+    tete = texte[:texte.index("geometrie:")].replace("mode: pseudo3d, ", "")
+    phases = texte[texte.index("\nphases:") + 1:]          # le premier « phases: » est celui de la risberme
+    risberme = ("fouille:\n  risbermes:\n    - { nom: R1, phases: [3, 3], cote_crete: -3.0, largeur_crete: 2.0, pente: 1.5, "
+                "cote_pied: -6.0 }\n")
+    avec = calculer(vers_modele(lire_script(tete + risberme + phases), catalogue_par_defaut())).phases[-1].y
+    sans = calculer(vers_modele(lire_script(tete + phases), catalogue_par_defaut())).phases[-1].y
+    W = r3.phases[-1].W
+    i_sud, i_nord = int(np.argmin(np.abs(mo.s - 10.0))), int(np.argmin(np.abs(mo.s - 42.0)))
+    np.testing.assert_allclose(W[i_sud], avec, rtol=1e-5, atol=1e-9)
+    np.testing.assert_allclose(W[i_nord], sans, rtol=1e-5, atol=1e-9)
+    assert np.abs(W[i_sud]).max() < 0.9 * np.abs(W[i_nord]).max()
+    assert abs(r3.phases[-1].bilan["residu"]) <= 1e-6 * r3.phases[-1].bilan["echelle"]
+
+
+def test_P06_paroi_avec_angle():
+    mo, r3, r2, _, _ = _plaque_3d("P06_paroi_avec_angle")
+    W = r3.phases[-1].W
+    ia = int(np.argmin(np.abs(mo.s - 40.0)))
+    assert np.abs(W[ia]).max() < 1e-3 * np.abs(W).max()
+    np.testing.assert_allclose(W, W[::-1], atol=1e-6 * np.abs(W).max())
+    prof = np.abs(W).max(axis=1)
+    assert prof[ia + 5] < prof[ia + 10] < prof[ia + 20] < prof[ia + 30]
+    assert prof[ia + 30] == pytest.approx(np.abs(r2.phases[-1].y).max(), rel=0.05)
+    assert abs(r3.phases[-1].bilan["residu"]) <= 1e-6 * r3.phases[-1].bilan["echelle"]
+
+
+def test_P05_puits_circulaire_pseudo3d():
+    """Pseudo-3D d'un chargement axisymétrique : lignes identiques, égales au 2D axisymétrique, bilan nul."""
+    texte = (DOSSIER_3D / "P05_puits_circulaire_pseudo3d.yaml").read_text(encoding="utf-8")
+    r = CLIENT.post("/api/calcul", json={"texte": texte}).json()
+    assert r["ok"], r.get("erreurs")
+    res = r["resultats"]
+    p3 = res["pseudo3d"]
+    assert p3["fermee"] and p3["sommets"] == [] and p3["longueur"] == pytest.approx(2 * 6.0 * 38 * math.sin(math.pi / 38), rel=1e-6)
+    assert any("polygone de 38 côtés" in a for a in p3["avertissements"])
+    for k in (1, 2):
+        ph3, ph2 = p3["phases"][k], res["phases"][k]          # mêmes phases, état initial compris
+        Y = np.array(ph3["y_mm"])
+        assert np.max(Y.max(axis=0) - Y.min(axis=0)) <= 1e-6 * np.max(np.abs(Y)) + 1e-12
+        assert ph3["y_max_mm"] == pytest.approx(ph2["synthese"]["y_max_mm"], rel=1e-6)
+        y2 = np.interp(p3["z"], ph2["z"], ph2["y_mm"])
+        np.testing.assert_allclose(Y[0], y2, atol=1e-3)
+        b = ph3["bilan"]
+        assert abs(b["residu"]) <= 1e-6 * b["echelle"] and b["anneau"] == pytest.approx(-b["sol"], rel=1e-6)
+
+
 def test_rapport_de_validation_servi():
     r = CLIENT.get("/api/validation/rapport")
     assert r.status_code == 200 and "Rafale d'exemples élémentaires" in r.text and "<svg" in r.text

@@ -473,7 +473,9 @@ pytest : 281 réussis, 6 ignorés (cas K-Réa/RIDO absents) ; vitest : 61 ; rafa
 - Menus déroulants rendus au premier plan (la barre de titre les coupait) ; « [object Object] » supprimé
   du titre quand la clé `projet` n'est pas un texte. Vérifié dans Chrome à 1 280 et 760 px.
 - Menu Fichier : groupe « Vérifications élémentaires » (`exemples/elementaires`, 8 scripts E01 à E08 avec
-  résultat attendu et source en en-tête) et entrée « Rapport de validation complet » (45 cas).
+  résultat attendu et source en en-tête) et entrée « Rapport de validation complet » (45 cas). *(Mise à jour du
+  25/10 : le rapport de validation s'ouvre depuis le menu Aide et le catalogue des exemples, plus depuis Fichier ;
+  les exemples sont rangés dans `exemples/elementaires/2d` et `3d`.)*
 - Les cas de poutres pures (RDM7, Winkler) et de plaque sans sol ne peuvent pas s'écrire en script (le
   langage ne prévoit ni charge directe sur la paroi ni paroi sans sol) : ils sont dans le rapport.
 - Tests : pytest 290 réussis (6 ignorés), vitest 62.
@@ -693,3 +695,101 @@ une seule ligne du script modifiée, un seul panneau 3D à la fois, dialogues fe
   dans le menu Affichage.
 - Surcharges `lineaire` (tracé) et `convoi` : toujours dans le script seulement.
 - Menus sans navigation au clavier (flèches) ; pas de test de composant React (jsdom), la fumée Chrome en tient lieu.
+
+## Audit, géométrie, exemples élémentaires, vérifications détaillées, étanchéité, paroi circulaire (25 octobre 2026, suite)
+
+Demande : auditer le code après la simplification ; couche « géométrie » pour construire le modèle 2D ou 3D (position
+des ouvrages, terrassements, surcharges en plan), à la main et par script ; beaucoup d'exemples élémentaires 2D
+justifiés et quelques exemples 3D (dont un puits circulaire autostable en pieux sécants) ; vérifications en synthèse
+plus fiches détaillées par sous-onglet ; corriger « le même profil sur chaque coupe » ; ouvrir des fichiers RIDO ;
+parois fermées étanches ou non étanches. Plan validé (lots 0 à 7). Un commit par lot : ae4c72e (lot 0), 40c462e (1),
+a75795b (2), 53abe82 (3), 31b47bc (4), 777f16d (4h), puis le commit du lot 5.
+
+### Fait
+- **Lot 0** : rapport d'audit `docs/audit_2026-10-25.md` ; non-régression figée avant tout changement
+  (`tests/unitaires/test_non_regression_geometrie.py`, fouille fermée et fouille à coupes, 1e-6) : inchangée depuis.
+- **Lot 1, profil identique sur chaque coupe** : trois causes corrigées. Le 2D avec un plan extrudait un seul
+  résultat (coupe résolue maintenant station par station, coupes automatiques par côté) ; le pseudo-3D appliquait
+  les objets de terrain d'un côté à tout le périmètre (bandes rapportées ligne par ligne) ; au-delà de la longueur
+  pseudo-3D modélisée, la dernière valeur était recopiée (zone grise « hors longueur modélisée »).
+- **Lot 2** : exemples élémentaires 2D E09 à E25 (puis E26), chacun avec son en-tête ATTENDU / SOURCE et un test qui
+  recalcule l'attendu ; catalogue dans l'Aide, menu Fichier par groupe (2D, 3D).
+- **Lot 3** : vérifications à deux niveaux : synthèse par famille, puis un sous-onglet par famille avec une fiche
+  par vérification (principe, données avec unité et origine, étapes chiffrées, schéma SVG) ; fiches reprises dans
+  la note de calcul.
+- **Lot 4, couche géométrie** : bloc racine `geometrie` (ouvrages : contour, fermeture, côtés nommés, appuis en
+  plan ; terrain par zone ; fouille : zones de fond et `excaver` par zone, risbermes, talus, gradins avec leur
+  étendue `de` / `a` le long des côtés ; positions des surcharges). La forme ancienne (`plan`, `fouille`,
+  `terrain.pente_beta`, `cote_paroi`) reste lue et convertie. Calcul 2D : une coupe par tronçon homogène ;
+  pseudo-3D : états de sol, d'eau et de phasage par ligne ou par classe de lignes ; maquette : côtés, zones et fond
+  par zone. Nouvelle étape de saisie **4 « Géométrie »** : plan SVG, tableaux par bloc, bouton « Convertir vers le
+  bloc geometrie ». Exemple `exemples/geometrie_fouille_zones.yaml`.
+- **Lot 4h, parois fermées** : `paroi.etancheite` (étanche, non étanche, partielle avec `k_paroi` et
+  `epaisseur_hydraulique`). Écoulement 2D : face coupée, face transparente avec suintement vers la fouille, ou
+  résistance e/k en série (Darcy) ; débit à travers l'écran compté et affiché. Enceinte fermée : flux nul au
+  vis-à-vis et largeur de fouille tirée de la géométrie ; paroi ouverte (`ferme: false`) : charge de la fouille
+  imposée au loin. Exemple E26.
+- **Lot 5, paroi circulaire** : `paroi.forme: circulaire`, `rayon`, `epaisseur_anneau`, `tolerance_verticalite`.
+  L'anneau comprimé ajoute un ressort E·t/R² sur toute la hauteur (Timoshenko § 114) ; N_θ = E·t·w/R par phase ;
+  vérifications de la famille « Anneau » (compression circonférentielle N_Ed ≤ t·fcd ; stabilité de forme
+  indicative) ; pseudo-3D sur un polygone sans angle bloqué ; maquette 3D circulaire ; champs dans l'étape Écran.
+  Exemples 3D **P01 à P06** (fouille 60 × 20 autostable, fouille butonnée en double écran, risberme sur un seul
+  côté, puits circulaire en 2D et en pseudo-3D, paroi avec angle), chacun avec son test.
+
+### Résultats de validation notables
+| Cas | Contrôle | Écart |
+| --- | --- | --- |
+| E13 en paroi circulaire | Hetényi avec k = 2·kh + E·t/R² | 0,03 % |
+| P04 puits | w = p0/(kh + E·t/R²) entre −2 et −6 m | 0,65 % |
+| P05 puits en pseudo-3D | lignes identiques, maximum égal au 2D | 1e-12 |
+| P01 milieu du grand côté | déplacement contre 2D | 2,6 % |
+| P02 butons du milieu | effort contre 2D × espacement | 1,2 % |
+| P06 à 30 m de l'angle | déplacement contre 2D | 1,4 % |
+| Darcy 1D à travers une paroi | résistances en série | 1e-9 |
+
+### Décisions prises par défaut (à valider)
+1. Étanchéité par défaut selon le type de paroi (hypothèse de projet, pas une norme) : paroi moulée, pieux sécants,
+   palplanches étanches ; pieux disjoints, berlinoise non étanches.
+2. Écran non étanche hors écoulement 2D : nappe côté terre ramenée au niveau côté fouille, avec un avertissement
+   (rabattement et débit non calculés).
+3. Largeur de fouille du réseau d'écoulement : distance au vis-à-vis au point de la coupe, ou au milieu du côté le
+   plus long quand il n'y a qu'une coupe (largeur la plus étroite, gradient le plus fort).
+4. Anneau : k = E·t/R² (coque libre de se dilater verticalement, sans le facteur 1/(1 − ν²)) ; pieux sécants :
+   épaisseur de l'anneau = largeur du joint √(D² − e²).
+5. Joint de pieux sécants non armé : αcc de l'EC2 employé, αcc,pl du chapitre 12 absent (TODO-NORME, signalé).
+6. Stabilité de forme de l'anneau : p_cr avec ν = 0 (borne inférieure), vérification « non vérifiable » faute de
+   coefficient de sécurité dans docs/normes.
+7. Forme ancienne de la géométrie convertie sans avertissement orange ; la vue Géométrie propose la conversion.
+8. Changements de spécification signalés : 8 étapes de saisie devenues 9 (`vues.test.ts`), test du menu des
+   exemples adapté au catalogue.
+
+### Testé
+`lancer_tests.ps1` sur l'état final : pytest 404 réussis, 6 ignorés (cas RIDO / K-Réa absents) ; ruff 0 ; tsc 0 ;
+eslint 0 ; vitest 111 (17 fichiers). Fumée Chrome (`outils/interface/captures.ps1`) : aucune erreur console, étape
+Géométrie comprise (création du bloc, saisie d'un sommet = une seule ligne du script modifiée). Captures ponctuelles
+contrôlées à l'écran : puits P04 en 3D (cylindre de pieux sécants), onglet « Anneau » avec sa fiche et son schéma,
+vue Géométrie d'une paroi circulaire. Non-régression figée du lot 0 et jeux figés 3D existants : inchangés.
+
+### Reste à faire / limites
+- **Import RIDO (lot 6) non fait** : `docs/rido` ne contient que le README et une table vide. Il faut le manuel du
+  format et 3 à 5 fichiers de données avec leurs sorties ; rien n'est deviné.
+- Six jeux figés de la vue 3D non régénérés : la régénération fait passer le taux de l'assemblage A3 de
+  `fouille_exemple` de 140 à 189 % (pondération 1,35 des assemblages, audit du 24/10) et changerait une valeur de
+  référence de `appuis.test.ts`. À valider avant de régénérer (`python -m outils.fixtures_vue3d`).
+- Pseudo-3D : un appui placé à mi-maille prend le nœud le plus proche dans l'ordre du développé, d'où une légère
+  dissymétrie en vis-à-vis ; caler l'espacement sur le pas horizontal (P02 : 6 m).
+- La largeur du réseau d'écoulement varie selon le côté, mais ne déclenche pas à elle seule des coupes automatiques
+  par côté.
+- Paroi circulaire : chargement axisymétrique seulement ; en pseudo-3D, rigidité de membrane seule (pas
+  d'ovalisation) ; vérifications de l'anneau sur le 2D ; écoulement autour d'un puits non modélisé en
+  axisymétrique (réseau plan) ; palplanches circulaires refusées (TODO-SOURCE).
+- Vue Géométrie : pas de glisser-déposer des sommets.
+- Maquette 3D d'une paroi ouverte (`ferme: false`) : contrôlée à l'écran, la polyligne est encore dessinée fermée
+  (paroi et fond de fouille sur l'arête de fermeture) ; le calcul, lui, en tient compte. Reporté, comme prévu au plan.
+
+### Questions ouvertes
+1. Déposer dans `docs/rido` le manuel RIDO et 3 à 5 fichiers avec leurs sorties.
+2. Valider la régénération des jeux figés 3D (A3 de 140 à 189 %).
+3. Valider les défauts d'étanchéité par type de paroi.
+4. Fournir dans `docs/normes` : coefficient de Poisson du béton (EC2 § 3.1.3), αcc,pl (EC2 ch. 12) et, s'il en
+   existe un, le coefficient de sécurité sur le flambement d'un anneau.

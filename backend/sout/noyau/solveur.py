@@ -243,15 +243,23 @@ def resoudre(
     u0: np.ndarray | None = None,
     max_iter: int = 200,
     y_rupture: float = 5.0,
+    k_noeuds: np.ndarray | None = None,
 ) -> SolutionPhase:
     """Résout l'équilibre d'une phase de l'écran 2D (poutre).
 
     f_ext : vecteur 2n des forces imposées (eau, forces nodales), kN/m et kN·m/m.
     y_rupture : déplacement (m) au-delà duquel on déclare la rupture.
+    k_noeuds : raideurs linéaires supplémentaires sur le déplacement de chaque nœud (kN/m par m d'écran),
+               par exemple l'anneau comprimé d'une paroi circulaire (sout.parois.anneau) ; force = −k·y.
     """
     n = len(z)
     ddl_y = np.arange(0, 2 * n, 2)
-    u, it, nR = resoudre_general(assembler(z, EI_elem), ddl_y, ressorts, appuis, f_ext, u0, max_iter, y_rupture)
+    K = assembler(z, EI_elem)
+    if k_noeuds is not None:
+        diag = np.zeros(2 * n)
+        diag[ddl_y] = k_noeuds
+        K = K + sparse.diags(diag)
+    u, it, nR = resoudre_general(K, ddl_y, ressorts, appuis, f_ext, u0, max_iter, y_rupture)
     y = u[ddl_y]
     p, statut = ressorts.pressions(y)
     eff, actif = appuis.efforts(y)

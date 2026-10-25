@@ -71,6 +71,7 @@ class ResultatPhase:
     parent: int | None = None                       # indice du résultat de la phase de départ (0 = état initial)
     hydro: dict | None = None                       # résultat hydraulique sérialisé (écoulement, bouchon)
     ecoulement: object = field(default=None, repr=False)  # objet ResultatEcoulement (vérifications)
+    anneau: dict | None = None                      # paroi circulaire : {"z", "w", "t", "N", "reaction"} aux nœuds
 
 
 @dataclass
@@ -140,6 +141,11 @@ class MoteurPhases:
         z = self.z
         n = len(z)
         self.EI_elem = ec.EI_en(0.5 * (z[1:] + z[:-1]))
+        # paroi circulaire : anneau comprimé, ressort linéaire réparti k = E·t/R² concentré aux nœuds (sout.parois.anneau)
+        self.k_anneau = None
+        if ec.anneau is not None:
+            from ..parois.anneau import raideurs_nodales
+            self.k_anneau = raideurs_nodales(ec.anneau, z)
 
         # Demi-mailles : (nœud, z bas, z haut)
         noeud, zb, zh = [], [], []
@@ -218,6 +224,13 @@ class MoteurPhases:
                 "de l'eau côté fouille (ou au fond de fouille) à chaque phase, pression d'eau différentielle nulle (hypothèse de "
                 "drainage à travers l'écran). Rabattement et débit non calculés : régime differences_finies pour un calcul "
                 "d'écoulement ; paroi.etancheite: etanche pour un écran imperméable.")
+        an = modele.ecran.anneau
+        if an is not None:
+            t = an.t(self.z)
+            self.avertissements.append(
+                f"Paroi circulaire de rayon {an.rayon:g} m : anneau comprimé axisymétrique (ressort E·t/R² sur toute la hauteur, "
+                f"Timoshenko § 114), épaisseur de l'anneau {t.min():.3f} à {t.max():.3f} m ({an.source_epaisseur}). Chargement "
+                "supposé identique sur tout le pourtour ; anneau élastique, la traction circonférentielle n'est pas limitée.")
 
     # ------------------------------------------------------------------
     def _sigma_v(self, cote: int, terrain: float, eau: float | None, surcharges: list[Surcharge],
@@ -443,7 +456,8 @@ class MoteurPhases:
             if a_verin:
                 appuis_v = self._appuis(poses, [(nm, 0.0, m.appuis[nm].precharge, 0.0) for nm in a_verin])
                 try:
-                    sol_v = resoudre(self.z, self.EI_elem, r, appuis_v, f_ext_prec, u0=u, y_rupture=m.y_rupture)
+                    sol_v = resoudre(self.z, self.EI_elem, r, appuis_v, f_ext_prec, u0=u, y_rupture=m.y_rupture,
+                                     k_noeuds=self.k_anneau)
                 except RuptureEquilibre as e:
                     resultats.append(ResultatPhase(ph.nom, False, f"Rupture à la mise en charge des appuis : {e}",
                                                    **base, parent=parents[k_ph]))
@@ -468,7 +482,8 @@ class MoteurPhases:
             appuis = self._appuis(poses)
 
             try:
-                solution = resoudre(self.z, self.EI_elem, r, appuis, f_ext, u0=u, y_rupture=m.y_rupture)
+                solution = resoudre(self.z, self.EI_elem, r, appuis, f_ext, u0=u, y_rupture=m.y_rupture,
+                                    k_noeuds=self.k_anneau)
             except RuptureEquilibre as e:
                 resultats.append(ResultatPhase(ph.nom, False, f"Rupture : {e}", **base, parent=parents[k_ph]))
                 continue
@@ -481,8 +496,14 @@ class MoteurPhases:
             # (V nul aux extrémités libres) ; q = pression nette sol + eau, par mètre d'écran.
             nd = self.nd
             q = (r.A[:nd] * solution.p[:nd] - r.A[nd:] * solution.p[nd:]) / self.d_L + (u_am - u_av)
-            z_diag, M_diag, V_diag = efforts_par_statique(self.z, self.d_zb, self.d_zh, q,
-                                                          appuis.noeud, -solution.efforts_appuis)
+            noeuds_f, forces_f, anneau = appuis.noeud, -solution.efforts_appuis, None
+            if self.k_anneau is not None:   # réaction de l'anneau : force −k·y à chaque nœud, N_θ = E·t·y/R
+                reaction = self.k_anneau * solution.y
+                noeuds_f = np.concatenate([noeuds_f, np.arange(n)])
+                forces_f = np.concatenate([forces_f, -reaction])
+                an = m.ecran.anneau
+                anneau = {"z": self.z, "w": solution.y, "t": an.t(self.z), "N": an.N(self.z, solution.y), "reaction": reaction}
+            z_diag, M_diag, V_diag = efforts_par_statique(self.z, self.d_zb, self.d_zh, q, noeuds_f, forces_f)
             present, fl, pa, pp = sol["present"], sol["fl"], sol["pa"], sol["pp"]
 
             pressions = {}
@@ -513,6 +534,7 @@ class MoteurPhases:
                         for nm, d, e_, a_ in zip(noms, defs, solution.efforts_appuis, solution.appuis_actifs)],
                 iterations=solution.iterations,
                 hydro=ecoul.serialiser() if ecoul is not None else None, ecoulement=ecoul, parent=parents[k_ph],
+                anneau=anneau,
             ))
             instantanes[k_ph] = {"etat": copy.deepcopy(etat), "poses": dict(poses), "u": u.copy(), "sv_prec": sv_prec.copy(),
                                  "present_prec": present_prec.copy(), "f_ext": f_ext.copy(),

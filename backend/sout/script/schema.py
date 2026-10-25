@@ -87,6 +87,17 @@ class Paroi(_Base):
                           "(résistance e_p/k_p en série avec le sol, écoulement 2D seulement) ; défaut selon le type, hypothèse de "
                           "projet : paroi_moulee, pieux_secants, palplanche -> etanche ; pieux_disjoints, berlinoise -> non_etanche")
     k_paroi: float | None = Field(None, gt=0, description="étanchéité partielle : perméabilité équivalente de l'écran (m/s)")
+    forme: Literal["plane", "circulaire"] = Field(
+        "plane", description="forme en plan : plane (écran par mètre linéaire) ou circulaire (puits : anneau comprimé "
+                             "axisymétrique, ressort E·t/R² ajouté sur toute la hauteur, Timoshenko § 114) ; circulaire : "
+                             "paroi_moulee ou pieux_secants")
+    rayon: float | None = Field(None, gt=0, le=500, description="paroi circulaire : rayon de l'axe de la paroi (m)")
+    epaisseur_anneau: float | None = Field(
+        None, gt=0, description="paroi circulaire : épaisseur de l'anneau comprimé (m) ; défaut : epaisseur de la paroi moulée, "
+                                "ou largeur du joint des pieux sécants √(D² − e²)")
+    tolerance_verticalite: float = Field(
+        0.0, ge=0, le=0.05, description="paroi circulaire en pieux sécants : écart de verticalité de chaque pieu (m/m, paramètre de "
+                                        "projet) ; l'entraxe au joint croît de 2·tolérance·profondeur, l'anneau s'amincit")
     epaisseur_hydraulique: float | None = Field(
         None, gt=0, description="étanchéité partielle : épaisseur d'écran traversée par l'eau (m) ; défaut : epaisseur ou diametre")
 

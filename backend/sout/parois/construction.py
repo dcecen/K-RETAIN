@@ -175,7 +175,19 @@ def construire_ecran(p, catalogue=None, normes=None) -> Ecran:
     infos["resistance_hydraulique"] = resistance_paroi(p)
     if infos["etancheite"] == "partielle":
         infos.update(k_paroi=getattr(p, "k_paroi", None), epaisseur_hydraulique=epaisseur_hydraulique_de(p))
-    return Ecran(tete=p.tete, pied=p.pied, EI=EI, largeur_reaction=largeur, infos=infos)
+    # paroi circulaire : anneau comprimé (module Ecm de la base matériaux, même béton que la flexion)
+    anneau = None
+    if getattr(p, "forme", "plane") == "circulaire":
+        from .anneau import ErreurAnneau, construire_anneau
+        if p.type in ("paroi_moulee", "pieux_secants") and not p.beton:
+            raise ErreurParoi("paroi circulaire : beton obligatoire (module Ecm de l'anneau comprimé, base matériaux)")
+        try:
+            anneau = construire_anneau(p, _Ecm_kPa(p, catalogue)[0] if p.beton else 0.0)
+        except ErreurAnneau as e:
+            raise ErreurParoi(str(e)) from None
+        infos["anneau"] = anneau.decrire()
+        infos.setdefault("beton", _Ecm_kPa(p, catalogue)[1])
+    return Ecran(tete=p.tete, pied=p.pied, EI=EI, largeur_reaction=largeur, infos=infos, anneau=anneau)
 
 
 def rigidite_horizontale(p) -> dict:

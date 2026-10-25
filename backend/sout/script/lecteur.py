@@ -158,6 +158,26 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
     elif s.paroi.k_paroi is not None or s.paroi.epaisseur_hydraulique is not None:
         e.append((("paroi", "k_paroi"), f"k_paroi / epaisseur_hydraulique sans effet : l'écran est « {et} » "
                                         "(paroi.etancheite: partielle pour les prendre en compte)"))
+    # paroi circulaire : rayon, type (anneau de béton), recouvrement des pieux sécants jusqu'au pied
+    p = s.paroi
+    if p.forme == "circulaire":
+        if p.rayon is None:
+            e.append((("paroi", "forme"), "paroi circulaire : rayon obligatoire (m, axe de la paroi)"))
+        if p.type not in ("paroi_moulee", "pieux_secants"):
+            e.append((("paroi", "forme"), f"paroi circulaire en {p.type} : anneau comprimé non traité (paroi_moulee ou pieux_secants ; "
+                                          "palplanches : TODO-SOURCE, comportement des serrures en compression circonférentielle)"))
+        if not p.beton:
+            e.append((("paroi", "beton"), "paroi circulaire : beton obligatoire (module Ecm de l'anneau comprimé)"))
+        if p.type == "pieux_secants" and p.epaisseur_anneau is None and p.diametre and p.entraxe:
+            e_pied = p.entraxe + 2 * p.tolerance_verticalite * (p.tete - p.pied)
+            if e_pied >= p.diametre:
+                e.append((("paroi", "entraxe"), f"pieux sécants : plus de recouvrement au pied (entraxe effectif {e_pied:.3f} m ≥ "
+                                                f"diamètre {p.diametre:g} m, tolérance {p.tolerance_verticalite:g} m/m) : anneau discontinu"))
+        if p.rayon is not None and s.geometrie is not None and s.geometrie.ouvrages is not None:
+            e.append((("geometrie", "ouvrages"), "paroi circulaire : le tracé en plan est le cercle de rayon paroi.rayon ; retirez "
+                                                 "geometrie.ouvrages (contour)"))
+    elif p.rayon is not None or p.epaisseur_anneau is not None or p.tolerance_verticalite:
+        e.append((("paroi", "rayon"), "rayon / epaisseur_anneau / tolerance_verticalite sans effet : paroi.forme: circulaire pour les prendre en compte"))
     toits = [c.toit for c in s.sol]
     if len(set(toits)) != len(toits):
         e.append((("sol",), "deux couches ont le même toit"))

@@ -1,0 +1,28 @@
+# VÉRIFICATION ÉLÉMENTAIRE P03 — fouille fermée 20 × 12 m, risberme sur le seul côté sud (pseudo-3D, Ds = 0)
+# Paroi EI = 1e5 kN·m²/m sans flexion horizontale (Ds = 0 : chaque ligne verticale travaille seule), de 0 à −12 m,
+# sable kh imposé, sans appui ; terrassement à −2 m puis à −6 m en laissant une risberme le long du côté sud
+# (crête −3 m, banquette 2 m, pente 3/2, pied −6 m), décrite dans le bloc geometrie avec son côté.
+# ATTENDU : la géométrie n'est pas symétrique, les profils diffèrent par côté : une ligne du côté sud est l'écran 2D
+# calculé avec la risberme, une ligne du côté nord l'écran 2D sans risberme, à 1e-5 ; le côté sud se déplace moins
+# (moins de 90 % du côté nord) ; bilan des forces nul.
+# SOURCE : identité « Ds = 0 ⇔ lignes indépendantes = coupes 2D » (plaque sans flexion horizontale) ; risberme par
+# surcharge équivalente (poids du volume en bandes diffusées par Boussinesq, Poulos & Davis 1974 ; choix de
+# modélisation documenté dans sout.sol.terrain) appliquée au seul côté qui la porte.
+projet: "P03 Risberme côté sud seulement : sud = 2D avec risberme, nord = 2D sans"
+calcul: { kh: impose, mode: pseudo3d, pas: 0.25 }
+paroi: { type: paroi_moulee, EI: 100000, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 12000 }
+eau: { service: { amont: null, aval: null } }
+pseudo3d: { pas_horizontal: 1.0, rapport_rigidite_horizontale: 0 }
+geometrie:
+  ouvrages:
+    contour: [[0, 0], [20, 0], [20, 12], [0, 12]]
+    cotes: { sud: 0, est: 1, nord: 2, ouest: 3 }
+  fouille:
+    objets:
+      - { nom: R1, type: risberme, cotes: [sud], phases: [3, 3], cote_crete: -3.0, largeur_crete: 2.0, pente: 1.5, cote_pied: -6.0 }
+phases:
+  - { nom: Exc1, excaver: -2.0 }
+  - { nom: P2 }
+  - { nom: Exc2, excaver: -6.0 }

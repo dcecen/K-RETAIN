@@ -14,6 +14,7 @@ const BARRE = { type: 'barre', L: 16, angle: 0, N_Ed: 1200, N_cr: 4838, N_b_Rd: 
 const BETON = { type: 'section_beton', h: 0.6, d: 0.53, As: 20, As_requis: 12.3, M_Ed: 300, M_Rd: 442, face: 'face fouille', phase: 'P3' }
 const ACIER = { type: 'section_acier', profil: 'AZ 26-700', M_Ed: 141, M_Rd: 925, V_Ed: 89, V_Rd: 1200, W: 2600, fy: 355, phase: 'P3' }
 const POUTRE = { type: 'poutre_continue', e: 4, q: 57, My: 155, V: 193, profil: 'HEB 400', pseudo3d: false }
+const ANNEAU = { type: 'anneau', phase: 'P2', R: 6, t: 0.53, z: [-14, -10, -6, -2, 0], N: [0, 300, 820, 410, 120], N_Rd: 9010 }
 
 describe('schémas SVG des fiches de vérification', () => {
   it('chaque type connu rend un SVG autonome avec ses grandeurs', () => {
@@ -23,6 +24,7 @@ describe('schémas SVG des fiches de vérification', () => {
       profil: [PROFIL, ['<polyline', 'admissible 30 mm']], forces_verticales: [FORCES, ['340', '120', 'montants / descendants']],
       barre: [BARRE, ['L = 16,00 m', 'χ = 0,533', `N_b,Rd = 3${SEP}683`]], section_beton: [BETON, ['d = 0,530 m', 'M_Rd = 442', 'As requis 12,3']],
       section_acier: [ACIER, ['AZ 26-700', 'M_c,Rd = 925', `Vpl,Rd = 1${SEP}200`]], poutre_continue: [POUTRE, ['q = 57,0', 'q·e²/8', 'HEB 400']],
+      anneau: [ANNEAU, ['R = 6,00 m', 't = 0,530 m', 'max 820 kN/m', `N_Rd = 9${SEP}010`, '<circle']],
     }
     expect(Object.keys(cas).sort()).toEqual([...TYPES_SCHEMA].sort())
     for (const [type, [schema, attendus]] of Object.entries(cas)) {

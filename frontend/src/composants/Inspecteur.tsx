@@ -68,6 +68,7 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
             <dt>Moment min</dt><dd>{nb(s?.M_min, 0)} kN·m/m</dd>
             <dt>Tranchant max</dt><dd>{nb(s?.V_absmax, 0)} kN/m</dd>
             <dt title="Bm / Bt, valeurs caractéristiques">Butée mobilisée Bm/Bt</dt><dd>{pourcent(s?.butee_mobilisee)}</dd>
+            {s?.N_anneau_max !== undefined && <><dt title="Paroi circulaire : N_θ = E·t·w/R, compression positive">Anneau N_θ max</dt><dd>{nb(s.N_anneau_max, 0)} kN/m{(s.N_anneau_min ?? 0) < 0 ? ` (traction ${nb(s.N_anneau_min, 0)})` : ''}</dd></>}
             {maxButon && <><dt>Effort max par buton</dt><dd>{nb(maxButon.effort_axial_kN, 0)} kN ({maxButon.nom})</dd></>}
             {ph.hydro && ph.hydro.regime !== 'hydrostatique' && (
               <>

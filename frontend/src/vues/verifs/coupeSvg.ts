@@ -185,6 +185,39 @@ function profil(s: Schema): string {
   return enveloppe(corps, `Déplacement ${String(s.quoi ?? '')} de l'écran, phase « ${String(s.phase ?? '')} »`)
 }
 
+/** Paroi circulaire : anneau en plan (rayon, pression reprise) et profil de l'effort normal circonférentiel N_θ(z). */
+function anneau(s: Schema): string {
+  const z = s.z as number[], N = s.N as number[]
+  const R = num(s.R), t = num(s.t)
+  const tete = Math.max(...z), pied = Math.min(...z)
+  const H = Math.max(tete - pied, 1)
+  const Nmax = Math.max(...N.map(Math.abs), opt(s.N_Rd) ?? 0, 1e-9)
+  // plan : cercle de rayon fixe à l'écran (le rayon réel est écrit), flèches de pression vers l'axe
+  const cx = 95, cy = 125, rr = 58
+  const fleches = Array.from({ length: 8 }, (_, i) => {
+    const a = (i * Math.PI) / 4, x1 = cx + (rr + 24) * Math.cos(a), y1 = cy + (rr + 24) * Math.sin(a), x2 = cx + (rr + 6) * Math.cos(a), y2 = cy + (rr + 6) * Math.sin(a)
+    return `<line x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}" stroke="${C.orange}" stroke-width="1.6" marker-end="url(#fl)" />`
+  }).join('')
+  const plan = `<defs><marker id="fl" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="${C.orange}" /></marker></defs>`
+    + `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="none" stroke="${C.ecran}" stroke-width="${Math.max(3, Math.min(14, (t / Math.max(R, 1e-9)) * rr * 4))}" stroke-opacity="0.6" />`
+    + `<line x1="${cx}" y1="${cy}" x2="${cx + rr}" y2="${cy}" stroke="${C.doux}" stroke-dasharray="3 3" />`
+    + texte(cx + rr / 2, cy - 6, `R = ${f(R, 2)} m`, { ancre: 'middle', taille: 10.5 })
+    + texte(cx, cy + rr + 42, `anneau t = ${f(t, 3)} m, comprimé`, { ancre: 'middle', taille: 10, couleur: C.doux }) + fleches
+  // profil N_θ(z) à droite
+  const x0 = 225, larg = 175, y0 = 34, haut = 186
+  const X = (v: number) => x0 + (v / Nmax) * larg
+  const Y = (zz: number) => y0 + ((tete - zz) / H) * haut
+  const pts = z.map((zz, i) => `${r1(X(N[i]))},${r1(Y(zz))}`).join(' ')
+  const NRd = opt(s.N_Rd)
+  const profilN = `<line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y0 + haut}" stroke="${C.filet}" />`
+    + `<polyline points="${pts}" fill="none" stroke="${C.accent}" stroke-width="2" />`
+    + (NRd !== null ? `<line x1="${r1(X(NRd))}" y1="${y0}" x2="${r1(X(NRd))}" y2="${y0 + haut}" stroke="${C.rouge}" stroke-dasharray="5 3" />`
+      + texte(X(NRd) - 4, y0 + 12, `N_Rd = ${f(NRd, 0)}`, { ancre: 'end', taille: 10, couleur: C.rouge }) : '')
+    + texte(x0 + 4, y0 - 6, `tête ${f(tete, 2)} m`, { taille: 9.5, couleur: C.doux }) + texte(x0 + 4, y0 + haut + 14, `pied ${f(pied, 2)} m`, { taille: 9.5, couleur: C.doux })
+    + texte(x0 + larg / 2, y0 + haut + 30, `N_θ (kN/m, compression > 0) ; max ${f(Math.max(...N), 0)} kN/m`, { ancre: 'middle', taille: 10, couleur: C.accent })
+  return enveloppe(plan + profilN, `Anneau comprimé de la paroi circulaire, phase « ${String(s.phase ?? '')} »`)
+}
+
 function forcesVerticales(s: Schema): string {
   const m = num(s.montants), d = num(s.descendants)
   const vmax = Math.max(m, d, 1e-9)
@@ -257,7 +290,7 @@ function poutreContinue(s: Schema): string {
 
 const RENDUS: Record<string, (s: Schema) => string> = {
   butee, kranz, fond_de_fouille: fondDeFouille, cercle, profil, forces_verticales: forcesVerticales, barre,
-  section_beton: sectionBeton, section_acier: sectionAcier, poutre_continue: poutreContinue,
+  section_beton: sectionBeton, section_acier: sectionAcier, poutre_continue: poutreContinue, anneau,
 }
 
 /** Texte SVG du schéma d'une vérification ; null si le type est inconnu ou les données insuffisantes. */

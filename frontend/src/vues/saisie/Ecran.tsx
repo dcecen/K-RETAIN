@@ -38,7 +38,14 @@ export function Ecran({ ctx }: { ctx: Ctx }) {
           {p.etancheite === 'partielle' && champ('epaisseur_hydraulique', 'Épaisseur traversée par l’eau (m)', 'number', 'épaisseur ou diamètre')}
           {(pieux || t === 'berlinoise') && champ('entraxe', 'Entraxe (m)')}
           {(t === 'pieux_disjoints' || t === 'berlinoise') && champ('largeur_reaction_fiche', 'Largeur de réaction sous le fond (m par élément)')}
+          {(t === 'paroi_moulee' || t === 'pieux_secants') && (
+            <label>Forme en plan<Choix ctx={ctx} chemin={ch('forme')} valeur={p.forme ?? 'plane'} options={['plane', 'circulaire']} libelles={{ plane: 'Plane (écran par mètre)', circulaire: 'Circulaire (puits, anneau comprimé)' }} bloc="Paroi" cle="forme" libelle="Forme en plan" /></label>
+          )}
+          {p.forme === 'circulaire' && champ('rayon', 'Rayon de l’axe de la paroi (m)')}
+          {p.forme === 'circulaire' && champ('epaisseur_anneau', 'Épaisseur de l’anneau (m)', 'number', t === 'pieux_secants' ? 'joint √(D² − e²)' : 'épaisseur de la paroi')}
+          {p.forme === 'circulaire' && t === 'pieux_secants' && champ('tolerance_verticalite', 'Écart de verticalité des pieux (m/m)', 'number', '0')}
         </div>
+        {p.forme === 'circulaire' && <p className="note" style={{ margin: '0 12px 10px' }}>Paroi circulaire : l’anneau comprimé ajoute un ressort E·t/R² sur toute la hauteur (Timoshenko § 114) ; chargement supposé identique sur tout le pourtour. Vérifications de la famille « Anneau » (compression, stabilité de forme indicative).</p>}
       </div>
       <div className="bloc"><div className="bloc-titre">Matériaux et section</div>
         <div className="grille-form">

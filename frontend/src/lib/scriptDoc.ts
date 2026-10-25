@@ -178,11 +178,14 @@ export function renommerAppui(texte: string, ancien: string, nouveau: string): s
         if (doc.getIn(['assemblages', nom, 'appui']) === ancien) doc.setIn(['assemblages', nom, 'appui'], nouveau)
       }
     }
-    const enPlan = doc.getIn(['plan', 'appuis'], true)
-    if (isSeq(enPlan)) {
-      enPlan.items.forEach((_, k) => {
-        if (doc.getIn(['plan', 'appuis', k, 'appui']) === ancien) doc.setIn(['plan', 'appuis', k, 'appui'], nouveau)
-      })
+    // positions en plan : forme ancienne (plan.appuis) et bloc geometrie (geometrie.ouvrages.appuis)
+    for (const base of [['plan', 'appuis'], ['geometrie', 'ouvrages', 'appuis']]) {
+      const enPlan = doc.getIn(base, true)
+      if (isSeq(enPlan)) {
+        enPlan.items.forEach((_, k) => {
+          if (doc.getIn([...base, k, 'appui']) === ancien) doc.setIn([...base, k, 'appui'], nouveau)
+        })
+      }
     }
   })
 }

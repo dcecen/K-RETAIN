@@ -81,6 +81,8 @@ export interface PhaseRes {
   nom: string
   ok: boolean
   message: string
+  /** Paroi circulaire : effort normal circonférentiel N_θ (kN/m, compression > 0), épaisseur et pression de l'anneau. */
+  anneau?: { z: number[]; N_kN_m: number[]; t_m: number[]; w_mm: number[]; p_kPa: number[] }
   terrain_amont: number
   terrain_aval: number
   eau_amont: number | null
@@ -114,6 +116,9 @@ export interface PhaseRes {
     /** Résultantes aval (kN/m) des pressions mobilisées et limites, valeurs caractéristiques. */
     Bm_kN_m?: number | null
     Bt_kN_m?: number | null
+    /** Paroi circulaire : effort normal circonférentiel extrême (kN/m, compression > 0). */
+    N_anneau_max?: number
+    N_anneau_min?: number
   }
 }
 

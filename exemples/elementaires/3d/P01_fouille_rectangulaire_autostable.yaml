@@ -1,0 +1,22 @@
+# VÉRIFICATION ÉLÉMENTAIRE P01 — fouille rectangulaire 60 × 20 m autostable en paroi moulée (pseudo-3D, tout le contour)
+# Paroi moulée EI = 1e5 kN·m²/m, flexion horizontale Ds = Dz (plaque isotrope, défaut des parois moulées), de 0 à
+# −12 m, sable kh imposé, terrassement à −4 m sans appui. La plaque parcourt tout le périmètre (160 m) ; les quatre
+# angles tiennent la paroi (w = 0 : chaque paroi est indéformable dans son plan et tient sa voisine).
+# ATTENDU : w = 0 aux quatre angles (< 1e-3 du maximum) ; champ symétrique (chaque grand côté est le miroir de son
+# vis-à-vis et de lui-même, 1e-6) ; au milieu d'un grand côté, à 30 m des angles, déplacement maximal et moment
+# maximal égaux au calcul 2D de la même coupe à 5 % ; bilan des forces nul (les réactions d'angle équilibrent le reste).
+# SOURCE : plaque orthotrope de Huber sur ressorts (sout.pseudo3d) ; loin des angles, flexion cylindrique d'une
+# plaque (Timoshenko & Woinowsky-Krieger, Theory of Plates and Shells, ch. 1) : chaque ligne retrouve la coupe 2D.
+projet: "P01 Fouille 60 × 20 m autostable : angles fixes, milieu du grand côté = 2D"
+calcul: { kh: impose, mode: pseudo3d, pas: 0.25 }
+pseudo3d: { pas_horizontal: 1.0 }
+paroi: { type: paroi_moulee, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 12000 }
+geometrie:
+  ouvrages:
+    contour: [[0, 0], [60, 0], [60, 20], [0, 20]]
+    cotes: { sud: 0, est: 1, nord: 2, ouest: 3 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: "Terrassement à -4,0", excaver: -4.0 }

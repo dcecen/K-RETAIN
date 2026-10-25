@@ -37,6 +37,7 @@ export const CLES_AVANCEES_ECRAN = ['EI', 'rapport_EI_fissure', 'enrobage', 'arm
 
 // --- Ecran
 export const CLES_ECRAN = ['paroi.type', 'paroi.tete', 'paroi.pied', 'paroi.etancheite', 'paroi.k_paroi', 'paroi.epaisseur_hydraulique',
+  'paroi.forme', 'paroi.rayon', 'paroi.epaisseur_anneau', 'paroi.tolerance_verticalite',
   'paroi.profil', 'paroi.acier', 'paroi.beton', 'paroi.epaisseur', 'paroi.diametre', 'paroi.entraxe', 'paroi.profil_armature',
   'paroi.primaires_armes', 'paroi.largeur_reaction_fiche', 'paroi.blindage.epaisseur', 'paroi.blindage.materiau', 'paroi.blindage.resistance', ...CLES_AVANCEES_ECRAN.map((k) => `paroi.${k}`)]
 

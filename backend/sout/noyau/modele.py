@@ -25,6 +25,7 @@ class Ecran:
     segments_EI: list[tuple[float, float, float]] = field(default_factory=list)  # (z_bas, z_haut, EI)
     largeur_reaction: FonctionLargeur | None = None
     infos: dict = field(default_factory=dict)  # type, section, etc. (pour les vérifications)
+    anneau: object | None = None    # paroi circulaire : sout.parois.anneau.Anneau (ressort réparti E·t/R²)
 
     def EI_en(self, z: np.ndarray) -> np.ndarray:
         out = np.full(np.shape(z), float(self.EI))

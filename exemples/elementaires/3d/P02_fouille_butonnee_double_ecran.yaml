@@ -1,0 +1,27 @@
+# VÉRIFICATION ÉLÉMENTAIRE P02 — fouille 60 × 20 m butonnée, parois en vis-à-vis reliées par les butons (double écran)
+# Paroi moulée EI = 1e5 kN·m²/m (Ds = Dz), de 0 à −12 m, sable kh imposé ; butons à −1 m tous les 6 m, raideur 2D
+# 30 000 kN/m/m (règle L/2 de la paroi symétrique), précharge 20 kN par buton ; terrassement −2 m, pose, −6 m.
+# Chaque buton est un lien entre les deux grands côtés (raideur EA/L sur la longueur entière, action = réaction).
+# ATTENDU : fouille symétrique, donc liens équivalents à des ressorts vers le sol de la raideur 2D (règle L/2) :
+# même champ de déplacement à 1e-7 ; après la pose seule, chaque buton porte sa précharge de 20 kN (1e-6) ; au
+# milieu d'un grand côté, déplacement maximal égal au 2D à 5 % et effort des butons du milieu égal à l'effort 2D × 6 m à
+# 5 % ; bilan des forces nul.
+# SOURCE : règle L/2 des parois symétriques (deux parois qui avancent ensemble raccourcissent le buton deux fois) ;
+# équilibre d'un lien (action = réaction) ; plaque sur ressorts (sout.pseudo3d). Espacement multiple du pas horizontal :
+# chaque buton tombe sur un nœud, de même que son vis-à-vis (sinon le nœud le plus proche rompt la symétrie).
+projet: "P02 Fouille 60 × 20 m butonnée : liens en vis-à-vis = règle L/2"
+calcul: { kh: impose, mode: pseudo3d, pas: 0.25 }
+pseudo3d: { pas_horizontal: 1.0 }
+paroi: { type: paroi_moulee, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 12000 }
+geometrie:
+  ouvrages:
+    contour: [[0, 0], [60, 0], [60, 20], [0, 20]]
+    cotes: { sud: 0, est: 1, nord: 2, ouest: 3 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -1.0, espacement: 6.0, precharge: 20, symetrique: true }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose des butons, poser: B1 }
+  - { nom: "Terrassement à -6,0", excaver: -6.0 }

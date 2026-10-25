@@ -104,6 +104,11 @@ describe('renommerAppui', () => {
     expect(m.assemblages.A1.appui).toBe('BUT1')
     expect(m.plan.appuis[0].appui).toBe('BUT1')
   })
+  it('met à jour les positions en plan du bloc geometrie', () => {
+    const avec = SCRIPT.replace(/plan:[\s\S]*$/, '') + 'geometrie:\n  ouvrages:\n    contour: [[0, 0], [20, 0], [20, 12], [0, 12]]\n    appuis:\n      - { appui: B1, de: [6, 0], a: [6, 12] }\n'
+    const m = lire(renommerAppui(avec, 'B1', 'BUT1')).modele
+    expect(m.geometrie.ouvrages.appuis[0].appui).toBe('BUT1')
+  })
   it('ne fait rien si le nouveau nom existe déjà', () => {
     const t = ajouter(SCRIPT, ['x'], 1)
     expect(renommerAppui(t, 'B1', 'B1')).toBe(t)
