@@ -77,3 +77,5 @@ class Modele:
     coupe: dict | None = None            # position de la coupe en plan (surcharges et terrain rapportés à la coupe)
     beta_amont: float | None = None      # terrain en pente côté terre (°), poussée de Coulomb avec talus
     terrain_objets: list = field(default_factory=list)   # ObjetTerrain (risbermes, talus, gradins, pente) pour l'affichage
+    geometrie: object | None = None      # GeometrieModele (sout.geometrie) : zones, étendues, positions (pseudo-3D par ligne, maquette)
+    excaver_zones: list = field(default_factory=list)    # par phase : excaver du script (nombre ou bloc par zone de fond)

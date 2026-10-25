@@ -4,6 +4,7 @@ import { Appuis } from './Appuis'
 import type { AideChampInfo, Ctx } from './outils'
 import { Eau } from './Eau'
 import { Ecran } from './Ecran'
+import { Geometrie } from './Geometrie'
 import { Phases } from './Phases'
 import { Projet } from './Projet'
 import { Sols } from './Sols'
@@ -22,6 +23,7 @@ export function Saisie(p: Ctx & { section: Section; selection: Selection; onSele
     case 'projet': return <Projet ctx={ctx} />
     case 'sol': return <Sols ctx={ctx} selection={p.selection} res={p.res} />
     case 'ecran': return <Ecran ctx={ctx} />
+    case 'geometrie': return <Geometrie ctx={ctx} />
     case 'eau': return <Eau ctx={ctx} />
     case 'surcharges': return <Surcharges ctx={ctx} />
     case 'appuis': return <Appuis ctx={ctx} selection={p.selection} onSelection={p.onSelection} />

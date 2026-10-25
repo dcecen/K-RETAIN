@@ -166,7 +166,39 @@ await capture('09_saisie_couche')
     else console.log('saisie de phi : une seule ligne du script modifiée')
   } else journal.push('champ phi introuvable dans la vue Sols')
 }
-for (const [nom, texte] of [['10_projet', 'Projet'], ['11_ecran', 'Écran'], ['12_eau', 'Eau'], ['13_surcharges', 'Surcharges'], ['14_appuis', 'Appuis'], ['15_phases', 'Phases']]) {
+for (const [nom, texte] of [['10_projet', 'Projet'], ['11_ecran', 'Écran']]) {
+  if (await aller(texte)) await capture(nom)
+}
+// Géométrie : plan SVG ; création du bloc geometrie (ou conversion de la forme ancienne) ; saisie d'un sommet = une seule ligne modifiée
+if (await aller('Géométrie')) {
+  await capture('11b_geometrie')
+  const bouton = await evaluer(`(() => { const b = document.querySelector('.saisie .alerte button'); if (b) { b.click(); return true } return false })()`)
+  if (bouton) {
+    await dormir(600)
+    if (await evaluer(`!!document.querySelector('.dialogue')`)) {
+      await evaluer(`document.querySelector('.dialogue .btn.principal')?.click()`)
+      await dormir(1500)
+    }
+    if (!(await evaluer(`/^geometrie:/m.test(localStorage.getItem('retainwall.brouillon') ?? '')`))) journal.push('bloc geometrie absent du script après création ou conversion')
+  }
+  if (!(await evaluer(`!!document.querySelector('.geometrie-colonnes svg')`))) journal.push('plan SVG absent de la vue Géométrie')
+  const avant = await evaluer(`localStorage.getItem('retainwall.brouillon') ?? ''`)
+  const ok = await evaluer(`(() => {
+    const i = document.querySelector('.saisie table tbody tr:nth-child(2) input.champ.num')
+    if (!i) return false
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+    i.focus(); setter.call(i, String(Number(i.value) + 1)); i.dispatchEvent(new Event('input', { bubbles: true })); i.blur(); return true })()`)
+  await dormir(900)
+  if (ok) {
+    await capture('11c_geometrie_sommet')
+    const apres = await evaluer(`localStorage.getItem('retainwall.brouillon') ?? ''`)
+    const a = avant.split(/\r?\n/), b = apres.split(/\r?\n/)
+    const diff = a.length !== b.length ? -1 : a.filter((l, k) => l !== b[k]).length
+    if (diff !== 1) journal.push(`saisie d'un sommet du contour : ${diff} ligne(s) du script modifiée(s) au lieu de 1`)
+    else console.log(`saisie d'un sommet : une seule ligne du script modifiée`)
+  } else journal.push('champ x du sommet 1 introuvable dans la vue Géométrie')
+}
+for (const [nom, texte] of [['12_eau', 'Eau'], ['13_surcharges', 'Surcharges'], ['14_appuis', 'Appuis'], ['15_phases', 'Phases']]) {
   if (await aller(texte)) await capture(nom)
 }
 // Formulaire de la deuxième phase (clic sur sa ligne)

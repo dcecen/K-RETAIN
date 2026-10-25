@@ -250,7 +250,9 @@ class Remblai(_Base):
 
 class Phase(_Base):
     nom: str = Field(description="nom de la phase")
-    excaver: float | None = Field(None, description="cote du fond de fouille atteinte (m)")
+    excaver: float | dict[str, float] | None = Field(
+        None, description="cote du fond de fouille atteinte (m) ; avec des zones de fond (geometrie.fouille.zones) : "
+                          "bloc { nom_de_zone: cote, defaut: cote } pour un fond différent par zone")
     remblayer: Remblai | None = Field(None, description="remblai jusqu'à une cote, côté amont ou aval")
     poser: str | list[str] | None = Field(None, description="appui(s) posé(s) dans cette phase")
     deposer: str | list[str] | None = Field(None, description="appui(s) déposé(s) dans cette phase")
@@ -361,12 +363,105 @@ Verification = Literal[
 ]
 
 
+class _EtendueGeo(_Base):
+    """Rattachement d'un objet de géométrie à des côtés et à un tronçon le long de ces côtés."""
+    cotes: list[str | int] | None = Field(None, description="côtés concernés : noms de geometrie.ouvrages.cotes ou numéros d'arête (vide = tous)")
+    de: float | None = Field(None, ge=0, description="début du tronçon concerné, abscisse le long du côté depuis son origine (m) ; vide = début du côté")
+    a: float | None = Field(None, ge=0, description="fin du tronçon concerné (m) ; vide = fin du côté")
+
+
+class OuvragesGeo(_Base):
+    contour: list[list[float]] = Field(description="tracé de la paroi en plan [[x, y], ...] (m) : polygone fermé de la fouille, ou polyligne ouverte avec ferme: false")
+    ferme: bool = Field(True, description="contour fermé (enceinte : le dernier sommet rejoint le premier) ; false = paroi ouverte (polyligne)")
+    cotes: dict[str, int] = Field(default_factory=dict, description="noms des côtés -> numéro d'arête du contour (0 = premier segment)")
+    appuis: list[AppuiPlan] = Field(default_factory=list, description="positions des appuis en plan (vide = placement automatique à l'espacement)")
+
+    @field_validator("contour")
+    @classmethod
+    def _contour(cls, v):
+        if len(v) >= 2 and len(v[0]) == 2 and len(v[-1]) == 2 and abs(v[0][0] - v[-1][0]) < 1e-9 and abs(v[0][1] - v[-1][1]) < 1e-9:
+            v = v[:-1]
+        for p, q in zip(v, v[1:]):
+            if len(p) == 2 and len(q) == 2 and abs(p[0] - q[0]) < 1e-9 and abs(p[1] - q[1]) < 1e-9:
+                raise ValueError("deux sommets consécutifs du contour sont confondus")
+        return v
+
+
+class ZoneTerrainGeo(_EtendueGeo):
+    nom: str | None = Field(None, description="nom de la zone de terrain côté terre")
+    cote: float | None = Field(None, description="cote du terrain amont dans la zone (m) ; vide = geometrie.terrain.cote")
+    pente_beta: float | None = Field(None, gt=-80, lt=80, description="terrain en pente uniforme : angle β sur l'horizontale (°), Coulomb avec talus")
+    profil: list[list[float]] | None = Field(None, description="ligne [distance à la paroi, cote] (m) ; le sol au-dessus de la cote amont est pris en surcharge équivalente")
+    methode_pente: Literal["coulomb_beta", "surcharge_equivalente"] = Field(
+        "surcharge_equivalente", description="prise en compte du profil : coefficients avec β (pente uniforme) ou surcharge équivalente")
+
+
+class TerrainGeo(_Base):
+    cote: float | None = Field(None, description="cote du terrain côté terre (m) ; défaut : toit de la 1re couche")
+    remblai: RemblaiTerrain | None = Field(None, description="remblai côté terre mis en place à une phase (couche ajoutée)")
+    zones: list[ZoneTerrainGeo] = Field(default_factory=list, description="variations du terrain côté terre par côté ou tronçon (cote, pente, profil)")
+
+
+class ZoneFondGeo(_EtendueGeo):
+    nom: str = Field(description="nom de la zone de fond (clé du bloc excaver des phases)")
+    emprise: list[list[float]] | None = Field(None, description="polygone de la zone en plan [[x, y], ...] (m), pour la maquette ; vide = bande le long des côtés concernés")
+    largeur: float | None = Field(None, gt=0, description="largeur de la bande en plan depuis la paroi (m) ; défaut : moitié de la distance au vis-à-vis")
+
+
+class ObjetTerrainGeo(_EtendueGeo):
+    nom: str | None = Field(None, description="nom (pour le terrasser dans une phase) ; défaut : Risberme1, Talus1, Gradins1…")
+    type: Literal["risberme", "talus", "gradins"] = Field("risberme", description="risberme ou talus contre la paroi, ou fond en gradins")
+    phases: list[int | str] = Field(description="[première, dernière] phase d'existence (numéro à partir de 1, ou nom)", min_length=2, max_length=2)
+    cote_crete: float | None = Field(None, description="risberme, talus : cote du sommet contre la paroi (m)")
+    largeur_crete: float = Field(0.0, ge=0, description="risberme : largeur du sommet ; talus : largeur de la banquette contre la paroi (m)")
+    pente: float = Field(1.5, gt=0, description="pente du talus, horizontal / vertical")
+    cote_pied: float | None = Field(None, description="cote du fond général au pied (m) ; gradins : défaut = fond de fouille à la première phase")
+    marches: list[list[float]] | None = Field(None, description="gradins : marches [cote, largeur] depuis la paroi (m)")
+    methode: Literal["surcharge_equivalente", "fond_equivalent", "coin_de_rupture"] = Field(
+        "surcharge_equivalente", description="prise en compte : surcharge équivalente (bandes de poids), fond équivalent (cote_equivalente à donner), coin de rupture (à fournir)")
+    cote_equivalente: float | None = Field(None, description="méthode fond_equivalent : cote de fond de fouille équivalente choisie (m)")
+
+
+class FouilleGeo(_Base):
+    cote_initiale: float | None = Field(None, description="cote initiale du terrain côté fouille (m) ; défaut : terrain côté terre")
+    zones: list[ZoneFondGeo] = Field(default_factory=list, description="zones de fond de fouille (fonds différents par zone dans le bloc excaver des phases)")
+    objets: list[ObjetTerrainGeo] = Field(default_factory=list, description="risbermes, talus et gradins côté fouille, avec leur étendue le long des côtés")
+
+
+class PositionSurchargeGeo(_EtendueGeo):
+    surcharge: str = Field(description="nom de la surcharge (bloc surcharges) dont on donne la position en plan")
+    position: list[float] | None = Field(None, description="rectangulaire/ponctuelle : centre en plan [x, y] (m)")
+    emprise: list[float] | None = Field(None, description="rectangulaire/ponctuelle : [lx, ly] (m)")
+    trace: TraceSurcharge | None = Field(None, description="linéaire : segment en plan")
+
+
+class Geometrie(_Base):
+    """Géométrie normalisée du modèle 2D ou 3D : ouvrages en plan, terrain côté terre, fouille (fonds par zone,
+    risbermes, talus, gradins avec étendue) et positions des surcharges. Remplace les blocs plan, fouille et les
+    clés de pente de terrain (forme ancienne, toujours lue et convertie)."""
+    ouvrages: OuvragesGeo | None = Field(None, description="paroi en plan : contour, côtés nommés, appuis en plan")
+    terrain: TerrainGeo | None = Field(None, description="terrain côté terre : cote, remblai, zones (pente, profil)")
+    fouille: FouilleGeo | None = Field(None, description="côté fouille : cote initiale, zones de fond, risbermes, talus, gradins")
+    surcharges: list[PositionSurchargeGeo] = Field(default_factory=list, description="positions en plan des surcharges du bloc surcharges")
+
+
 class Script(_Base):
     projet: str = Field(description="nom du projet ; ou bloc d'informations libres (nom, affaire, client, lieu…), "
                                     "dont le nom est affiché et les autres lignes conservées")
     projet_infos: dict = Field(default_factory=dict, description="informations du projet (rempli automatiquement "
                                                                  "quand projet est un bloc)")
     _avertissements_lecture: list = PrivateAttr(default_factory=list)
+    _plan_derive: bool = PrivateAttr(default=False)
+
+    @property
+    def plan_derive(self) -> bool:
+        """Vrai si le bloc `plan` a été dérivé de geometrie.ouvrages par le lecteur (pont pour les consommateurs
+        de `plan`) : il ne compte pas comme forme ancienne."""
+        return self._plan_derive
+
+    @plan_derive.setter
+    def plan_derive(self, v: bool) -> None:
+        self._plan_derive = bool(v)
 
     @property
     def avertissements_lecture(self) -> list:
@@ -401,7 +496,9 @@ class Script(_Base):
     phases: list[Phase] = Field(min_length=1)
     verifications: list[Verification] = Field(default_factory=list)
     criteres: Criteres = Field(default_factory=Criteres)
-    plan: Plan | None = None
+    geometrie: Geometrie | None = Field(None, description="géométrie normalisée : ouvrages en plan, terrain, terrassements "
+                                                           "(zones de fond, risbermes, talus, gradins avec étendue), positions des surcharges")
+    plan: Plan | None = Field(None, description="fouille en plan (forme ancienne de geometrie.ouvrages, toujours lue)")
     pseudo3d: Pseudo3D | None = None
     hydraulique: Hydraulique | None = None
     assemblages: dict[str, AssemblageScript] = Field(default_factory=dict, description="assemblages à vérifier et à dessiner")

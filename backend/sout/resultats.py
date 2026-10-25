@@ -64,6 +64,24 @@ def _butee_valeurs(ph) -> tuple[float | None, float | None]:
     return float(np.sum(av["L"] * av["p"])), float(np.sum(av["L"] * av["pp"]))
 
 
+def _fonds_par_zone(modele: Modele, res: ResultatCalcul, k: int, ph) -> dict | None:
+    """Fond de fouille par zone (geometrie.fouille.zones) à la phase k : la zone par défaut est celle du calcul
+    (terrain aval de la phase), les autres suivent le bloc excaver des phases jouées jusqu'à k (chaîne des parents)."""
+    geo = getattr(modele, "geometrie", None)
+    if geo is None or not getattr(geo, "zones_fond", ()):
+        return None
+    from .geometrie.derivation import fonds_par_zone
+    chaine: list[int] = []
+    j = k
+    while j and j > 0:
+        chaine.append(j)
+        j = res.phases[j].parent if res.phases[j].parent is not None else j - 1
+    excavers = [modele.excaver_zones[i - 1] for i in reversed(chaine) if 0 < i <= len(modele.excaver_zones)]
+    fonds = fonds_par_zone(geo, excavers, modele.terrain_aval if modele.terrain_aval is not None else modele.terrain_amont)
+    fonds["defaut"] = float(ph.terrain_aval)
+    return fonds
+
+
 def _bilan_forces(ph) -> dict:
     """Bilan des forces horizontales sur l'écran à la fin de la phase : pressions des terres des deux faces,
     pressions d'eau et efforts d'appui (statique : la somme doit être nulle). `relatif` rapporte le résidu à la
@@ -205,6 +223,7 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "", catalogue=
             "parent": ph.parent,
             "enfants": [j for j, q in enumerate(res.phases) if q.parent == k],
             "depuis": (modele.phases[k - 1].depuis if 0 < k <= len(modele.phases) else None),
+            "fonds": _fonds_par_zone(modele, res, k, ph),
         }
         if ph.ok:
             y_mm = ph.y * 1e3

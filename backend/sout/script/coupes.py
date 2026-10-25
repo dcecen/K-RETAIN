@@ -85,9 +85,10 @@ def empreinte(texte: str) -> str:
 
 
 def fusionner(principal: dict, local: dict | None) -> tuple[dict, list[str], list[str]]:
-    """Script fusionné, clés héritées, clés locales. La clé `coupes` est retirée ; `plan` vient toujours du principal."""
+    """Script fusionné, clés héritées, clés locales. La clé `coupes` est retirée ; `plan` et `geometrie` viennent
+    toujours du principal."""
     base = {k: v for k, v in principal.items() if k not in CLES_NON_HERITEES}
-    local = {k: v for k, v in (local or {}).items() if k not in CLES_NON_HERITEES and k != "plan"}
+    local = {k: v for k, v in (local or {}).items() if k not in CLES_NON_HERITEES and k not in ("plan", "geometrie")}
     fusion = {**base, **local}
     herite = sorted(k for k in base if k not in local)
     return fusion, herite, sorted(local)
@@ -204,29 +205,37 @@ def _surcharges_en_plan(s: Script) -> bool:
 
 
 def _donnees_par_cote(s: Script) -> bool:
-    """Des données dépendent du côté de paroi : surcharges en plan, objets de terrain ou pente côté terre
-    rattachés à certains côtés. Sans elles, toutes les coupes d'un contour seraient identiques."""
-    if _surcharges_en_plan(s) or s.terrain.cote_paroi is not None:
-        return True
-    return any(o.cote_paroi is not None for liste in (s.fouille.risbermes, s.fouille.talus, s.fouille.gradins) for o in liste)
+    """Des données dépendent du côté ou de la position : surcharges en plan, zones, objets de terrain ou pente
+    rattachés à certains côtés ou tronçons. Sans elles, toutes les coupes d'un contour seraient identiques."""
+    from ..geometrie.normaliser import depuis_script
+    return _surcharges_en_plan(s) or depuis_script(s).varie()
 
 
 def _coupes_automatiques(s: Script, principal: dict, aretes: list[dict], contour) -> Projet:
-    """Une coupe 2D par côté du contour (calcul.coupes_automatiques) : chaque côté reçoit les surcharges et les
-    objets de terrain qui le concernent, rapportés au milieu du côté ; le projet est un projet à coupes."""
+    """Coupes 2D automatiques : avec le bloc geometrie, une coupe par tronçon homogène du contour (bornes des
+    étendues des zones, objets et positions) ; sinon une coupe par côté. Chaque coupe est rapportée au milieu de
+    son tronçon ; le projet est un projet à coupes."""
+    from ..geometrie.decoupage import troncons_automatiques
+    from ..geometrie.normaliser import depuis_script
     cotes = s.plan.cotes if s.plan else {}
     noms = {k: n for n, k in cotes.items()}
     local = sorted(k for k in principal if k not in CLES_NON_HERITEES)
+    par_k = {ar["k"]: ar for ar in aretes}
+    if s.geometrie is not None:
+        troncons = troncons_automatiques(depuis_script(s))
+    else:
+        troncons = [(ar["k"], 0.0, ar["L"]) for ar in aretes if ar["L"] > 1e-9]
     coupes = []
-    for ar in aretes:
-        if ar["L"] <= 1e-9:
-            continue
-        nom = f"Auto — côté {noms.get(ar['k'], ar['k'])}"
-        trace = _trace_defaut(ar, 0.0, ar["L"], min(8.0, max(4.0, 0.3 * ar["L"])))
-        txt = _dumper({**principal, "coupe_calcul": position_coupe(ar, ar["L"] / 2, nom, cotes)})
-        coupes.append(CoupePreparee(nom, ar["k"], 0.0, ar["L"], trace, txt, empreinte(txt), [], local, automatique=True))
-    avert = [f"Coupes automatiques : {len(coupes)} coupes 2D, une par côté du contour (surcharges et objets de terrain "
-             "rapportés au milieu de chaque côté) ; les effets d'angle de la fouille ne sont pas calculés."]
+    for k, de, a in troncons:
+        ar = par_k[k]
+        entier = de <= 1e-9 and a >= ar["L"] - 1e-9
+        nom = f"Auto — côté {noms.get(k, k)}" + ("" if entier else f" ({de:g} à {a:g} m)")
+        trace = _trace_defaut(ar, de, a, min(8.0, max(4.0, 0.3 * (a - de))))
+        txt = _dumper({**principal, "coupe_calcul": position_coupe(ar, 0.5 * (de + a), nom, cotes)})
+        coupes.append(CoupePreparee(nom, k, float(de), float(a), trace, txt, empreinte(txt), [], local, automatique=True))
+    avert = [f"Coupes automatiques : {len(coupes)} coupes 2D ({'une par tronçon homogène' if s.geometrie is not None else 'une par côté'} "
+             "du contour, surcharges et objets de terrain rapportés au milieu de chaque tronçon) ; les effets d'angle de la "
+             "fouille ne sont pas calculés."]
     return Projet(coupes, contour, [], avert, False)
 
 
@@ -239,7 +248,7 @@ def preparer(texte: str, s: Script) -> Projet:
         txt = texte
         avert = []
         if s.plan is not None and s.coupe_calcul is None and _donnees_par_cote(s):
-            if s.calcul.coupes_automatiques and s.calcul.mode != "pseudo3d":
+            if (s.calcul.coupes_automatiques or s.geometrie is not None) and s.calcul.mode != "pseudo3d":
                 return _coupes_automatiques(s, principal, aretes, contour)
             # coupe unique rapportée au milieu du côté le plus long pour localiser les données dépendant du côté
             ar = max(aretes, key=lambda a: a["L"])

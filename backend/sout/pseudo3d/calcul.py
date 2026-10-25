@@ -31,13 +31,13 @@ d'équilibre global.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 from scipy import sparse
 
 from ..noyau.modele import Modele, Phase
-from ..noyau.phasage import ErreurModele, MoteurPhases
+from ..noyau.phasage import AMONT, ErreurModele, MoteurPhases
 from ..noyau.ressorts import Ressorts
 from ..noyau.solveur import Appuis, RuptureEquilibre, resoudre_general
 from ..sol.terrain import CoupeCalcul, SurchargePlan
@@ -144,11 +144,31 @@ class MoteurPseudo3D:
                 self.coupes_lignes.append(CoupeCalcul(x=x, y=y, ni=tuple(a["ni"]), t=tuple(a["t"]), k=k, s=sl,
                                                       cote=noms_cotes.get(k), nom=f"ligne s = {s_i:.2f} m"))
             toutes = list(modele.surcharges) + [sc for ph in modele.phases for sc in ph.ajouter_surcharges]
-            self.sol_par_ligne = any(isinstance(sc, SurchargePlan) for sc in toutes)
-            if self.sol_par_ligne:
+            plan = [sc for sc in toutes if isinstance(sc, SurchargePlan)]
+            # une surcharge « rayonne » (sa diffusion dépend de la position de chaque ligne) : point, tracé, bande finie ;
+            # une surcharge rattachée à des côtés sans position ne varie que par classe de lignes
+            rayonne = any(sc.position is not None or sc.trace is not None or (sc.type == "bande" and sc.emprise is not None) for sc in plan)
+            par_cote = any(sc.cotes_paroi is not None for sc in plan)
+            self.sol_par_ligne = rayonne or par_cote
+            if rayonne:
                 self.avertissements.append(
                     "Pseudo-3D : surcharges en plan rapportées à chaque ligne verticale de la paroi (diffusion élastique "
                     "depuis sa position sur le contour) : le chargement varie le long de la paroi.")
+        # Géométrie par zone (bloc geometrie) : classes de lignes partageant les mêmes données locales (zone de
+        # fond, zone de terrain, objets et surcharges rattachés à un côté) ; un état de chantier par classe, un état
+        # de sol par classe (mode « troncons ») ou par ligne (mode « lignes » : surcharges qui rayonnent).
+        self.geo = getattr(modele, "geometrie", None)
+        self.classes: list[int] = [0] * ns
+        self.representants: list = [None]
+        self.mode_sol = "lignes" if self.sol_par_ligne else "uniforme"
+        if self.aretes is not None and self.geo is not None and self.geo.varie():
+            from ..geometrie import derivation
+            self.classes, self.representants = derivation.classes_lignes(self.geo, self.coupes_lignes)
+            self.mode_sol = "lignes" if rayonne else ("troncons" if len(self.representants) > 1 else self.mode_sol)
+            if len(self.representants) > 1:
+                self.avertissements.append(
+                    f"Pseudo-3D : géométrie variable le long du contour ({len(self.representants)} classes de lignes : zones de "
+                    f"fond, terrain, objets rattachés à un côté) ; état de sol calculé par {'ligne' if self.mode_sol == 'lignes' else 'classe de lignes'}.")
         self.Dz = self.m2.EI_elem
         # Rigidité horizontale : valeur du script > rapport du script > défaut du type de paroi
         # (sout.parois.construction.rigidite_horizontale) > isotropie avec avertissement.
@@ -382,8 +402,9 @@ class MoteurPseudo3D:
         nd, m2n = m2.nd, self.m2_taille
         A, P = r.A.reshape(ns, m2n), p.reshape(ns, m2n)
         # charge nette sol + eau de chaque demi-maille, par mètre de paroi (comme en 2D)
+        du = np.asarray(u_am, float) - np.asarray(u_av, float)         # (nd,) commun à toutes les lignes, ou (ns, nd) par ligne
         q_lignes = (A[:, :nd] * P[:, :nd] - A[:, nd:] * P[:, nd:]) / (m2.d_L[None, :] * self.ds[:, None]) \
-            + (u_am - u_av)[None, :]
+            + (du[None, :] if du.ndim == 1 else du)
         eff, _ = appuis.efforts(W)
         f_app = appuis.forces_nodales(eff, ns * nz) if len(appuis) else np.zeros(ns * nz)
         t_w, t_th = plaque.forces_transfert(self.K if K is None else K, self.K_v, u, ns, nz)
@@ -408,10 +429,37 @@ class MoteurPseudo3D:
         return {"W": W.reshape(ns, nz), "Mz": Mz, "Ms": Ms, "Mzs": Mzs, "V": V, "V_diag": V_diag, "M_stat": M_stat,
                 "z_diag": z_diag, "p": p, "reactions": reactions.reshape(ns, nz), "forces": forces, "bilan": bilan}
 
+    def _etats_initiaux(self) -> list[tuple[dict, str]]:
+        """Un état de chantier par classe de lignes : terrain amont de la zone de terrain, zone de fond (clé du bloc
+        excaver des phases) ; une seule classe sans géométrie variable."""
+        m2 = self.m2
+        if self.geo is None or len(self.representants) <= 1 and self.representants[0] is None:
+            return [(m2.etat_chantier_initial(), "defaut")]
+        from ..geometrie import derivation
+        out = []
+        for c in self.representants:
+            e = m2.etat_chantier_initial()
+            loc = derivation.locale(self.geo, c)
+            if loc.terrain_amont is not None:
+                e["terrain"][AMONT] = loc.terrain_amont
+            out.append((e, loc.zone_fond))
+        return out
+
+    def _phase_locale(self, ph: Phase, zone: str) -> Phase:
+        """Phase vue par une zone de fond : excaver du bloc par zone, sinon la cote convertie (zone par défaut)."""
+        from ..geometrie import derivation
+        brut = self.excaver_brut.get(ph.nom)
+        if zone == "defaut" or brut is None or not isinstance(brut, dict):
+            return ph
+        v_zone, v_def = derivation.excaver_local(brut, zone), derivation.excaver_local(brut, "defaut")
+        return ph if v_zone == v_def else replace(ph, excaver=v_zone)
+
     def calculer(self) -> ResultatPseudo3D:
         m, m2 = self.m, self.m2
         ns, nz = self.ns, self.nz
-        etat = m2.etat_chantier_initial()
+        self.excaver_brut = {ph.nom: ex for ph, ex in zip(m.phases, getattr(m, "excaver_zones", []) or [])}
+        etats = self._etats_initiaux()
+        etat = etats[0][0]
         r = self.ressorts
         u = np.zeros(3 * ns * nz)
         sv_prec = np.zeros(ns * self.m2_taille)
@@ -466,7 +514,9 @@ class MoteurPseudo3D:
 
         for ph in [Phase(nom="État initial")] + chaine_principale(m.phases):
             try:
-                poser, deposer = m2.appliquer_actions(etat, ph)
+                poser, deposer = m2.appliquer_actions(etat, self._phase_locale(ph, etats[0][1]))
+                for e, zone in etats[1:]:           # autres classes : même phase vue par leur zone de fond
+                    m2.appliquer_actions(e, self._phase_locale(ph, zone))
             except ErreurModele as e:
                 sorties.append(PhasePseudo3D(ph.nom, False, f"Erreur de données : {e}"))
                 break
@@ -492,17 +542,29 @@ class MoteurPseudo3D:
             for nom in poser:
                 d = m.appuis[nom]
                 poses[nom] = _points(nom, W, d.raideur, d.precharge)
-            if self.sol_par_ligne:
-                sols = [m2.etat_sol(etat, coupe=c) for c in self.coupes_lignes]
+            if self.mode_sol == "lignes":
+                sols = [m2.etat_sol(etats[self.classes[i]][0], coupe=c) for i, c in enumerate(self.coupes_lignes)]
+                sol3 = {c: (np.concatenate([x[c] for x in sols]) if isinstance(v, np.ndarray) else v) for c, v in sols[0].items()}
+            elif self.mode_sol == "troncons":
+                sols_cl = [m2.etat_sol(e, coupe=c) for (e, _), c in zip(etats, self.representants)]
+                sols = [sols_cl[self.classes[i]] for i in range(ns)]
                 sol3 = {c: (np.concatenate([x[c] for x in sols]) if isinstance(v, np.ndarray) else v) for c, v in sols[0].items()}
             else:
                 sol = m2.etat_sol(etat)
                 sol3 = {c: (np.tile(v, ns) if isinstance(v, np.ndarray) else v) for c, v in sol.items()}
             MoteurPhases.mettre_a_jour_ressorts(r, sol3, u[0::3][r.noeud], present_prec, sv_prec, self.largeur)
-            u_am, u_av = m2.pressions_eau(etat)
-            f_ligne = m2.force_eau_noeuds(u_am, u_av)
-            f_ext = np.zeros_like(u)
-            f_ext[0::3] = np.outer(self.ds, f_ligne).ravel()
+            if len(etats) == 1:
+                u_am, u_av = m2.pressions_eau(etat)
+                f_ligne = m2.force_eau_noeuds(u_am, u_av)
+                f_ext = np.zeros_like(u)
+                f_ext[0::3] = np.outer(self.ds, f_ligne).ravel()
+            else:
+                pressions = [m2.pressions_eau(e) for e, _ in etats]
+                u_am = np.vstack([pressions[self.classes[i]][0] for i in range(ns)])
+                u_av = np.vstack([pressions[self.classes[i]][1] for i in range(ns)])
+                forces = [m2.force_eau_noeuds(ua, uv) for ua, uv in pressions]
+                f_ext = np.zeros_like(u)
+                f_ext[0::3] = (np.vstack([forces[self.classes[i]] for i in range(ns)]) * self.ds[:, None]).ravel()
             appuis, ss = _appuis(poses)
             noms = list(appuis.nom)
             K_ph = self._matrice(frozenset(poses))

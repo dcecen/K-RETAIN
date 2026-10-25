@@ -14,7 +14,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[2]
 SORTIE = RACINE / "frontend" / "src" / "vue3d" / "__tests__" / "donnees"
-EXEMPLES = ["fouille_exemple", "fouille_ecoulement", "pseudo3d_angle", "berlinoise_tirants", "fouille_coupes", "pseudo3d_fouille_fermee"]
+EXEMPLES = ["fouille_exemple", "fouille_ecoulement", "pseudo3d_angle", "berlinoise_tirants", "fouille_coupes", "pseudo3d_fouille_fermee", "geometrie_fouille_zones"]
 
 
 def resultats(nom: str) -> dict:

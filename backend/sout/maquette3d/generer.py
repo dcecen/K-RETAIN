@@ -70,6 +70,13 @@ def geometrie(ex) -> dict:
             i_crit.append(c_fond.gamma_dejauge / m.gamma_w)
         else:
             i_crit.append(None)
+    geo = getattr(m, "geometrie", None)
+    zones = []
+    if geo is not None:
+        from ..geometrie.decoupage import polygone_zone
+        for z in geo.zones_fond:
+            zones.append({"nom": z.nom, "cotes": list(z.etendue.cotes) if z.etendue.cotes else None, "de": z.etendue.de, "a": z.etendue.a,
+                          "polygone": [[round(float(x), 4), round(float(y), 4)] for x, y in polygone_zone(geo, z)]})
     return {
         "projet": s.projet, "paroi": paroi, "contour": contour, "plan_defaut": defaut,
         "couches": couches, "z_bas": s.paroi.pied - max(3.0, 0.25 * (s.paroi.tete - s.paroi.pied)),
@@ -78,6 +85,12 @@ def geometrie(ex) -> dict:
         "surcharges": surcharges_maquette(ex),
         "terrain": terrain_maquette(ex),
         "coupe_calcul": s.coupe_calcul.model_dump() if s.coupe_calcul is not None else None,
+        # géométrie normalisée (bloc geometrie ou forme ancienne convertie) : côtés nommés, fermeture, zones de fond,
+        # longueur de plaque modélisée (paroi droite pseudo-3D : au-delà, pas de résultat)
+        "cotes": dict(geo.cotes) if geo is not None else (s.plan.cotes if s.plan else {}),
+        "ferme": geo.ferme if geo is not None else True,
+        "zones": zones,
+        "longueur_modele": s.pseudo3d.longueur if s.pseudo3d is not None else None,
     }
 
 
@@ -88,11 +101,18 @@ def terrain_maquette(ex) -> dict:
     t = s.terrain
     objets = []
     for o in m.terrain_objets:
+        tr = getattr(o, "troncon", None)
         objets.append({"nom": o.nom, "type": o.type, "face": o.face, "profil": [list(p) for p in o.profil], "base": o.base,
                        "gamma": o.gamma, "methode": o.methode, "phase_debut": o.phase_debut or 0,
                        "phase_fin": o.phase_fin if o.phase_fin is not None else len(m.phases),
-                       "cotes_paroi": list(o.cotes_paroi) if o.cotes_paroi else None, "cote_equivalente": o.cote_equivalente})
+                       "cotes_paroi": list(o.cotes_paroi) if o.cotes_paroi else None, "cote_equivalente": o.cote_equivalente,
+                       "troncon": [tr[0], tr[1] if tr[1] != float("inf") else None] if tr else None})
+    geo = getattr(m, "geometrie", None)
+    zones_terrain = [{"nom": z.nom, "cotes": list(z.etendue.cotes) if z.etendue.cotes else None, "de": z.etendue.de, "a": z.etendue.a,
+                      "cote": z.cote, "pente_beta": z.pente_beta, "profil": [list(p) for p in z.profil] if z.profil else None,
+                      "methode_pente": z.methode_pente} for z in geo.zones_terrain] if geo is not None else []
     return {"profil": t.profil, "pente_beta": m.beta_amont, "methode_pente": t.methode_pente, "cote_paroi": t.cote_paroi,
+            "zones_terrain": zones_terrain,
             "remblai": t.remblai.model_dump() if t.remblai else None, "objets": objets}
 
 

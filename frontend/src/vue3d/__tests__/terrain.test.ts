@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { resolveur } from '../coupes'
 import { FABRIQUES_CHANTIER } from '../elements'
 import { Contour } from '../geometrie'
-import { aretesObjet, entreeYamlRisberme, FABRIQUES_TERRAIN, geoExtrusion, polygoneObjet } from '../terrain'
+import { aretesObjet, entreeYamlRisberme, FABRIQUES_TERRAIN, geoExtrusion, polygoneObjet, tronconObjet } from '../terrain'
 import { jeuProjet, nouvelleScene } from './outils'
 
 const TOUT = [...FABRIQUES_CHANTIER, ...FABRIQUES_TERRAIN]
@@ -53,6 +53,29 @@ describe('géométrie du terrain dans la maquette', () => {
     expect(-pos.getZ(4)).toBeCloseTo(2, 6)
     expect(aretesObjet(geo, { cotes_paroi: ['long_nord', '#1'] }, COTES).map((a) => a.k)).toEqual([1, 2])
     expect(aretesObjet(geo, { cotes_paroi: null }, COTES).length).toBe(4)
+  })
+
+  it('bloc geometrie : côtés nommés, zones de fond, tronçon des objets et fond par zone transmis par la maquette', () => {
+    const { resultats, projet } = jeuProjet('zones')
+    const m = resultats.maquette!
+    expect(m.cotes).toEqual({ long_sud: 0, court_est: 1, long_nord: 2, court_ouest: 3 })
+    expect(m.ferme).toBe(true)
+    expect(m.zones?.[0]).toMatchObject({ nom: 'est', cotes: ['court_est'] })
+    expect(m.zones?.[0].polygone).toHaveLength(4)
+    const geo = new Contour(m.contour as [number, number][])
+    const o = m.terrain.objets![0]
+    const aretes = aretesObjet(geo, o, m.cotes ?? {})
+    expect(aretes.map((a) => a.k)).toEqual([0])
+    expect(tronconObjet(o, aretes[0])).toEqual([4, 26])
+    // extrusion limitée au tronçon : aucun sommet hors de [4, 26] le long du côté sud (x)
+    const g = geoExtrusion(polygoneObjet(o.profil, o.base), aretes[0], 1, ...tronconObjet(o, aretes[0]))
+    const pos = g.attributes.position as THREE.BufferAttribute
+    const xs = Array.from({ length: pos.count }, (_, i) => pos.getX(i))
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(4 - 1e-9)
+    expect(Math.max(...xs)).toBeLessThanOrEqual(26 + 1e-9)
+    // fond par zone à la phase 3 (excaver { defaut: -6.5, est: -5.0 }) ; coupes automatiques par tronçon homogène
+    expect(resultats.phases[3].fonds).toEqual({ defaut: -6.5, est: -5 })
+    expect(projet.coupes.filter((c) => c.automatique)).toHaveLength(8)
   })
 
   it('l’outil Mesurer donne distance et dénivelée entre deux points', () => {

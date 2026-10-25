@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { avecFrise, avecInspecteur, estSaisie, ligneBloc, VUES, vueDisponible, vuesDuGroupe } from '../vues'
 
 describe('table des vues', () => {
-  it('numérote les huit étapes de saisie de 1 à 8, dans l’ordre du script', () => {
+  // Neuf étapes depuis le 25/10/2026 (étape 4 « Géométrie », bloc geometrie, entre Écran et Eau : les côtés nommés
+  // doivent exister avant les surcharges et les appuis) ; changement de spécification délibéré, pas de valeur de calcul.
+  it('numérote les neuf étapes de saisie de 1 à 9, dans l’ordre du script', () => {
     const d = vuesDuGroupe('donnees')
-    expect(d.map((v) => v.numero)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
-    expect(d.map((v) => v.bloc)).toEqual(['projet', 'sol', 'paroi', 'eau', 'surcharges', 'appuis', 'phases', 'verifications'])
+    expect(d.map((v) => v.numero)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    expect(d.map((v) => v.bloc)).toEqual(['projet', 'sol', 'paroi', 'geometrie', 'eau', 'surcharges', 'appuis', 'phases', 'verifications'])
   })
 
   it('a des clés uniques et un libellé par vue', () => {

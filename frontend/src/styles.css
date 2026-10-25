@@ -564,6 +564,14 @@ select.champ { padding: 0 2px; }
 .case-choix.actif { background: var(--selection); border-color: var(--accent); }
 .case-choix.inconnu { border-style: dashed; color: var(--orange); }
 .case-choix input { margin: 0; }
+/* vue Géométrie : plan à gauche (collant), formulaires à droite ; survol d'une ligne = élément surligné sur le plan */
+.geometrie-colonnes { display: grid; grid-template-columns: minmax(280px, 640px) minmax(320px, 1fr); gap: 16px; align-items: start; }
+.geometrie-colonnes > div:first-child { position: sticky; top: 0; }
+@media (max-width: 1100px) { .geometrie-colonnes { grid-template-columns: 1fr; } .geometrie-colonnes > div:first-child { position: static; } }
+.geometrie-colonnes .tableau td .champ.num { min-width: 64px; }
+.geometrie-colonnes .tableau td .cases-choix { min-width: 120px; }
+.geometrie-colonnes svg .surbrille { stroke: var(--accent); stroke-width: 3; fill-opacity: 0.9; }
+.geometrie-colonnes svg g.surbrille text { fill: var(--accent); }
 .aide-champ p { margin: 4px 0; }
 .aide-champ .bornes { margin: 4px 0 0; padding-left: 18px; color: var(--texte-doux); font-size: 12px; }
 

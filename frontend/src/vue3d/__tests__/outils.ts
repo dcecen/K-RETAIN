@@ -8,9 +8,10 @@ import ecoulement from './donnees/fouille_ecoulement.json'
 import exemple from './donnees/fouille_exemple.json'
 import p3d from './donnees/pseudo3d_angle.json'
 import coupes from './donnees/fouille_coupes.json'
+import zones from './donnees/geometrie_fouille_zones.json'
 
-const JEUX: Record<string, unknown> = { exemple, ecoulement, p3d, berlinoise, coupes }
-export type NomJeu = 'exemple' | 'ecoulement' | 'p3d' | 'berlinoise' | 'coupes'
+const JEUX: Record<string, unknown> = { exemple, ecoulement, p3d, berlinoise, coupes, zones }
+export type NomJeu = 'exemple' | 'ecoulement' | 'p3d' | 'berlinoise' | 'coupes' | 'zones'
 
 /** Copie profonde d'un jeu de résultats figé (chaque recalcul produit un nouvel objet). */
 export function jeu(nom: NomJeu): Resultats {

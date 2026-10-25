@@ -39,6 +39,27 @@ export const CLES_AVANCEES_ECRAN = ['EI', 'rapport_EI_fissure', 'enrobage', 'arm
 export const CLES_ECRAN = ['paroi.type', 'paroi.tete', 'paroi.pied', 'paroi.profil', 'paroi.acier', 'paroi.beton', 'paroi.epaisseur', 'paroi.diametre', 'paroi.entraxe', 'paroi.profil_armature',
   'paroi.primaires_armes', 'paroi.largeur_reaction_fiche', 'paroi.blindage.epaisseur', 'paroi.blindage.materiau', 'paroi.blindage.resistance', ...CLES_AVANCEES_ECRAN.map((k) => `paroi.${k}`)]
 
+// --- Geometrie
+/** Colonnes des objets de terrain (clé, en-tête, unité ; COTE = unité des cotes). */
+export const COLS_OBJET: [string, string, string][] = [
+  ['nom', 'Nom', ''], ['type', 'Type', ''], ['de', 'De', 'm'], ['a', 'À', 'm'], ['phases', 'Phases [1re ; dernière]', ''],
+  ['cote_crete', 'Crête', 'COTE'], ['largeur_crete', 'Largeur crête', 'm'], ['pente', 'Pente h/v', '-'], ['cote_pied', 'Pied', 'COTE'],
+  ['methode', 'Méthode', ''], ['cote_equivalente', 'Cote équivalente', 'COTE'],
+]
+
+// --- Geometrie
+export const LIBELLES_METHODE_OBJET: Record<string, string> = { surcharge_equivalente: 'surcharge équivalente', fond_equivalent: 'fond équivalent', coin_de_rupture: 'coin de rupture (à fournir)' }
+
+// --- Geometrie
+export const CLES_GEOMETRIE = [
+  'geometrie.ouvrages.contour', 'geometrie.ouvrages.ferme', 'geometrie.ouvrages.cotes', 'geometrie.ouvrages.appuis.appui', 'geometrie.ouvrages.appuis.de', 'geometrie.ouvrages.appuis.a',
+  'geometrie.terrain.cote', 'geometrie.terrain.zones.nom', 'geometrie.terrain.zones.cotes', 'geometrie.terrain.zones.de', 'geometrie.terrain.zones.a', 'geometrie.terrain.zones.cote',
+  'geometrie.terrain.zones.pente_beta', 'geometrie.terrain.zones.methode_pente',
+  'geometrie.fouille.cote_initiale', 'geometrie.fouille.zones.nom', 'geometrie.fouille.zones.cotes', 'geometrie.fouille.zones.de', 'geometrie.fouille.zones.a', 'geometrie.fouille.zones.largeur',
+  ...COLS_OBJET.map(([k]) => `geometrie.fouille.objets.${k}`), 'geometrie.fouille.objets.cotes', 'geometrie.fouille.objets.marches',
+  'geometrie.surcharges.surcharge', 'geometrie.surcharges.cotes', 'geometrie.surcharges.de', 'geometrie.surcharges.a', 'geometrie.surcharges.position', 'geometrie.surcharges.emprise',
+]
+
 // --- Eau
 export const CLES_HYDRAULIQUE = ['regime', 'substratum', 'largeur_amont', 'largeur_fouille', 'pas', 'sol_lane']
 

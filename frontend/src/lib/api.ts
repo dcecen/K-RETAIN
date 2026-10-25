@@ -81,6 +81,8 @@ export interface PhaseRes {
   terrain_aval: number
   eau_amont: number | null
   eau_aval: number | null
+  /** Fond de fouille par zone (geometrie.fouille.zones ; clé « defaut » = reste de la fouille). */
+  fonds?: Record<string, number | null>
   z?: number[]
   y_mm?: number[]
   z_diag?: number[]
@@ -191,6 +193,20 @@ export interface ObjetTerrainMaquette {
   phase_fin: number
   cotes_paroi: string[] | null
   cote_equivalente: number | null
+  /** Tronçon [de, a] le long des côtés concernés (m) ; absent = côté entier. */
+  troncon?: number[] | null
+}
+
+/** Zone de terrain côté terre (geometrie.terrain.zones) : cote, pente ou profil sur des côtés / tronçons. */
+export interface ZoneTerrainMaquette {
+  nom: string
+  cotes: string[] | null
+  de: number | null
+  a: number | null
+  cote: number | null
+  pente_beta: number | null
+  profil: number[][] | null
+  methode_pente: string
 }
 
 export interface TerrainMaquette {
@@ -200,7 +216,11 @@ export interface TerrainMaquette {
   cote_paroi: string | number | (string | number)[] | null
   remblai: { cote: number; materiau: string | null; phase: number | string } | null
   objets: ObjetTerrainMaquette[]
+  zones_terrain?: ZoneTerrainMaquette[]
 }
+
+/** Zone de fond de fouille (geometrie.fouille.zones) avec son polygone en plan. */
+export interface ZoneFondMaquette { nom: string; cotes: string[] | null; de: number | null; a: number | null; polygone: number[][] }
 
 export interface Maquette {
   projet: string
@@ -213,6 +233,11 @@ export interface Maquette {
   appuis: Record<string, AppuiMaquette>
   plan_appuis: { appui: string; de: number[]; a: number[] }[]
   i_critique: (number | null)[]
+  /** Géométrie normalisée : noms des côtés, contour fermé ou ouvert, zones de fond, longueur de plaque modélisée. */
+  cotes?: Record<string, number>
+  ferme?: boolean
+  zones?: ZoneFondMaquette[]
+  longueur_modele?: number | null
   assemblages: Record<string, { type: string; appui: string | null }>
   surcharges?: SurchargeMaquette[]
   terrain?: TerrainMaquette
@@ -390,6 +415,8 @@ export const api = {
       .then((r) => (r.ok ? r.json() : {}))
       .catch(() => ({})) as Promise<Record<string, string[]>>,
   rido: (texte: string, nom: string) => post<{ texte: string; rapport: string[] }>('/api/rido', { texte, nom }),
+  /** Bloc geometrie équivalent à la forme ancienne du script (plan, fouille, pente de terrain) et chemins à retirer. */
+  geometrieNormaliser: (texte: string) => post<{ bloc: Record<string, unknown>; anciens: string[] }>('/api/geometrie/normaliser', { texte }),
   assemblagesTypes: () => fetch('/api/assemblages/types').then((r) => { if (!r.ok) throw new Error(`erreur ${r.status}`); return r.json() }).then((ts) => { if (!Array.isArray(ts)) throw new Error('réponse inattendue'); return ts as TypeAssemblage[] }),
   assemblagesSchema: (corps: unknown) => post<SchemaAssemblage>('/api/assemblages/schema', corps),
   assemblagesVerifier: (corps: unknown) => post<Verif[]>('/api/assemblages/verifier', corps),

@@ -47,7 +47,10 @@ export function useProjet() {
   const numeroValidation = useRef(0)                // seule la dernière validation lancée met à jour l'affichage
 
   const { modele, erreur: erreurYaml } = useMemo(() => sd.lire(texte), [texte])
-  const cotesPlan = useMemo<Record<string, number>>(() => (modele?.plan?.cotes && typeof modele.plan.cotes === 'object' ? modele.plan.cotes : COTES_VIDES), [modele])
+  const cotesPlan = useMemo<Record<string, number>>(() => {
+    const c = modele?.geometrie?.ouvrages?.cotes ?? modele?.plan?.cotes
+    return c && typeof c === 'object' ? c : COTES_VIDES
+  }, [modele])
 
   useEffect(() => {
     fetch('/api/sante').then((r) => r.json()).then((d) => setServeur(`v${d.version}`)).catch(() => setServeur('serveur injoignable'))

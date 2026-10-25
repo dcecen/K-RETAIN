@@ -217,7 +217,9 @@ export class SceneRetainWall {
     if (!res.maquette) throw new Error('résultats sans géométrie de maquette')
     const t0 = this.maintenant()
     const geo = this.d && this.d.geo.cle() === new Contour(res.maquette.contour).cle() ? this.d.geo : new Contour(res.maquette.contour)
-    this.d = { res, m: res.maquette, geo, ...extra }
+    // noms des côtés : ceux du script courant s'ils sont donnés, sinon ceux renvoyés avec la maquette (bloc geometrie)
+    const cotes = extra.cotes && Object.keys(extra.cotes).length ? extra.cotes : res.maquette.cotes
+    this.d = { res, m: res.maquette, geo, ...extra, ...(cotes ? { cotes } : {}) }
     this.phaseActive = Math.min(this.phaseActive, Math.max(0, res.phases.length - 1))
     const ctx = this.contexte()
     const specs = this.fabriques.flatMap((f) => f(ctx))

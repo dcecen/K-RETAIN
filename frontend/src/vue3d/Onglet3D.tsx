@@ -57,13 +57,15 @@ function libelleSelection(sel: SelectionAnalysee, res: Resultats): string {
 
 /** Vue « Maquette 3D » : scène persistante, menus Affichage / Plan de coupe / Comparer / Outils / Exporter,
  *  un seul panneau latéral à la fois (Résultats, Calques, Courbes en un point). */
-export function Onglet3D({ res, texte, phase, theme, selection, onSelection, projet, coupeActive = 0, cotes = {}, onEpingler, modele, onPhase, onOuvrir, prereglageInitial, onPrereglage, onAjouterSurcharge, onAjouterRisberme, etat3d, onEtat3d, unite }: {
+export function Onglet3D({ res, texte, phase, theme, selection, onSelection, projet, coupeActive = 0, cotes = {}, onEpingler, modele, onPhase, onOuvrir, prereglageInitial, onPrereglage, onAjouterSurcharge, onAjouterRisberme, etat3d, onEtat3d, unite, formeGeometrie = false }: {
   res: Resultats
   texte: string
   projet?: ProjetCoupes | null
   coupeActive?: number
   /** Noms des côtés (plan.cotes du script) et ajout d'une coupe épinglée au script. */
   cotes?: Record<string, number>
+  /** Le script décrit sa géométrie par le bloc geometrie : les objets ajoutés depuis la maquette prennent cette forme. */
+  formeGeometrie?: boolean
   onEpingler?: (entree: Record<string, unknown>) => void
   modele?: Modele
   onPhase?: (i: number) => void
@@ -145,7 +147,8 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
         if (!v) return
         const largeur = Number(v.largeur), pente = Number(v.pente), nom = String(v.nom).trim()
         if (largeur <= 0 || pente <= 0 || !nom) { void informer('Largeur et pente doivent être positives, et le nom renseigné : rien n’a été ajouté.'); return }
-        onAjouterRisberme?.(entreeYamlRisberme(nom, nomCote(k), Number(v.crete), largeur, pente, Number(v.pied), [Math.max(1, phase), Math.max(1, phase)]))
+        onAjouterRisberme?.(entreeYamlRisberme(nom, nomCote(k), Number(v.crete), largeur, pente, Number(v.pied), [Math.max(1, phase), Math.max(1, phase)],
+          formeGeometrie ? 'geometrie' : 'ancienne'))
       })
       return
     }

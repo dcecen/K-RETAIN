@@ -54,6 +54,8 @@ export function Phases({ ctx, selection, onSelection, phaseActive, onPhaseActive
 }) {
   const phases: Modele[] = Array.isArray(ctx.modele.phases) ? ctx.modele.phases : []
   const appuis = Object.keys(ctx.modele.appuis ?? {})
+  /** Zones de fond déclarées dans geometrie.fouille.zones : « excaver » peut alors être un dictionnaire par zone. */
+  const zonesFond: string[] = (Array.isArray(ctx.modele.geometrie?.fouille?.zones) ? ctx.modele.geometrie.fouille.zones : []).map((z: Modele, i: number) => String(z?.nom ?? `zone${i + 1}`))
   const surcharges: string[] = (ctx.modele.surcharges ?? []).map((s: Modele, i: number) => String(s?.nom ?? `S${i + 1}`))
   // nom par défaut d'un objet sans clé nom : même règle que le moteur (conversion.py : Risberme1, Talus1, Gradins1)
   const NOM_DEFAUT: Record<string, string> = { risbermes: 'Risberme', talus: 'Talus', gradins: 'Gradins' }
@@ -144,8 +146,21 @@ export function Phases({ ctx, selection, onSelection, phaseActive, onPhaseActive
                       {phases.slice(0, sel).map((p, k) => <option key={k} value={String(p?.nom ?? '')}>{k + 1}. {p?.nom}</option>)}
                     </select></label>
                 )}
-                {champPhase('excaver', `Excaver à (${unite})`, '—')}
-                <span />
+                {ph.excaver && typeof ph.excaver === 'object' ? (
+                  <>
+                    {champPhase('defaut', `Excaver à, par défaut (${unite})`, '—', ['phases', sel, 'excaver', 'defaut'])}
+                    {[...zonesFond, ...Object.keys(ph.excaver).filter((k) => k !== 'defaut' && !zonesFond.includes(k))].map((z) =>
+                      champPhase(z, `Excaver la zone ${z} à (${unite})${zonesFond.includes(z) ? '' : ' (zone inconnue)'}`, 'défaut', ['phases', sel, 'excaver', z]))}
+                    {zonesFond.length % 2 === 0 && <span />}
+                  </>
+                ) : (
+                  <>
+                    {champPhase('excaver', `Excaver à (${unite})`, '—')}
+                    {zonesFond.length
+                      ? <label>Fond par zone ({zonesFond.join(', ')})<button className="btn" type="button" title="Écrit excaver: { defaut: …, zone: … } pour cette phase" onClick={() => ctx.actions.fixer(['phases', sel, 'excaver'], { defaut: typeof ph.excaver === 'number' ? ph.excaver : 0 })}>Excaver par zone</button></label>
+                      : <span />}
+                  </>
+                )}
                 <label>Poser<Cases ctx={ctx} chemin={['phases', sel, 'poser']} valeur={ph.poser} options={appuis} bloc="Phase" cle="poser" libelle="Appuis posés" /></label>
                 <label>Déposer<Cases ctx={ctx} chemin={['phases', sel, 'deposer']} valeur={ph.deposer} options={appuis} bloc="Phase" cle="deposer" libelle="Appuis déposés" /></label>
                 {champPhase('aval', `Nappe aval, côté fouille (${unite})`, 'inchangée', ['phases', sel, 'eau', 'aval'])}

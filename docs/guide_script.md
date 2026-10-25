@@ -295,7 +295,8 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `phases` | liste de bloc | oui |  |  |
 | `verifications` | liste de butee / equilibre_vertical / kranz / fond_de_fouille / stabilite_generale / deplacements / structure |  |  |  |
 | `criteres` | bloc |  |  |  |
-| `plan` | bloc |  |  |  |
+| `geometrie` | bloc |  |  | géométrie normalisée : ouvrages en plan, terrain, terrassements (zones de fond, risbermes, talus, gradins avec étendue), positions des surcharges |
+| `plan` | bloc |  |  | fouille en plan (forme ancienne de geometrie.ouvrages, toujours lue) |
 | `pseudo3d` | bloc |  |  |  |
 | `hydraulique` | bloc |  |  |  |
 | `assemblages` | blocs nommés de bloc |  |  | assemblages à vérifier et à dessiner |
@@ -454,7 +455,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | Mot-clé | Type | Obligatoire | Défaut | Description |
 | --- | --- | --- | --- | --- |
 | `nom` | texte | oui |  | nom de la phase |
-| `excaver` | nombre |  |  | cote du fond de fouille atteinte (m) |
+| `excaver` | nombre ou blocs nommés de nombre |  |  | cote du fond de fouille atteinte (m) ; avec des zones de fond (geometrie.fouille.zones) : bloc { nom_de_zone: cote, defaut: cote } pour un fond différent par zone |
 | `remblayer` | bloc |  |  | remblai jusqu'à une cote, côté amont ou aval |
 | `poser` | texte ou liste de texte |  |  | appui(s) posé(s) dans cette phase |
 | `deposer` | texte ou liste de texte |  |  | appui(s) déposé(s) dans cette phase |
@@ -470,6 +471,15 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | --- | --- | --- | --- | --- |
 | `deplacement_max_mm` | nombre |  |  | déplacement admissible aux ELS (mm) (> 0) |
 | `deplacement_tete_mm` | nombre |  |  | déplacement admissible en tête aux ELS (mm) (> 0) |
+
+### geometrie
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `ouvrages` | bloc |  |  | paroi en plan : contour, côtés nommés, appuis en plan |
+| `terrain` | bloc |  |  | terrain côté terre : cote, remblai, zones (pente, profil) |
+| `fouille` | bloc |  |  | côté fouille : cote initiale, zones de fond, risbermes, talus, gradins |
+| `surcharges` | liste de bloc |  |  | positions en plan des surcharges du bloc surcharges |
 
 ### plan
 
@@ -595,6 +605,43 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `amont` | nombre |  |  | nouvelle cote du terrain amont (m) |
 | `aval` | nombre |  |  | nouvelle cote du terrain aval (m) |
 
+### geometrie.ouvrages
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `contour` | liste de liste de nombre | oui |  | tracé de la paroi en plan [[x, y], ...] (m) : polygone fermé de la fouille, ou polyligne ouverte avec ferme: false |
+| `ferme` | true / false |  | True | contour fermé (enceinte : le dernier sommet rejoint le premier) ; false = paroi ouverte (polyligne) |
+| `cotes` | blocs nommés de entier |  |  | noms des côtés -> numéro d'arête du contour (0 = premier segment) |
+| `appuis` | liste de bloc |  |  | positions des appuis en plan (vide = placement automatique à l'espacement) |
+
+### geometrie.terrain
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `cote` | nombre |  |  | cote du terrain côté terre (m) ; défaut : toit de la 1re couche |
+| `remblai` | bloc |  |  | remblai côté terre mis en place à une phase (couche ajoutée) |
+| `zones` | liste de bloc |  |  | variations du terrain côté terre par côté ou tronçon (cote, pente, profil) |
+
+### geometrie.fouille
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `cote_initiale` | nombre |  |  | cote initiale du terrain côté fouille (m) ; défaut : terrain côté terre |
+| `zones` | liste de bloc |  |  | zones de fond de fouille (fonds différents par zone dans le bloc excaver des phases) |
+| `objets` | liste de bloc |  |  | risbermes, talus et gradins côté fouille, avec leur étendue le long des côtés |
+
+### geometrie.surcharges (chaque élément)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `cotes` | liste de texte ou entier |  |  | côtés concernés : noms de geometrie.ouvrages.cotes ou numéros d'arête (vide = tous) |
+| `de` | nombre |  |  | début du tronçon concerné, abscisse le long du côté depuis son origine (m) ; vide = début du côté (≥ 0) |
+| `a` | nombre |  |  | fin du tronçon concerné (m) ; vide = fin du côté (≥ 0) |
+| `surcharge` | texte | oui |  | nom de la surcharge (bloc surcharges) dont on donne la position en plan |
+| `position` | liste de nombre |  |  | rectangulaire/ponctuelle : centre en plan [x, y] (m) |
+| `emprise` | liste de nombre |  |  | rectangulaire/ponctuelle : [lx, ly] (m) |
+| `trace` | bloc |  |  | linéaire : segment en plan |
+
 ### plan.appuis (chaque élément)
 
 | Mot-clé | Type | Obligatoire | Défaut | Description |
@@ -629,5 +676,47 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `paroi` | texte ou entier | oui |  | côté de paroi auquel la coupe s'applique (nom du bloc plan.cotes ou numéro d'arête) |
 | `de` | nombre |  |  | début du tronçon, abscisse le long du côté depuis son origine (m) ; vide = début du côté |
 | `a` | nombre |  |  | fin du tronçon (m) ; vide = fin du côté |
+
+### geometrie.terrain.zones (chaque élément)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `cotes` | liste de texte ou entier |  |  | côtés concernés : noms de geometrie.ouvrages.cotes ou numéros d'arête (vide = tous) |
+| `de` | nombre |  |  | début du tronçon concerné, abscisse le long du côté depuis son origine (m) ; vide = début du côté (≥ 0) |
+| `a` | nombre |  |  | fin du tronçon concerné (m) ; vide = fin du côté (≥ 0) |
+| `nom` | texte |  |  | nom de la zone de terrain côté terre |
+| `cote` | nombre |  |  | cote du terrain amont dans la zone (m) ; vide = geometrie.terrain.cote |
+| `pente_beta` | nombre |  |  | terrain en pente uniforme : angle β sur l'horizontale (°), Coulomb avec talus (> -80, < 80) |
+| `profil` | liste de liste de nombre |  |  | ligne [distance à la paroi, cote] (m) ; le sol au-dessus de la cote amont est pris en surcharge équivalente |
+| `methode_pente` | coulomb_beta / surcharge_equivalente |  | surcharge_equivalente | prise en compte du profil : coefficients avec β (pente uniforme) ou surcharge équivalente |
+
+### geometrie.fouille.zones (chaque élément)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `cotes` | liste de texte ou entier |  |  | côtés concernés : noms de geometrie.ouvrages.cotes ou numéros d'arête (vide = tous) |
+| `de` | nombre |  |  | début du tronçon concerné, abscisse le long du côté depuis son origine (m) ; vide = début du côté (≥ 0) |
+| `a` | nombre |  |  | fin du tronçon concerné (m) ; vide = fin du côté (≥ 0) |
+| `nom` | texte | oui |  | nom de la zone de fond (clé du bloc excaver des phases) |
+| `emprise` | liste de liste de nombre |  |  | polygone de la zone en plan [[x, y], ...] (m), pour la maquette ; vide = bande le long des côtés concernés |
+| `largeur` | nombre |  |  | largeur de la bande en plan depuis la paroi (m) ; défaut : moitié de la distance au vis-à-vis (> 0) |
+
+### geometrie.fouille.objets (chaque élément)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `cotes` | liste de texte ou entier |  |  | côtés concernés : noms de geometrie.ouvrages.cotes ou numéros d'arête (vide = tous) |
+| `de` | nombre |  |  | début du tronçon concerné, abscisse le long du côté depuis son origine (m) ; vide = début du côté (≥ 0) |
+| `a` | nombre |  |  | fin du tronçon concerné (m) ; vide = fin du côté (≥ 0) |
+| `nom` | texte |  |  | nom (pour le terrasser dans une phase) ; défaut : Risberme1, Talus1, Gradins1… |
+| `type` | risberme / talus / gradins |  | risberme | risberme ou talus contre la paroi, ou fond en gradins |
+| `phases` | liste de entier ou texte | oui |  | [première, dernière] phase d'existence (numéro à partir de 1, ou nom) |
+| `cote_crete` | nombre |  |  | risberme, talus : cote du sommet contre la paroi (m) |
+| `largeur_crete` | nombre |  | 0.0 | risberme : largeur du sommet ; talus : largeur de la banquette contre la paroi (m) (≥ 0) |
+| `pente` | nombre |  | 1.5 | pente du talus, horizontal / vertical (> 0) |
+| `cote_pied` | nombre |  |  | cote du fond général au pied (m) ; gradins : défaut = fond de fouille à la première phase |
+| `marches` | liste de liste de nombre |  |  | gradins : marches [cote, largeur] depuis la paroi (m) |
+| `methode` | surcharge_equivalente / fond_equivalent / coin_de_rupture |  | surcharge_equivalente | prise en compte : surcharge équivalente (bandes de poids), fond équivalent (cote_equivalente à donner), coin de rupture (à fournir) |
+| `cote_equivalente` | nombre |  |  | méthode fond_equivalent : cote de fond de fouille équivalente choisie (m) |
 
 <!-- REFERENCE:FIN -->

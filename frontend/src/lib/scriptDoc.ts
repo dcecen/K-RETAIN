@@ -62,9 +62,22 @@ export function fixer(texte: string, chemin: Chemin, valeur: unknown): string {
     if (vide) {
       if (d.hasIn(chemin)) d.deleteIn(chemin)
     } else {
-      d.setIn(chemin, valeur)
+      d.setIn(chemin, typeof valeur === 'object' ? feuillesEnLigne(d.createNode(valeur)) : valeur)
     }
   })
+}
+
+/** Les collections « feuilles » d'un bloc nouveau (listes de nombres, points [x, y], dictionnaires de scalaires)
+ *  s'écrivent en ligne : contour: [[0, 0], [20, 0]], cotes: { sud: 0 }, excaver: { defaut: -3 }. */
+function feuillesEnLigne<T>(noeud: T): T {
+  if (isSeq(noeud)) {
+    noeud.items.forEach(feuillesEnLigne)
+    if (noeud.items.every((it) => isScalar(it) || (isSeq(it) && it.items.every(isScalar)))) noeud.flow = true
+  } else if (isMap(noeud)) {
+    noeud.items.forEach((it) => feuillesEnLigne(it.value))
+    if (noeud.items.every((it) => isScalar(it.value))) noeud.flow = true
+  }
+  return noeud
 }
 
 /** Les sous-blocs d'un nouvel élément (ex. zone, trace) s'écrivent en ligne : { de: [1, 2], a: [3, 4] }. */

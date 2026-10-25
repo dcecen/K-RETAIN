@@ -4,8 +4,7 @@ import type { Selection, Vue } from '../lib/etat'
 import { nb } from '../lib/format'
 import {
   IconeAppui, IconeBase, IconeChevronB, IconeChevronD, IconeCoupe, IconeCube, IconeEau, IconeFichier, IconeInfo, IconePanneauG, IconeParoi,
-  IconePhases, IconePlaque, IconeProjet, IconeScript, IconeSol, IconeSurcharge, IconeTableau, IconeVerif,
-} from '../lib/icones'
+  IconePhases, IconePlaque, IconeProjet, IconeScript, IconeSol, IconeSurcharge, IconeTableau, IconeVerif, IconePlan } from '../lib/icones'
 import type { Modele } from '../lib/scriptDoc'
 import { COULEURS_SOL } from '../lib/theme'
 import { vueDisponible, vuesDuGroupe, type DefVue } from '../lib/vues'
@@ -16,7 +15,7 @@ const NOMS_PAROI: Record<string, string> = {
 }
 
 const ICONES: Record<Vue, ReactNode> = {
-  projet: <IconeProjet />, sol: <IconeSol />, ecran: <IconeParoi />, eau: <IconeEau />, surcharges: <IconeSurcharge />,
+  projet: <IconeProjet />, sol: <IconeSol />, ecran: <IconeParoi />, geometrie: <IconePlan />, eau: <IconeEau />, surcharges: <IconeSurcharge />,
   appuis: <IconeAppui />, phases: <IconePhases />, verifs_demandees: <IconeVerif />,
   synthese: <IconeFichier />, diagrammes: <IconeCoupe />, efforts: <IconeTableau />, verifications: <IconeVerif />,
   '3d': <IconeCube />, hypotheses: <IconeFichier />, pseudo3d: <IconePlaque />,
@@ -50,6 +49,12 @@ export function Navigation({ modele, erreurs, vue, selection, resultats, pseudo3
     switch (d.cle) {
       case 'sol': return String(sol.length)
       case 'ecran': return NOMS_PAROI[m.paroi?.type] ?? null
+      case 'geometrie': {
+        const g = m.geometrie
+        if (!g || typeof g !== 'object') return m.plan || m.fouille?.risbermes || m.fouille?.talus || m.fouille?.gradins ? 'forme ancienne' : '2D'
+        const n = (g.fouille?.zones?.length ?? 0) + (g.fouille?.objets?.length ?? 0) + (g.terrain?.zones?.length ?? 0) + (g.surcharges?.length ?? 0)
+        return n ? String(n) : (Array.isArray(g.ouvrages?.contour) ? `${g.ouvrages.contour.length} sommets` : null)
+      }
       case 'eau': return m.hydraulique?.regime && m.hydraulique.regime !== 'hydrostatique' ? (m.hydraulique.regime === 'differences_finies' ? 'écoulement 2D' : 'simplifié') : (m.eau ? String(Object.keys(m.eau).length) : '0')
       case 'surcharges': return String(Array.isArray(m.surcharges) ? m.surcharges.length : 0)
       case 'appuis': return String(appuis.length)

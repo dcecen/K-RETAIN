@@ -61,7 +61,7 @@ export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d, o
   const contenu = (): ReactNode => {
     if (estSaisie(vue)) {
       return (
-        <Saisie modele={modele} erreurs={p.erreurs} schema={p.schema} references={p.references} actions={p.actions} onAide={a.setAideChamp}
+        <Saisie modele={modele} erreurs={p.erreurs} schema={p.schema} references={p.references} actions={p.actions} onAide={a.setAideChamp} texte={p.texte}
           section={vue} selection={a.selection} onSelection={a.setSelection} phaseActive={a.phase} onPhaseActive={a.setPhase} res={res} />
       )
     }
@@ -78,7 +78,8 @@ export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d, o
           <Onglet3D res={res!} texte={p.texteCalcule()} phase={a.phase} theme={a.theme} projet={p.projet} coupeActive={p.coupeActive} cotes={p.cotesPlan}
             onEpingler={(e) => ajouterDepuis3d(['coupes'], e, 'Coupe ajoutée au script : à recalculer')}
             onAjouterSurcharge={(e) => ajouterDepuis3d(['surcharges'], e, 'Surcharge ajoutée au script : à recalculer')}
-            onAjouterRisberme={(e) => ajouterDepuis3d(['fouille', 'risbermes'], e, 'Risberme ajoutée au script : à recalculer')}
+            onAjouterRisberme={(e) => ajouterDepuis3d(modele?.geometrie ? ['geometrie', 'fouille', 'objets'] : ['fouille', 'risbermes'], e, 'Risberme ajoutée au script : à recalculer')}
+            formeGeometrie={!!modele?.geometrie}
             selection={a.selection3d} onSelection={a.selectionner3d} modele={modele} onPhase={a.setPhase}
             onOuvrir={(o) => a.ouvrirDepuis3d(o === 'coupe' ? 'diagrammes' : o)} prereglageInitial={a.prereglage} onPrereglage={a.setPrereglage}
             etat3d={a.etat3d} onEtat3d={a.setEtat3d} unite={uniteCote(p.modele)} />

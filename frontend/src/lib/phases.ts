@@ -51,6 +51,10 @@ export function resumePhase(p: Modele): { type: string; texte: string }[] {
   if (!p) return a
   const l = (v: unknown) => (Array.isArray(v) ? v.join(', ') : v ? String(v) : '')
   if (typeof p.excaver === 'number') a.push({ type: 'excavation', texte: `excaver à ${p.excaver} m` })
+  else if (p.excaver && typeof p.excaver === 'object') {
+    const zones = Object.entries(p.excaver as Record<string, unknown>).filter(([k]) => k !== 'defaut').map(([k, v]) => `${k} ${v}`)
+    a.push({ type: 'excavation', texte: `excaver à ${(p.excaver as { defaut?: unknown }).defaut ?? '—'} m${zones.length ? ` (${zones.join(', ')})` : ''}` })
+  }
   if (p.remblayer) a.push({ type: 'remblai', texte: 'remblai' })
   if (p.poser) a.push({ type: 'pose', texte: `poser ${l(p.poser)}` })
   if (p.deposer) a.push({ type: 'depose', texte: `déposer ${l(p.deposer)}` })

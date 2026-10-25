@@ -20,7 +20,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.error import MarkedYAMLError, YAMLError
 
-from .schema import Script
+from .schema import Plan, Script
 
 
 @dataclass
@@ -214,8 +214,15 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
         for nom in ph.retirer_surcharges or []:
             if nom not in noms_surcharges:
                 e.append((("phases", i, "retirer_surcharges"), f"surcharge « {nom} » inconnue"))
-        if ph.excaver is not None and not s.paroi.pied < ph.excaver <= s.paroi.tete:
-            e.append((("phases", i, "excaver"), "cote d'excavation hors de la paroi"))
+        if ph.excaver is not None:
+            valeurs = ph.excaver.values() if isinstance(ph.excaver, dict) else [ph.excaver]
+            if any(not s.paroi.pied < v <= s.paroi.tete for v in valeurs):
+                e.append((("phases", i, "excaver"), "cote d'excavation hors de la paroi"))
+            if isinstance(ph.excaver, dict):
+                zones = {z.nom for z in s.geometrie.fouille.zones} if s.geometrie is not None and s.geometrie.fouille is not None else set()
+                for cle in ph.excaver:
+                    if cle != "defaut" and cle not in zones:
+                        e.append((("phases", i, "excaver", cle), f"zone de fond « {cle} » inconnue (geometrie.fouille.zones, ou « defaut »)"))
     if s.hydraulique is not None and s.hydraulique.regime != "hydrostatique":
         for i, c in enumerate(s.sol):
             if c.k_h is None:
@@ -242,8 +249,10 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
         for j, ap in enumerate(s.plan.appuis):
             if ap.appui not in s.appuis:
                 e.append((("plan", "appuis", j, "appui"), f"appui « {ap.appui} » non défini"))
-    n_aretes = len(s.plan.contour) if s.plan else 4
-    cotes = s.plan.cotes if s.plan else {}
+    e += _controles_geometrie(s)
+    o = s.geometrie.ouvrages if s.geometrie is not None else None
+    n_aretes = len(s.plan.contour) if s.plan else (len(o.contour) - (0 if o.ferme else 1)) if o is not None else 4
+    cotes = s.plan.cotes if s.plan else (o.cotes if o is not None else {})
     toutes = [(("surcharges", i), sc) for i, sc in enumerate(s.surcharges)]
     for j, ph in enumerate(s.phases):
         toutes += [(("phases", j, "ajouter_surcharges", i), sc) for i, sc in enumerate(ph.ajouter_surcharges or [])]
@@ -292,21 +301,29 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
             e.append((("terrain", "remblai", "phase"), f"phase « {t.remblai.phase} » inconnue"))
         if t.remblai.materiau is not None and t.remblai.materiau not in [c.nom for c in s.sol]:
             e.append((("terrain", "remblai", "materiau"), f"couche « {t.remblai.materiau} » inconnue dans le bloc sol"))
+    positions = {p.surcharge: p for p in (s.geometrie.surcharges if s.geometrie is not None else [])}
+    n_sc = 0
+    contour_present = s.plan is not None or s.coupe_calcul is not None or (s.geometrie is not None and s.geometrie.ouvrages is not None)
     for chemin, sc in toutes:
+        n_sc += 1
+        pos = positions.get(sc.nom or f"S{n_sc}")
+        position = sc.position if sc.position is not None else (pos.position if pos is not None else None)
+        emprise = sc.emprise if sc.emprise is not None else (pos.emprise if pos is not None else None)
+        trace = sc.trace if sc.trace is not None else (pos.trace if pos is not None else None)
         if sc.type == "bande" and not sc.largeur:
             e.append((chemin + ("largeur",), "surcharge en bande : largeur obligatoire"))
-        if sc.type in ("rectangulaire", "ponctuelle") and sc.position is None:
-            e.append((chemin + ("position",), f"surcharge {sc.type} : position [x, y] obligatoire"))
-        if sc.type == "rectangulaire" and (not isinstance(sc.emprise, list) or len(sc.emprise) != 2):
-            e.append((chemin + ("emprise",), "surcharge rectangulaire : emprise [lx, ly] obligatoire"))
-        if sc.type in ("lineaire", "lineique") and sc.trace is None and sc.position is None and (sc.distance is None):
+        if sc.type in ("rectangulaire", "ponctuelle") and position is None:
+            e.append((chemin + ("position",), f"surcharge {sc.type} : position [x, y] obligatoire (surcharge ou geometrie.surcharges)"))
+        if sc.type == "rectangulaire" and (not isinstance(emprise, list) or len(emprise) != 2):
+            e.append((chemin + ("emprise",), "surcharge rectangulaire : emprise [lx, ly] obligatoire (surcharge ou geometrie.surcharges)"))
+        if sc.type in ("lineaire", "lineique") and trace is None and position is None and (sc.distance is None):
             e.append((chemin + ("trace",), "surcharge linéaire : trace en plan obligatoire"))
-        if sc.type == "lineaire" and sc.trace is None:
-            e.append((chemin + ("trace",), "surcharge linéaire en plan : trace {de, a} obligatoire"))
+        if sc.type == "lineaire" and trace is None:
+            e.append((chemin + ("trace",), "surcharge linéaire en plan : trace {de, a} obligatoire (surcharge ou geometrie.surcharges)"))
         if sc.type == "convoi" and not sc.modele:
             e.append((chemin + ("modele",), "surcharge de type convoi : modèle obligatoire (Bc, Bt…)"))
-        if sc.type in ("rectangulaire", "ponctuelle", "lineaire") and s.plan is None and s.coupe_calcul is None:
-            e.append((chemin + ("type",), f"surcharge {sc.type} : un bloc plan (contour) est nécessaire pour la rapporter à la coupe"))
+        if sc.type in ("rectangulaire", "ponctuelle", "lineaire") and not contour_present:
+            e.append((chemin + ("type",), f"surcharge {sc.type} : un contour en plan (geometrie.ouvrages ou plan) est nécessaire pour la rapporter à la coupe"))
         cp = sc.cote_paroi
         for nom in ([cp] if isinstance(cp, (str, int)) else cp or []):
             if isinstance(nom, str) and nom != "toutes" and nom not in cotes:
@@ -339,6 +356,140 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
             if "projet" in c.script and not isinstance(c.script["projet"], (str, dict)):
                 e.append((("coupes", j, "script", "projet"), "projet : texte ou bloc (nom, affaire…) attendu"))
     return e
+
+
+def _controles_geometrie(s: Script) -> list[tuple[tuple, str]]:
+    """Cohérence du bloc geometrie : exclusion avec la forme ancienne, côtés connus, tronçons de < a ≤ L, noms
+    uniques, phases des objets, zones de fond nommées, surcharges positionnées existantes."""
+    e: list[tuple[tuple, str]] = []
+    g = s.geometrie
+    if g is None:
+        return e
+    from ..geometrie.normaliser import forme_ancienne_presente
+    anciens = forme_ancienne_presente(s)
+    if anciens:
+        e.append((("geometrie",), "bloc geometrie et forme ancienne (" + ", ".join(anciens) + ") dans le même script : "
+                                   "décrivez toute la géométrie dans geometrie (menu Convertir) ou retirez le bloc geometrie"))
+    o = g.ouvrages
+    cotes = o.cotes if o is not None else {}
+    aretes_L: dict[int, float] = {}
+    if o is not None:
+        if len(o.contour) < (3 if o.ferme else 2) or any(len(p) != 2 for p in o.contour):
+            e.append((("geometrie", "ouvrages", "contour"), "le contour doit compter au moins 3 points [x, y] (2 pour une polyligne ouverte)"))
+        else:
+            from ..plan.geometrie import aretes
+            aretes_L = {ar["k"]: ar["L"] for ar in aretes(o.contour, o.ferme)}
+        for nom, k in cotes.items():
+            if k not in aretes_L and aretes_L:
+                e.append((("geometrie", "ouvrages", "cotes", nom), f"côté « {nom} » : numéro d'arête {k} hors du contour (0 à {len(aretes_L) - 1})"))
+        for j, ap in enumerate(o.appuis):
+            if ap.appui not in s.appuis:
+                e.append((("geometrie", "ouvrages", "appuis", j, "appui"), f"appui « {ap.appui} » non défini"))
+    noms_phases = [p.nom for p in s.phases]
+
+    def _num(ref):
+        return noms_phases.index(ref) + 1 if isinstance(ref, str) and ref in noms_phases else (ref if isinstance(ref, int) else None)
+
+    def _etendue(chemin: tuple, obj) -> None:
+        for c in obj.cotes or []:
+            if isinstance(c, str) and c not in cotes:
+                e.append((chemin + ("cotes",), f"côté « {c} » inconnu : déclarez-le dans geometrie.ouvrages.cotes"))
+            if isinstance(c, int) and aretes_L and c not in aretes_L:
+                e.append((chemin + ("cotes",), f"numéro d'arête {c} hors du contour"))
+        if obj.de is not None and obj.a is not None and obj.a <= obj.de:
+            e.append((chemin + ("a",), "la fin du tronçon (a) doit dépasser son début (de)"))
+        if aretes_L and obj.cotes:
+            L = min(aretes_L[c if isinstance(c, int) else cotes[c]] for c in obj.cotes if (isinstance(c, int) and c in aretes_L) or (isinstance(c, str) and c in cotes)) if any(
+                (isinstance(c, int) and c in aretes_L) or (isinstance(c, str) and c in cotes) for c in obj.cotes) else None
+            for cle in ("de", "a"):
+                v = getattr(obj, cle)
+                if L is not None and v is not None and v > L + 1e-9:
+                    e.append((chemin + (cle,), f"{cle} = {v} m au-delà de la longueur du côté ({L:.2f} m)"))
+
+    t = g.terrain
+    if t is not None:
+        noms_z = set()
+        for i, z in enumerate(t.zones):
+            ch = ("geometrie", "terrain", "zones", i)
+            _etendue(ch, z)
+            nom = z.nom or f"terrain{i + 1}"
+            if nom in noms_z:
+                e.append((ch + ("nom",), f"nom de zone « {nom} » en double"))
+            noms_z.add(nom)
+            if z.pente_beta is not None and s.sol and abs(z.pente_beta) > min(c.phi for c in s.sol) + 1e-9:
+                e.append((ch + ("pente_beta",), f"β = {z.pente_beta}° dépasse le φ' le plus faible des couches : pas d'équilibre de Coulomb"))
+            if z.profil is not None and (any(len(p) != 2 for p in z.profil) or any(z.profil[k + 1][0] <= z.profil[k][0] for k in range(len(z.profil) - 1))):
+                e.append((ch + ("profil",), "profil : points [distance, cote] à distances strictement croissantes"))
+        if t.remblai is not None:
+            k = _num(t.remblai.phase)
+            if k is None or not 1 <= k <= len(s.phases):
+                e.append((("geometrie", "terrain", "remblai", "phase"), f"phase « {t.remblai.phase} » inconnue"))
+            if t.remblai.materiau is not None and t.remblai.materiau not in [c.nom for c in s.sol]:
+                e.append((("geometrie", "terrain", "remblai", "materiau"), f"couche « {t.remblai.materiau} » inconnue dans le bloc sol"))
+    f = g.fouille
+    if f is not None:
+        noms_zf = set()
+        for i, z in enumerate(f.zones):
+            ch = ("geometrie", "fouille", "zones", i)
+            _etendue(ch, z)
+            if z.nom in noms_zf or z.nom == "defaut":
+                e.append((ch + ("nom",), f"nom de zone de fond « {z.nom} » en double ou réservé"))
+            noms_zf.add(z.nom)
+            if z.emprise is not None and (len(z.emprise) < 3 or any(len(p) != 2 for p in z.emprise)):
+                e.append((ch + ("emprise",), "emprise : polygone d'au moins 3 points [x, y]"))
+        noms_o: list[str] = []
+        compteurs: dict[str, int] = {}
+        for i, ob in enumerate(f.objets):
+            ch = ("geometrie", "fouille", "objets", i)
+            _etendue(ch, ob)
+            compteurs[ob.type] = compteurs.get(ob.type, 0) + 1
+            nom = ob.nom or f"{ob.type.capitalize()}{compteurs[ob.type]}"
+            if nom in noms_o:
+                e.append((ch + ("nom",), f"nom « {nom} » en double"))
+            noms_o.append(nom)
+            a, b = (_num(ob.phases[0]), _num(ob.phases[1]))
+            for ref, k in zip(ob.phases, (a, b)):
+                if k is None or not 1 <= k <= len(s.phases):
+                    e.append((ch + ("phases",), f"phase « {ref} » inconnue"))
+            if a is not None and b is not None and b < a:
+                e.append((ch + ("phases",), "la dernière phase doit suivre la première"))
+            if ob.type == "gradins":
+                if not ob.marches:
+                    e.append((ch + ("marches",), "gradins : marches [cote, largeur] obligatoires"))
+            else:
+                if ob.cote_crete is None or ob.cote_pied is None:
+                    e.append((ch + ("cote_crete",), f"{ob.type} : cote_crete et cote_pied obligatoires"))
+                elif ob.cote_pied > ob.cote_crete:
+                    e.append((ch + ("cote_pied",), "le pied doit être sous la crête"))
+            if ob.methode == "fond_equivalent" and ob.cote_equivalente is None:
+                e.append((ch + ("cote_equivalente",), "méthode fond_equivalent : cote_equivalente obligatoire (choix de l'ingénieur)"))
+        for j, ph in enumerate(s.phases):
+            tr = ph.terrasser_risberme
+            for nom in ([tr] if isinstance(tr, str) else tr or []):
+                if nom not in noms_o:
+                    e.append((("phases", j, "terrasser_risberme"), f"risberme « {nom} » inconnue"))
+    noms_s = set()
+    n = 0
+    for sc in list(s.surcharges) + [x for ph in s.phases for x in (ph.ajouter_surcharges or [])]:
+        n += 1
+        noms_s.add(sc.nom or f"S{n}")
+    for i, p in enumerate(g.surcharges):
+        ch = ("geometrie", "surcharges", i)
+        _etendue(ch, p)
+        if p.surcharge not in noms_s:
+            e.append((ch + ("surcharge",), f"surcharge « {p.surcharge} » inconnue dans le bloc surcharges"))
+        if p.emprise is not None and (len(p.emprise) != 2 or p.emprise[0] <= 0 or p.emprise[1] <= 0):
+            e.append((ch + ("emprise",), "emprise [lx, ly] strictement positive attendue"))
+    return e
+
+
+def _pont_plan(s: Script) -> None:
+    """Le bloc plan (contour, côtés, appuis en plan) est dérivé de geometrie.ouvrages pour les consommateurs qui
+    lisent encore `plan` (coupes, maquette, pseudo-3D)."""
+    if s.geometrie is not None and s.plan is None and s.geometrie.ouvrages is not None:
+        o = s.geometrie.ouvrages
+        s.plan = Plan(contour=[list(p) for p in o.contour], cotes=dict(o.cotes), appuis=list(o.appuis))
+        s.plan_derive = True
 
 
 def _retirer(donnees, loc: tuple) -> None:
@@ -414,6 +565,7 @@ def lire_script(texte: str) -> Script:
     if autres:
         raise ScriptInvalide([ErreurScript(ligne_de(arbre, c), _chemin_lisible(c, donnees), m) for c, m in autres]
                              + avertissements)
+    _pont_plan(script)
     script.avertissements_lecture = avertissements
     return script
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CLES_APPUIS as APPUIS, CLES_EAU as EAU, CLES_ECRAN as ECRAN, CLES_PHASES as PHASES, CLES_PROJET as PROJET, CLES_SOLS as SOLS, CLES_SURCHARGES as SURCHARGES, CLES_VERIFS as VERIFS } from '../cles'
+import { CLES_APPUIS as APPUIS, CLES_EAU as EAU, CLES_ECRAN as ECRAN, CLES_GEOMETRIE as GEOMETRIE, CLES_PHASES as PHASES, CLES_PROJET as PROJET, CLES_SOLS as SOLS, CLES_SURCHARGES as SURCHARGES, CLES_VERIFS as VERIFS } from '../cles'
 
 /** Clés du script éditables par les formulaires avant la refonte (figées) : aucune ne doit disparaître. */
 const AVANT = [
@@ -20,7 +20,13 @@ const AVANT = [
 ]
 
 describe('clés du script couvertes par les formulaires', () => {
-  const toutes = new Set([...PROJET, ...SOLS, ...ECRAN, ...EAU, ...SURCHARGES, ...APPUIS, ...PHASES, ...VERIFS])
+  const toutes = new Set([...PROJET, ...SOLS, ...ECRAN, ...GEOMETRIE, ...EAU, ...SURCHARGES, ...APPUIS, ...PHASES, ...VERIFS])
+
+  it('couvre le bloc geometrie (ouvrages, terrain, fouille, positions)', () => {
+    for (const k of ['geometrie.ouvrages.contour', 'geometrie.ouvrages.cotes', 'geometrie.fouille.zones.nom', 'geometrie.fouille.objets.de', 'geometrie.fouille.objets.a', 'geometrie.surcharges.surcharge']) {
+      expect(toutes.has(k), k).toBe(true)
+    }
+  })
 
   it('conserve toutes les clés éditables avant la refonte', () => {
     const manquantes = AVANT.filter((k) => !toutes.has(k))

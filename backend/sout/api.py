@@ -272,6 +272,19 @@ def rapport_validation():
     return HTMLResponse(chemin.read_text(encoding="utf-8"))
 
 
+@app.post("/api/geometrie/normaliser")
+def geometrie_normaliser(t: Texte) -> dict:
+    """Bloc `geometrie` équivalent à la forme ancienne du script (plan, fouille, pente de terrain, clés de plan des
+    surcharges) et liste des chemins de la forme ancienne à retirer : bouton « Convertir » de la vue Géométrie."""
+    from sout.geometrie.normaliser import forme_ancienne_presente, vers_bloc_geometrie
+
+    try:
+        s = lire_script(t.texte)
+    except ScriptInvalide as e:
+        return _erreur(e)
+    return {"ok": True, "erreurs": [], "bloc": vers_bloc_geometrie(s), "anciens": forme_ancienne_presente(s)}
+
+
 @app.post("/api/valider")
 def valider(t: Texte) -> dict:
     """Erreurs bloquantes (`erreurs`) et avertissements non bloquants (mots-clés inconnus ignorés)."""

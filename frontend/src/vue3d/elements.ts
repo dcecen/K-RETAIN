@@ -113,18 +113,39 @@ function specsSol(ctx: Contexte): Spec[] {
     })
   })
   const cleFond = hacher(`fond|${geo.cle()}`)
+  const fondDefaut = (ph: { terrain_aval: number; fonds?: Record<string, number | null> }) => ph.fonds?.defaut ?? ph.terrain_aval
   out.push({
     id: 'fouille.fond', cle: cleFond, creer: (cx) => {
       const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.points), lambert(cx.fab, 0x8b5a2b)))
       const el = base('fouille.fond', cleFond, 'fouille', 'fouille.fond', mesh, 'fond')
-      el.appliquerPhase = (k) => { el.visiblePhase = caler(mesh, k.ph.terrain_aval - 0.05, k.ph.terrain_aval) }
+      el.appliquerPhase = (k) => { const f = fondDefaut(k.ph); el.visiblePhase = caler(mesh, f - 0.05, f) }
       el.etiquettes = (k, o) => {
         const a = geo.aretes[0]
-        o.push({ id: 'cote.fond', pos: versThree(a.A[0] + a.ni[0] * 1.5, a.A[1] + a.ni[1] * 1.5, k.ph.terrain_aval), texte: `fond ${nb(k.ph.terrain_aval, 2)} m`, calque: 'annotations.cotes' })
+        const f = fondDefaut(k.ph)
+        o.push({ id: 'cote.fond', pos: versThree(a.A[0] + a.ni[0] * 1.5, a.A[1] + a.ni[1] * 1.5, f), texte: `fond ${nb(f, 2)} m`, calque: 'annotations.cotes' })
       }
       return el
     },
   })
+  // zones de fond (geometrie.fouille.zones) : un fond par zone, à la cote de la zone pour la phase affichée
+  for (const z of ctx.d.m.zones ?? []) {
+    if (!z.polygone || z.polygone.length < 3) continue
+    const pts = z.polygone.map((p) => [p[0], p[1]] as [number, number])
+    const cleZ = hacher(`fond.zone|${z.nom}|${JSON.stringify(pts)}`)
+    out.push({
+      id: `fouille.fond.${z.nom}`, cle: cleZ, creer: (cx) => {
+        const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, pts), lambert(cx.fab, 0x9c6a37)))
+        const el = base(`fouille.fond.${z.nom}`, cleZ, 'fouille', 'fouille.fond', mesh, 'fond')
+        el.appliquerPhase = (k) => { const f = k.ph.fonds?.[z.nom] ?? fondDefaut(k.ph); el.visiblePhase = caler(mesh, f - 0.05, f + 0.01) }
+        el.etiquettes = (k, o) => {
+          const f = k.ph.fonds?.[z.nom] ?? fondDefaut(k.ph)
+          const cx0 = pts.reduce((s, p) => s + p[0], 0) / pts.length, cy0 = pts.reduce((s, p) => s + p[1], 0) / pts.length
+          o.push({ id: `cote.fond.${z.nom}`, pos: versThree(cx0, cy0, f), texte: `fond ${z.nom} ${nb(f, 2)} m`, calque: 'annotations.cotes' })
+        }
+        return el
+      },
+    })
+  }
   return out
 }
 

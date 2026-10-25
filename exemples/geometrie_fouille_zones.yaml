@@ -1,0 +1,50 @@
+# Fouille 30 x 18 m décrite par le bloc « geometrie » : côtés nommés, zone de fond moins profonde côté est,
+# risberme sur une partie du côté sud (de 4 à 26 m), immeuble derrière le côté nord sur 22 m, grue en plan.
+# Calcul 2D : une coupe automatique par tronçon homogène (menu Résultats, sélecteur de coupe).
+projet: Fouille à zones (bloc geometrie, exemple)
+calcul:
+  kh: schmitt
+
+paroi:
+  type: palplanche
+  profil: AZ 26-700          # référence de la base matériaux (jeu DEMO)
+  acier: S355GP
+  tete: 0.0
+  pied: -14.0
+
+sol:
+  - { nom: Remblai, toit: 0.0, gamma: 18, gamma_dejauge: 9, phi: 28, c: 0, EM: 4000, alpha: 0.5 }
+  - { nom: Sable dense, toit: -3.0, gamma: 20, gamma_dejauge: 11, phi: 35, c: 0, EM: 15000, alpha: 0.33 }
+
+eau:
+  service: { amont: -2.0, aval: -2.0 }
+
+surcharges:
+  - { nom: chantier, type: bande, q: 20, distance: 1.0, largeur: 5.0 }
+  - { nom: immeuble, type: bande, q: 90, distance: 3.5, largeur: 18, profondeur: 2.0, niveaux: 6 }
+  - { nom: grue, type: ponctuelle, q: 1200, phases: [2, 3] }
+
+appuis:
+  B1: { type: buton, element: modulaire_A, cote: -1.5, espacement: 6.0, longueur: 18.0, precharge: 50 }
+
+geometrie:
+  ouvrages:
+    contour: [[0, 0], [30, 0], [30, 18], [0, 18]]
+    cotes: { long_sud: 0, court_est: 1, long_nord: 2, court_ouest: 3 }
+  terrain:
+    cote: 0.0
+  fouille:
+    zones:
+      - { nom: est, cotes: [court_est] }                       # fond moins profond devant le petit côté est
+    objets:
+      - { nom: R1, type: risberme, cotes: [long_sud], de: 4, a: 26, phases: [3, 3], cote_crete: -4.0, largeur_crete: 2.0, pente: 1.5, cote_pied: -6.5 }
+  surcharges:
+    - { surcharge: immeuble, cotes: [long_nord], de: 4, a: 26 }
+    - { surcharge: grue, position: [15, -8], emprise: [6, 6] }
+
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose du buton B1, poser: B1 }
+  - { nom: Terrassement final et pompage, excaver: { defaut: -6.5, est: -5.0 }, eau: { aval: -7.0 } }
+
+verifications: [butee, equilibre_vertical, fond_de_fouille, structure]

@@ -20,6 +20,7 @@ export const IconeSol = (p: P) => <Svg {...p}><path d="M2 5h12M2 8.5h12M2 12h12"
 export const IconeParoi = (p: P) => <Svg {...p}><rect x="6.5" y="2" width="3" height="12" /><path d="M2 6h4.5M9.5 9h4.5" /></Svg>
 export const IconeEau = (p: P) => <Svg {...p}><path d="M8 2.5c2.5 3 4 5 4 7a4 4 0 0 1-8 0c0-2 1.5-4 4-7z" /></Svg>
 export const IconeSurcharge = (p: P) => <Svg {...p}><path d="M2 13h12" /><path d="M4 4v6M8 4v6M12 4v6" /><path d="M3 8.5l1 1.5 1-1.5M7 8.5l1 1.5 1-1.5M11 8.5l1 1.5 1-1.5" /></Svg>
+export const IconePlan = (p: P) => <Svg {...p}><path d="M2 3h8v4h4v6H2z" /><path d="M2 7h8M6 7v6" strokeDasharray="1.5 1.5" /></Svg>
 export const IconeAppui = (p: P) => <Svg {...p}><path d="M2 8h12" /><path d="M2 5.5v5M14 5.5v5" /></Svg>
 export const IconePhases = (p: P) => <Svg {...p}><rect x="2" y="3" width="3" height="10" /><rect x="6.5" y="3" width="3" height="10" /><rect x="11" y="3" width="3" height="10" /></Svg>
 export const IconeVerif = (p: P) => <Svg {...p}><path d="M3 8.5l3 3 7-7" /></Svg>

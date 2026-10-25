@@ -17,6 +17,8 @@ export interface Ctx {
   references: Record<string, string[]>
   actions: Actions
   onAide?: (a: AideChampInfo | null) => void
+  /** Texte YAML courant (conversion de la géométrie par le serveur). */
+  texte?: string
 }
 
 export interface PropsSection {

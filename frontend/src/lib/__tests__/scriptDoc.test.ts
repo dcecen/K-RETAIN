@@ -72,6 +72,20 @@ describe('fixer : remplacement en place', () => {
   })
 })
 
+describe('fixer : bloc entier', () => {
+  it('écrit un bloc geometrie avec ses points et petits dictionnaires en ligne', () => {
+    const t = fixer(SCRIPT, ['geometrie'], { ouvrages: { contour: [[0, 0], [20, 0], [20, 12]], cotes: { sud: 0, est: 1 }, appuis: [{ appui: 'B1', de: [6, 0], a: [6, 12] }] } })
+    expect(t).toContain('contour: [[0, 0], [20, 0], [20, 12]]')
+    expect(t).toContain('cotes: {sud: 0, est: 1}') // style du générateur : accolades sans espaces intérieurs
+    expect(t).toContain('de: [6, 0]')
+    expect(lire(t).modele.geometrie.ouvrages.appuis[0].appui).toBe('B1')
+  })
+  it('remplace « excaver » par un dictionnaire par zone en ligne', () => {
+    const t = fixer(SCRIPT, ['phases', 0, 'excaver'], { defaut: -2, est: -1 })
+    expect(t).toContain('excaver: {defaut: -2, est: -1}')
+  })
+})
+
 describe('fixer : bloc projet', () => {
   it('convertit « projet: texte » en bloc avec nom quand un champ de cartouche est renseigné', () => {
     const t = fixer('projet: Fouille A\nsol: []\n', ['projet'], { nom: 'Fouille A', affaire: 'A-12' })

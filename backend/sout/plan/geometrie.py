@@ -17,14 +17,15 @@ def aire_signee(contour: list) -> float:
     return 0.5 * sum(contour[i][0] * contour[(i + 1) % n][1] - contour[(i + 1) % n][0] * contour[i][1] for i in range(n))
 
 
-def aretes(contour: list) -> list[dict]:
+def aretes(contour: list, ferme: bool = True) -> list[dict]:
     """Arêtes orientées : {k, A, B, L, t (tangente unitaire), ni (normale intérieure), s0 (abscisse
-    développée du sommet A)}."""
+    développée du sommet A)}. `ferme` = False : polyligne ouverte, sans arête de fermeture (la normale
+    « intérieure » est alors celle du polygone que fermerait la polyligne)."""
     n = len(contour)
     sens = 1.0 if aire_signee(contour) > 0 else -1.0
     out = []
     s0 = 0.0
-    for k in range(n):
+    for k in range(n if ferme else max(n - 1, 0)):
         A, B = contour[k], contour[(k + 1) % n]
         L = math.dist(A, B)
         t = ((B[0] - A[0]) / L, (B[1] - A[1]) / L) if L > 0 else (1.0, 0.0)
