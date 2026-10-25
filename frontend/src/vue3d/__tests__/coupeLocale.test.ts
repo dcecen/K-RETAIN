@@ -3,7 +3,7 @@ import { Contour } from '../geometrie'
 import { FABRIQUES_CHANTIER } from '../elements'
 import { FABRIQUES_COUPE_LOCALE, positionDepuisPoint } from '../coupeLocale'
 import { deriver, entreeYamlCoupe, source2D, sourceChamp, sourcePseudo3D, type ChampPlaque } from '../sourceResultats'
-import { jeu, jeuProjet, nouvelleScene } from './outils'
+import { jeu, jeuProjet, jeuRectangle, nouvelleScene } from './outils'
 import { Vector3 } from 'three'
 
 describe('coupe locale et source de résultats', () => {
@@ -25,7 +25,7 @@ describe('coupe locale et source de résultats', () => {
   })
 
   it('avec une source factice de type pseudo-3D, les courbes extraites suivent la fonction à 1 % près', () => {
-    const res = jeu('exemple')
+    const res = jeuRectangle('exemple')
     const geo = new Contour(res.maquette!.contour)
     const z = Array.from({ length: 30 }, (_, j) => -14 + (14 * j) / 29)
     // champ analytique : y = 10·(1 + s/20)·(1 + z/14)² mm ; M = 100·cos(π z / 14)·(1 + s/40)
@@ -71,7 +71,7 @@ describe('coupe locale et source de résultats', () => {
 
   it('le plan « Couper ici » suit la position et se place depuis un point cliqué', () => {
     const { sc } = nouvelleScene([...FABRIQUES_CHANTIER, ...FABRIQUES_COUPE_LOCALE])
-    const res = jeu('exemple')
+    const res = jeuRectangle('exemple')
     sc.charger(res)
     const el = sc.elements.get('coupes.locale')!
     expect(el.objet.visible).toBe(false)

@@ -46,7 +46,8 @@ function specsComparaison(ctx: Contexte): Spec[] {
           const la = Math.min(0.25 * a.L, p.tete - p.pied)
           const arr = g.attributes.position.array as Float32Array
           const v = new THREE.Vector3()
-          remplir(arr, a as Arete, ns, src.res, ref, amp, offset, la, !!k.d.res.pseudo3d, v)
+          remplir(arr, a as Arete, ns, src.res, ref, amp, offset, la, !!k.d.res.pseudo3d, v,
+            !k.d.geo.ferme && a.k === 0, !k.d.geo.ferme && a.k === k.d.geo.aretes.length - 1)
           ;(g.attributes.position as THREE.BufferAttribute).needsUpdate = true
           g.computeBoundingSphere()
         }
@@ -62,12 +63,13 @@ function specsComparaison(ctx: Contexte): Spec[] {
   return out
 }
 
-function remplir(arr: Float32Array, a: Arete, ns: number, res: Contexte['d']['res'], phase: number, amp: number, offset: number, la: number, p3d: boolean, v: THREE.Vector3) {
+function remplir(arr: Float32Array, a: Arete, ns: number, res: Contexte['d']['res'], phase: number, amp: number, offset: number, la: number, p3d: boolean, v: THREE.Vector3,
+  debutLibre = false, finLibre = false) {
   const p = res.paroi
   for (let i = 0; i < ns; i++) {
     const sl = (a.L * i) / (ns - 1)
     const f = profilValeur(res, phase, 'y', a.s0 + sl)
-    const att = p3d ? 1 : attenuationAngle(sl, a.L, la)
+    const att = p3d ? 1 : attenuationAngle(sl, a.L, la, debutLibre, finLibre)
     for (let j = 0; j < NZ; j++) {
       const z = p.pied + ((p.tete - p.pied) * j) / (NZ - 1)
       const d = offset + (f ? (f(z) / 1000) * amp * att : 0)

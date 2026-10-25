@@ -37,12 +37,16 @@ export interface Arete {
   s0: number         // abscisse développée du sommet A
 }
 
-/** Contour polygonal de la fouille. */
+/** Contour de la fouille : polygone fermé (enceinte), ou polyligne ouverte (paroi droite ou en L, coupe 2D
+ *  infinie). Ouvert : pas d'arête de fermeture ; le côté fouille est celui du polygone que fermerait la polyligne
+ *  (même règle que le calcul, sout.plan.geometrie.aretes) ; terre et fouille sont deux bandes de part et d'autre de
+ *  l'écran, coupées net aux deux bouts (l'écran est supposé se prolonger au-delà). */
 export class Contour {
   readonly points: Point2[]
   readonly n: number
   readonly sens: 1 | -1
   readonly aretes: Arete[]
+  readonly ferme: boolean
   readonly xmin: number
   readonly xmax: number
   readonly ymin: number
@@ -50,10 +54,14 @@ export class Contour {
   readonly taille: number
   readonly marge: number
   readonly longueur: number
+  /** Zone de terre modélisée (polygone et trou éventuel) et zone de la fouille, en plan. */
+  readonly terre: { points: Point2[]; trou?: Point2[] }
+  readonly fouille: Point2[]
 
-  constructor(points: number[][]) {
+  constructor(points: number[][], ferme = true, largeurFouille = 0) {
     this.points = points.map((p) => [p[0], p[1]] as Point2)
     this.n = this.points.length
+    this.ferme = ferme && this.n >= 3
     const aire = this.points.reduce((s, [x0, y0], i) => {
       const [x1, y1] = this.points[(i + 1) % this.n]
       return s + x0 * y1 - x1 * y0
@@ -61,7 +69,7 @@ export class Contour {
     this.sens = aire > 0 ? 1 : -1
     let s0 = 0
     this.aretes = []
-    for (let k = 0; k < this.n; k++) {
+    for (let k = 0; k < (this.ferme ? this.n : Math.max(this.n - 1, 0)); k++) {
       const A = this.points[k]
       const B = this.points[(k + 1) % this.n]
       const L = Math.hypot(B[0] - A[0], B[1] - A[1])
@@ -71,14 +79,40 @@ export class Contour {
       s0 += L
     }
     this.longueur = s0
-    const xs = this.points.map((p) => p[0])
-    const ys = this.points.map((p) => p[1])
-    this.xmin = Math.min(...xs)
-    this.xmax = Math.max(...xs)
-    this.ymin = Math.min(...ys)
-    this.ymax = Math.max(...ys)
+    const boite = (pts: Point2[]) => {
+      const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1])
+      return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]
+    }
+    const [x0, x1, y0, y1] = boite(this.points)
+    this.marge = Math.max(8, 0.5 * Math.max(x1 - x0, y1 - y0, 10))
+    if (this.ferme) {
+      this.terre = { points: this.exterieurDe(x0, x1, y0, y1, this.marge), trou: this.trigo }
+      this.fouille = this.points
+      ;[this.xmin, this.xmax, this.ymin, this.ymax] = [x0, x1, y0, y1]
+    } else {
+      // bandes de part et d'autre de l'écran : terre sur la marge, fouille assez large pour les butons dessinés
+      this.terre = { points: [...this.points, ...this.decale(-this.marge).reverse()] }
+      this.fouille = [...this.points, ...this.decale(Math.max(this.marge, largeurFouille)).reverse()]
+      ;[this.xmin, this.xmax, this.ymin, this.ymax] = boite([...this.terre.points, ...this.fouille])
+    }
     this.taille = Math.max(this.xmax - this.xmin, this.ymax - this.ymin, 10)
-    this.marge = Math.max(8, 0.5 * this.taille)
+  }
+
+  /** Polyligne décalée de w le long de la normale côté fouille (w < 0 : côté terre), coins en onglet. */
+  private decale(w: number): Point2[] {
+    const ar = this.aretes
+    return this.points.map((P, i) => {
+      const n1 = ar[Math.max(0, Math.min(i - 1, ar.length - 1))]?.ni ?? [0, 1]
+      const n2 = ar[Math.min(i, ar.length - 1)]?.ni ?? n1
+      const bx = n1[0] + n2[0], by = n1[1] + n2[1]
+      const lb = Math.hypot(bx, by) || 1
+      const f = w / Math.max(0.2, (bx * n2[0] + by * n2[1]) / lb)
+      return [P[0] + (bx / lb) * f, P[1] + (by / lb) * f] as Point2
+    })
+  }
+
+  private exterieurDe(x0: number, x1: number, y0: number, y1: number, marge: number): Point2[] {
+    return [[x0 - marge, y0 - marge], [x1 + marge, y0 - marge], [x1 + marge, y1 + marge], [x0 - marge, y1 + marge]]
   }
 
   /** Contour orienté dans le sens trigonométrique (pour les trous des formes three). */
@@ -86,10 +120,10 @@ export class Contour {
     return this.sens > 0 ? this.points : [...this.points].reverse()
   }
 
-  /** Rectangle extérieur du terrain modélisé autour de la fouille. */
+  /** Rectangle extérieur du terrain modélisé autour de la fouille (contour ouvert : boîte des deux bandes). */
   exterieur(marge = this.marge): Point2[] {
-    return [[this.xmin - marge, this.ymin - marge], [this.xmax + marge, this.ymin - marge],
-      [this.xmax + marge, this.ymax + marge], [this.xmin - marge, this.ymax + marge]]
+    if (!this.ferme) return this.exterieurDe(this.xmin, this.xmax, this.ymin, this.ymax, 0)
+    return this.exterieurDe(this.xmin, this.xmax, this.ymin, this.ymax, marge)
   }
 
   /** Point du contour le plus proche : abscisse développée s, arête k, abscisse locale sl, distance d. */
@@ -118,8 +152,9 @@ export class Contour {
 
   dedans(x: number, y: number): boolean {
     let c = false
-    const C = this.points
-    for (let i = 0, j = this.n - 1; i < this.n; j = i++) {
+    const C = this.fouille
+    const n = C.length
+    for (let i = 0, j = n - 1; i < n; j = i++) {
       const [xi, yi] = C[i]
       const [xj, yj] = C[j]
       if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c
@@ -148,15 +183,16 @@ export class Contour {
 
   /** Empreinte de la géométrie en plan (clé de comparaison entre deux calculs). */
   cle(): string {
-    return this.points.map((p) => `${p[0].toFixed(3)},${p[1].toFixed(3)}`).join(';')
+    return this.points.map((p) => `${p[0].toFixed(3)},${p[1].toFixed(3)}`).join(';') + (this.ferme ? '' : `|ouvert|${this.fouille.length}|${this.xmin.toFixed(2)},${this.ymin.toFixed(2)}`)
   }
 }
 
 /** Atténuation de la déformée près des angles (purement visuelle : l'angle est supposé fixe).
- *  Rampe en sinus sur une longueur `la` depuis chaque extrémité de l'arête. */
-export function attenuationAngle(sl: number, L: number, la: number): number {
+ *  Rampe en sinus sur une longueur `la` depuis chaque extrémité de l'arête ; une extrémité libre (bout coupé d'un
+ *  contour ouvert, écran supposé se prolonger) n'est pas atténuée. */
+export function attenuationAngle(sl: number, L: number, la: number, debutLibre = false, finLibre = false): number {
   if (la <= 0) return 1
-  const d = Math.min(sl, L - sl)
+  const d = Math.min(debutLibre ? Infinity : sl, finLibre ? Infinity : L - sl)
   if (d >= la) return 1
   return Math.sin((Math.PI / 2) * Math.max(d, 0) / la)
 }
@@ -169,4 +205,12 @@ export function hacher(s: string): string {
     h = Math.imul(h, 16777619)
   }
   return (h >>> 0).toString(36)
+}
+
+/** Contour de la maquette renvoyée par le calcul : fermé ou ouvert selon `ferme` ; un contour ouvert garde une bande
+ *  de fouille assez large pour dessiner les butons sur leur longueur (pas de paroi d'en face). */
+export function contourMaquette(m: { contour: number[][]; ferme?: boolean; appuis?: Record<string, { type: string; longueur?: number | null }> } | null | undefined): Contour {
+  if (!m) return new Contour([[0, 0], [20, 0], [20, 12], [0, 12]])
+  const butons = Object.values(m.appuis ?? {}).filter((a) => a.type === 'buton').map((a) => a.longueur ?? 0)
+  return new Contour(m.contour, m.ferme !== false, Math.max(0, ...butons) + 1)
 }

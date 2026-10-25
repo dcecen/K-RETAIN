@@ -89,7 +89,7 @@ function specsSol(ctx: Contexte): Spec[] {
     out.push({
       id: `terrain.couche.${i}`, cle: cleT, creer: (cx) => {
         const fab = cx.fab
-        const g = geoBlocUnitaire(fab, geo.exterieur(), geo.trigo)
+        const g = geoBlocUnitaire(fab, geo.terre.points, geo.terre.trou)
         const mesh = fab.obj(new THREE.Mesh(g, lambert(fab, COULEURS_SOL[i % COULEURS_SOL.length], { transparent: true, opacity: 0.28, depthWrite: false })))
         mesh.add(fab.obj(new THREE.LineSegments(fab.geo(new THREE.EdgesGeometry(g, 30)),
           fab.mat(new THREE.LineBasicMaterial({ color: 0x8a7350, transparent: true, opacity: 0.5 })))))
@@ -102,7 +102,7 @@ function specsSol(ctx: Contexte): Spec[] {
     out.push({
       id: `fouille.couche.${i}`, cle: cleF, creer: (cx) => {
         const fab = cx.fab
-        const g = geoBlocUnitaire(fab, geo.points)
+        const g = geoBlocUnitaire(fab, geo.fouille)
         const mesh = fab.obj(new THREE.Mesh(g, lambert(fab, COULEURS_SOL[i % COULEURS_SOL.length], { transparent: true, opacity: 0.28, depthWrite: false })))
         mesh.add(fab.obj(new THREE.LineSegments(fab.geo(new THREE.EdgesGeometry(g, 30)),
           fab.mat(new THREE.LineBasicMaterial({ color: 0x8a7350, transparent: true, opacity: 0.5 })))))
@@ -116,7 +116,7 @@ function specsSol(ctx: Contexte): Spec[] {
   const fondDefaut = (ph: { terrain_aval: number; fonds?: Record<string, number | null> }) => ph.fonds?.defaut ?? ph.terrain_aval
   out.push({
     id: 'fouille.fond', cle: cleFond, creer: (cx) => {
-      const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.points), lambert(cx.fab, 0x8b5a2b)))
+      const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.fouille), lambert(cx.fab, 0x8b5a2b)))
       const el = base('fouille.fond', cleFond, 'fouille', 'fouille.fond', mesh, 'fond')
       el.appliquerPhase = (k) => { const f = fondDefaut(k.ph); el.visiblePhase = caler(mesh, f - 0.05, f) }
       el.etiquettes = (k, o) => {
@@ -157,7 +157,7 @@ function specsEau(ctx: Contexte): Spec[] {
   return [
     {
       id: 'eau.amont', cle, creer: (cx) => {
-        const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.exterieur(), geo.trigo), matEau(cx.fab, 0.35)))
+        const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.terre.points, geo.terre.trou), matEau(cx.fab, 0.35)))
         const el = base('eau.amont', cle, 'eau', 'eau.amont', mesh)
         el.appliquerPhase = (k) => {
           const z = k.ph.eau_amont
@@ -172,7 +172,7 @@ function specsEau(ctx: Contexte): Spec[] {
     },
     {
       id: 'eau.sous_fouille', cle, creer: (cx) => {
-        const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.points), matEau(cx.fab, 0.35)))
+        const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.fouille), matEau(cx.fab, 0.35)))
         const el = base('eau.sous_fouille', cle, 'eau', 'eau.amont', mesh)
         el.appliquerPhase = (k) => {
           const z = k.ph.eau_amont
@@ -183,7 +183,7 @@ function specsEau(ctx: Contexte): Spec[] {
     },
     {
       id: 'eau.aval', cle, creer: (cx) => {
-        const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.points), matEau(cx.fab, 0.3)))
+        const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.fouille), matEau(cx.fab, 0.3)))
         const el = base('eau.aval', cle, 'eau', 'eau.aval', mesh)
         el.appliquerPhase = (k) => {
           const z = k.ph.eau_aval
@@ -402,7 +402,7 @@ function specsAppuis(ctx: Contexte): Spec[] {
       out.push({
         id, cle, creer: (cx) => {
           const mat = lambert(cx.fab, 0xbdbdbd)
-          const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.points), mat))
+          const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.fouille), mat))
           caler(mesh, a.cote - ep / 2, a.cote + ep / 2)
           const el = base(id, cle, 'appuis.dalles', 'appuis.dalles', mesh, `appui:${nom}`)
           el.calques = ['resultats.efforts', 'resultats.taux']
@@ -490,7 +490,7 @@ function specsHydraulique(ctx: Contexte): Spec[] {
     const cle = hacher(`bouchon|${geo.cle()}`)
     out.push({
       id: 'fouille.bouchon', cle, creer: (cx) => {
-        const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.points), lambert(cx.fab, 0x7a9a7a, { transparent: true, opacity: 0.55 })))
+        const mesh = cx.fab.obj(new THREE.Mesh(geoBlocUnitaire(cx.fab, geo.fouille), lambert(cx.fab, 0x7a9a7a, { transparent: true, opacity: 0.55 })))
         const el = base('fouille.bouchon', cle, 'fouille', 'fouille.bouchon', mesh, 'bouchon')
         el.appliquerPhase = (k) => {
           const b = k.ph.hydro?.bouchon

@@ -120,12 +120,14 @@ def vis_a_vis(ars: list[dict], k: int, sl: float) -> tuple[float, int, float, fl
     return meilleur
 
 
-def placer_appuis(contour: list, appuis: dict) -> list[dict]:
+def placer_appuis(contour: list, appuis: dict, ferme: bool = True) -> list[dict]:
     """Positions en plan par défaut : butons en travers de la fouille depuis le plus long côté,
     tirants vers l'extérieur et bracons vers l'intérieur sur tous les côtés, à l'espacement de
     chaque appui. appuis : {nom: {"type", "espacement", "longueur", "longueur_libre",
-    "longueur_scellee", "angle"}}. Renvoie [{"appui", "de": [x, y], "a": [x, y]}]."""
-    ars = aretes(contour)
+    "longueur_scellee", "angle"}}. Renvoie [{"appui", "de": [x, y], "a": [x, y]}].
+    `ferme` = False (polyligne ouverte, coupe 2D infinie) : un buton sans paroi en face est dessiné
+    perpendiculaire à l'écran sur sa longueur (6 m si elle n'est pas donnée)."""
+    ars = aretes(contour, ferme)
     sorties = []
     for nom, a in appuis.items():
         esp = max(a.get("espacement", 1.0) or 1.0, 0.5)
@@ -147,9 +149,10 @@ def placer_appuis(contour: list, appuis: dict) -> list[dict]:
                 p = (A[0] + t[0] * s, A[1] + t[1] * s)
                 if a["type"] == "buton":
                     ds = [d for e in ars if e["k"] != ar["k"] for d in [intersection_rayon(p, n_int, e["A"], e["B"])] if d is not None]
-                    if not ds:
+                    if not ds and ferme:
                         continue
-                    q = (p[0] + n_int[0] * min(ds), p[1] + n_int[1] * min(ds))
+                    lg = min(ds) if ds else float(a.get("longueur") or 6.0)
+                    q = (p[0] + n_int[0] * lg, p[1] + n_int[1] * lg)
                 elif a["type"] == "tirant":
                     Lt = (a.get("longueur_libre") or 8.0) + (a.get("longueur_scellee") or 6.0)
                     Lh = Lt * math.cos(math.radians(a.get("angle") or 0.0))

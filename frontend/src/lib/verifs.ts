@@ -2,6 +2,15 @@
 // du calcul (sout.verifs). Le seul seuil côté interface, SEUIL_ATTENTION (fin de fichier), reprend celui du serveur
 // et ne sert qu'aux textes, aux points d'attention et aux couleurs de la maquette.
 import type { Resultats, Verif } from './api'
+import { pourcent } from './format'
+
+/** Résumé court d'un résultat pour les alertes : « taux 85 % », « taux 120 %, non vérifié », « non vérifié » quand
+ *  aucun taux n'existe (rupture du calcul, instabilité) ou « non vérifiable » (valeur de norme manquante) ; jamais
+ *  « non vérifiable » et « non vérifié » ensemble. */
+export function resumeEtat(taux: number | null, etat: Verif['etat']): string {
+  if (taux !== null) return `taux ${pourcent(taux)}${etat === 'non_ok' ? ', non vérifié' : ''}`
+  return etat === 'non_ok' ? 'non vérifié' : 'non vérifiable'
+}
 
 const GRAVITE: Record<Verif['etat'], number> = { non_ok: 3, attention: 2, ok: 1, non_verifiable: 0 }
 

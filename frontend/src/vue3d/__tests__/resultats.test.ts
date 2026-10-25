@@ -8,6 +8,7 @@ import { amplificationAuto, bornes, COULEUR_HORS_MODELE, extremes, FABRIQUES_RES
 import { champPseudo3D } from '../sourceResultats'
 import { indicePhase, jeu, nouvelleScene } from './outils'
 import { Color } from 'three'
+import { nb } from '../../lib/format'
 
 const TOUT = [...FABRIQUES_CHANTIER, ...FABRIQUES_RESULTATS_PAROI]
 
@@ -123,6 +124,16 @@ describe('résultats de la paroi en 3D', () => {
     const b = bornes(res, 'yabs', null)
     expect(b.min).toBe(0)
     expect(b.max).toBeCloseTo(Math.max(...res.pseudo3d!.phases.filter((p) => p.ok).flatMap((p) => p.y_mm!.flat().map(Math.abs))), 6)
+  })
+
+  it('étiquettes d\'extrêmes du champ pseudo-3D quand la plaque est affichée', () => {
+    const res = jeu('p3d')
+    const e = extremes(res)
+    const ymax = Math.max(...res.pseudo3d!.phases.filter((p) => p.ok).flatMap((p) => p.y_mm!.flat().map(Math.abs)))
+    const y = e.find((x) => x.id === 'y')!
+    expect(y.texte).toContain('(pseudo-3D)')
+    expect(y.texte).toContain(nb(ymax, 1))
+    expect(e.every((x) => x.texte.includes('(pseudo-3D)'))).toBe(true)
   })
 
   it('étiquettes d\'extrêmes : déplacement, moments, appuis avec cote et phase', () => {

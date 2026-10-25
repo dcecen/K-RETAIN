@@ -1,6 +1,6 @@
 import type * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
-import { compter, indicePhase, jeu, nouvelleScene } from './outils'
+import { compter, indicePhase, jeu, jeuRectangle, nouvelleScene } from './outils'
 
 describe('scène persistante', () => {
   it("construit l'arbre fixe avec des identifiants stables", () => {
@@ -58,9 +58,9 @@ describe('scène persistante', () => {
 
   it('ne reconstruit que les objets dont la géométrie a changé, et libère les anciens', () => {
     const { sc } = nouvelleScene()
-    sc.charger(jeu('exemple'))
+    sc.charger(jeuRectangle('exemple'))
     const avant = compter(sc)
-    const r = jeu('exemple')
+    const r = jeuRectangle('exemple')
     r.maquette!.paroi.pied = -16
     sc.charger(r)
     expect(sc.derniersReconstruits.every((id) => id.startsWith('paroi.cote.'))).toBe(true)

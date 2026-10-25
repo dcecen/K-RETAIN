@@ -198,7 +198,8 @@ function decalages(ctx: Contexte, a: Arete, g: Grille, phase: number, amp: numbe
     } else f = profilValeur(res, enveloppe ? phase : src.phase, 'y', g.s[i])
     if (!f) continue
     vide = false
-    const att = p3 ? 1 : attenuationAngle(g.sl[i], a.L, la)
+    const geo = ctx.d.geo
+    const att = p3 ? 1 : attenuationAngle(g.sl[i], a.L, la, !geo.ferme && a.k === 0, !geo.ferme && a.k === geo.aretes.length - 1)
     for (let j = 0; j < g.nz; j++) out[i * g.nz + j] = (f(g.z[j]) / 1000) * amp * att
   }
   return vide ? null : out
@@ -577,6 +578,10 @@ function specsEnveloppes(ctx: Contexte): Spec[] {
 
 // ------------------------------------------------------------------ étiquettes d'extrêmes
 export function extremes(res: Resultats): { id: string; texte: string; z: number; phase: string; appui?: string }[] {
+  // champ pseudo-3D affiché sur la paroi : les étiquettes en viennent aussi (la coupe 2D, avec ses appuis répartis
+  // au mètre, peut différer beaucoup de la plaque : E04, 8 mm en 2D contre 249 mm entre deux butons)
+  const p3 = res.pseudo3d
+  if (p3 && p3.phases.some((p) => p.ok && p.y_mm)) return extremesPseudo3D(p3)
   const d = res.dimensionnant
   const out: { id: string; texte: string; z: number; phase: string; appui?: string }[] = []
   if (d.deplacement) {
@@ -595,6 +600,35 @@ export function extremes(res: Resultats): { id: string; texte: string; z: number
     const def = res.appuis.find((x) => x.nom === nom)
     out.push({ id: `appui.${nom}`, texte: `${nom} max = ${nb(a.effort_kN_m, 0)} kN/m · ${nb(a.effort_axial_kN, 0)} kN`, z: def?.cote ?? 0, phase: a.phase, appui: nom })
   }
+  return out
+}
+
+/** Extrêmes du champ pseudo-3D, toutes phases : déplacement et moments vertical avec leur cote et leur abscisse le
+ *  long de la paroi, effort maximal de chaque appui ponctuel (kN par appui). */
+function extremesPseudo3D(p3: NonNullable<Resultats['pseudo3d']>): { id: string; texte: string; z: number; phase: string; appui?: string }[] {
+  const out: { id: string; texte: string; z: number; phase: string; appui?: string }[] = []
+  type Ext = { v: number; i: number; j: number; phase: string }
+  const chercher = (champ: 'y_mm' | 'M', cmp: (a: number, b: number) => boolean, f: (x: number) => number = (x) => x): Ext | null => {
+    let e: Ext | null = null
+    for (const ph of p3.phases) {
+      const A = ph.ok ? ph[champ] : undefined
+      if (!A) continue
+      A.forEach((ligne, i) => ligne.forEach((v, j) => { if (e === null || cmp(f(v), f(e.v))) e = { v, i, j, phase: ph.nom } }))
+    }
+    return e
+  }
+  const ou = (e: Ext) => `à ${nb(p3.z[e.j] ?? 0, 2)} m, s = ${nb(p3.s[e.i] ?? 0, 1)} m`
+  const y = chercher('y_mm', (a, b) => a > b, Math.abs)
+  if (y) out.push({ id: 'y', texte: `y max = ${nb(y.v, 1)} mm ${ou(y)} (pseudo-3D)`, z: p3.z[y.j] ?? 0, phase: y.phase })
+  const mx = chercher('M', (a, b) => a > b), mn = chercher('M', (a, b) => a < b)
+  if (mx && mx.v > 0) out.push({ id: 'moment_positif', texte: `M max = ${nb(mx.v, 0)} kN·m/m ${ou(mx)} (pseudo-3D)`, z: p3.z[mx.j] ?? 0, phase: mx.phase })
+  if (mn && mn.v < 0) out.push({ id: 'moment_negatif', texte: `M min = ${nb(mn.v, 0)} kN·m/m ${ou(mn)} (pseudo-3D)`, z: p3.z[mn.j] ?? 0, phase: mn.phase })
+  const appuis = new Map<string, { effort: number; phase: string }>()
+  for (const ph of p3.phases) for (const a of (ph.ok ? ph.appuis ?? [] : [])) {
+    const m = appuis.get(a.nom)
+    if (!m || a.effort > m.effort) appuis.set(a.nom, { effort: a.effort, phase: ph.nom })
+  }
+  for (const [nom, a] of appuis) out.push({ id: `appui.${nom}`, texte: `${nom} max = ${nb(a.effort, 0)} kN par appui (pseudo-3D)`, z: 0, phase: a.phase, appui: nom })
   return out
 }
 

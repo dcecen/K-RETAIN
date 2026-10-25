@@ -95,7 +95,7 @@ export function Geometrie({ ctx }: { ctx: Ctx }) {
         <div className="alerte orange" style={{ marginBottom: 12 }}>
           {g.anciens.length
             ? <>Ce script décrit sa géométrie sous la forme ancienne ({g.anciens.join(', ')}), toujours lue et convertie automatiquement. Pour la modifier ici, convertissez-la vers le bloc <span className="mono">geometrie</span>. </>
-            : <>Ce script n'a pas encore de géométrie en plan (calcul 2D sur une coupe). Créez le bloc <span className="mono">geometrie</span> pour positionner les ouvrages. </>}
+            : <>Ce script n'a pas de géométrie en plan : le calcul est une coupe 2D, dessinée dans la maquette 3D comme une coupe infinie (aucune fouille n'est inventée). Pour positionner les ouvrages en plan, créez le bloc <span className="mono">geometrie</span>. </>}
           <button className="btn" disabled={conversion} onClick={() => (g.anciens.length ? void convertir() : ctx.actions.fixer(['geometrie'], { ouvrages: { contour: [[0, 0], [20, 0], [20, 12], [0, 12]], cotes: { sud: 0, est: 1, nord: 2, ouest: 3 } } }))}>
             {g.anciens.length ? 'Convertir vers le bloc geometrie' : 'Créer un contour 20 × 12 m'}
           </button>

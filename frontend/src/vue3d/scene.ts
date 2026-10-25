@@ -11,7 +11,7 @@
 import * as THREE from 'three'
 import type { Maquette, PhaseRes, ProjetCoupes, Resultats } from '../lib/api'
 import { Fabrique } from './fabrique'
-import { Contour } from './geometrie'
+import { Contour, contourMaquette } from './geometrie'
 
 /** Nœuds fixes de l'arbre de la scène (identifiants stables). */
 export const NOEUDS = [
@@ -216,7 +216,8 @@ export class SceneRetainWall {
   charger(res: Resultats, extra: Partial<DonneesScene> = {}) {
     if (!res.maquette) throw new Error('résultats sans géométrie de maquette')
     const t0 = this.maintenant()
-    const geo = this.d && this.d.geo.cle() === new Contour(res.maquette.contour).cle() ? this.d.geo : new Contour(res.maquette.contour)
+    const nouveau = contourMaquette(res.maquette)
+    const geo = this.d && this.d.geo.cle() === nouveau.cle() ? this.d.geo : nouveau
     // noms des côtés : ceux du script courant s'ils sont donnés, sinon ceux renvoyés avec la maquette (bloc geometrie)
     const cotes = extra.cotes && Object.keys(extra.cotes).length ? extra.cotes : res.maquette.cotes
     this.d = { res, m: res.maquette, geo, ...extra, ...(cotes ? { cotes } : {}) }

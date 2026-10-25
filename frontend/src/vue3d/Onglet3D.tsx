@@ -18,7 +18,7 @@ import { FABRIQUES_COUPES, resolveur } from './coupes'
 import { FABRIQUES_COUPE_LOCALE, positionDepuisPoint, type PositionCoupeLocale } from './coupeLocale'
 import { PanneauCoupeLocale } from './PanneauCoupeLocale'
 import { entreeYamlCoupe, sourcePourProjet } from './sourceResultats'
-import { Contour } from './geometrie'
+import { contourMaquette } from './geometrie'
 import type { Modele } from '../lib/scriptDoc'
 import { analyserSelection, filAriane, type SelectionAnalysee } from './navigation'
 import { PanneauResultats } from './PanneauResultats'
@@ -104,7 +104,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   const [infobulle, setInfobulle] = useState<{ x: number; y: number; lignes: string[] } | null>(null)
   const premiers = useMemo(() => (projet && !projet.unique ? projet.coupes[0].resultats ?? res : res), [projet, res])
   const extra = useMemo(() => ({ cotes, ...(projet ? { projet, resultatsPour: resolveur(projet, premiers, coupeActive) } : {}) }), [projet, premiers, coupeActive, cotes])
-  const geo = useMemo(() => new Contour(res.maquette?.contour ?? [[0, 0], [20, 0], [20, 12], [0, 12]]), [res])
+  const geo = useMemo(() => contourMaquette(res.maquette), [res])
   const source = useMemo(() => sourcePourProjet(res, projet ?? null, premiers, coupeActive, geo), [res, projet, premiers, coupeActive, geo])
   useEffect(() => { poignee.current?.scene.definirCoupeLocale(outilCoupe ? positionLocale : null) }, [outilCoupe, positionLocale, res])
   const placerCoupe = (p: PositionCoupeLocale) => onEtat3d({ positionLocale: p, panneau: 'courbes' })
@@ -385,7 +385,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
             <Legendes liste={liste} />
             {infobulle && <div className="vue3d-infobulle" style={{ left: infobulle.x, top: infobulle.y }}>{infobulle.lignes.map((l, i) => <div key={i} className={i === 0 ? 'titre' : ''}>{l}</div>)}</div>}
             <div className="vue3d-note">
-              {res.maquette?.plan_defaut && <div>Plan par défaut (rectangle 20 × 12 m) : la géométrie réelle se déclare dans le bloc « plan » du script.</div>}
+              {res.maquette?.plan_defaut && <div>{res.maquette.note_plan ?? 'Plan par défaut (rectangle 20 × 12 m) : la coupe 2D est étendue sur tout le contour pour l’illustration. Le tracé réel se saisit dans l’étape Géométrie.'}</div>}
               <div>Glisser : rotation · clic droit ou Maj+glisser : translation · molette : zoom.</div>
             </div>
           </>} />

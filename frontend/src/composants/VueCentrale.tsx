@@ -68,7 +68,7 @@ export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d, o
     if (d.groupe === 'resultats' && (!res || !disponible)) return premiersPas
     switch (vue) {
       case 'synthese': return <Synthese res={res!} projet={p.projet} onVue={a.setVue} onSelection3d={(id) => { a.selectionner3d(id); a.setTiroirInsp(true) }} />
-      case 'diagrammes': return <CoupeDiagrammes res={res!} phase={a.phase} theme={a.theme} unite={uniteCote(p.modele)} />
+      case 'diagrammes': return <CoupeDiagrammes res={res!} phase={a.phase} theme={a.theme} unite={uniteCote(p.modele)} onPhase={a.setPhase} />
       case 'efforts': return <Efforts res={res!} phase={a.phase} onPhase={a.setPhase} onAppui={(n) => { a.selectionner({ type: 'appui', nom: n }); a.setTiroirInsp(true) }} />
       case 'verifications': return <Verifications res={res!} projet={p.projet} filtre={a.origine3d ? a.selection3d : null} onRetour={() => a.setVue('3d')} onglet={a.ongletVerifs} onOnglet={a.setOngletVerifs} />
       case 'hypotheses': return <Hypotheses res={res!} modele={modele} phase={a.phase} version={p.serveur} />

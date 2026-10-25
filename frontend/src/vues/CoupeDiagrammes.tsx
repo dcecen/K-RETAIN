@@ -258,9 +258,11 @@ function valeursA(ph: PhaseRes, z: number) {
   }
 }
 
-export function CoupeDiagrammes({ res, phase, theme, unite = 'm NGF', curseurZ, onSurvolZ }: {
+export function CoupeDiagrammes({ res, phase, theme, unite = 'm NGF', curseurZ, onSurvolZ, onPhase }: {
   res: Resultats
   phase: number
+  /** Changement de phase active (bouton « afficher la dernière phase calculée » d'une phase en rupture). */
+  onPhase?: (i: number) => void
   theme: Theme
   /** Unité des cotes (en-têtes et axe) : « m NGF » ou le système du projet. */
   unite?: string
@@ -349,10 +351,28 @@ export function CoupeDiagrammes({ res, phase, theme, unite = 'm NGF', curseurZ, 
         <span className="legende-signes">Maj+molette : zoom vertical ; double-clic : rétablir. Conventions et légende au bas de la figure.</span>
       </div>
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-        {!ph.ok && <div className="alerte rouge" style={{ position: 'absolute', top: 8, left: 60, zIndex: 6 }}>{ph.message}</div>}
+        {!ph.ok && <PanneauRupture res={res} phase={phase} onPhase={onPhase} />}
         <div ref={hote} className="figure-hote" />
         <div ref={infos} className="panneau-survol" />
       </div>
+    </div>
+  )
+}
+
+/** Phase sans équilibre (rupture, phase de départ non calculée) : pas de diagramme. Le panneau occupe la zone des
+ *  courbes, sans masquer la coupe, explique pourquoi elle est vide et propose la dernière phase calculée. */
+function PanneauRupture({ res, phase, onPhase }: { res: Resultats; phase: number; onPhase?: (i: number) => void }) {
+  const ph = res.phases[phase]
+  let k = phase - 1
+  while (k >= 0 && !res.phases[k]?.ok) k--
+  const nom = k <= 0 ? 'l’état initial' : `la phase ${k}, « ${res.phases[k].nom} »`
+  return (
+    <div className="panneau-rupture" role="status">
+      <div className="panneau-rupture-titre">Phase {phase} sans équilibre : pas de diagramme</div>
+      <div>{ph.message}</div>
+      <div className="doux">Aucun état d’équilibre de l’écran n’existe pour cette phase : déplacements, moments et pressions ne sont pas définis,
+        et les phases qui en dépendent ne sont pas calculées. La coupe montre la géométrie de la phase.</div>
+      {k >= 0 && onPhase && <div><button className="btn" onClick={() => onPhase(k)}>Afficher {nom}, dernière phase calculée</button></div>}
     </div>
   )
 }

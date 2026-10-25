@@ -777,7 +777,26 @@ a75795b (2), 53abe82 (3), 31b47bc (4), 777f16d (4h), puis le commit du lot 5.
 - Traction circonférentielle (−0,5 kN/m en tête de P04) : vérification à part « Anneau — traction circonférentielle »,
   qui ne masque plus le taux de compression.
 
+### Correctifs après les captures de l'utilisateur (E01, E04, maquette d'une étude 2D)
+- Maquette d'une étude 2D sans tracé en plan : plus de rectangle 20 × 12 m inventé. Elle montre une **coupe infinie** :
+  tronçon droit d'écran ouvert aux deux bouts, long de deux hauteurs d'écran et au moins 16 m, terre d'un côté,
+  fouille de l'autre, couches coupées net aux bouts, butons dessinés sur leur longueur. Paroi droite pseudo-3D (E04) :
+  polyligne ouverte de la longueur modélisée ; avec un angle (P06) : deux côtés ouverts de part et d'autre de l'angle.
+  La vue 3D et la maquette HTML exportée gèrent les contours ouverts (arêtes sans fermeture, bandes de terre et de
+  fouille, déformée non atténuée aux bouts libres) ; légende et bandeau expliquent ce qui est dessiné. Jeu figé
+  `fouille_exemple` : seule la géométrie de maquette mise à jour (contour, fermeture, appuis en plan, note), les
+  valeurs de calcul gelées sont inchangées ; trois tests vitest écrits pour un contour à quatre côtés reçoivent ce
+  rectangle explicitement (`jeuRectangle`, donnée d'entrée et non valeur attendue).
+- Étiquettes d'extrêmes de la maquette tirées du champ pseudo-3D quand la plaque est affichée (E04 : 249 mm entre
+  deux butons, la coupe 2D à appuis répartis donnait 8 mm).
+- Phase sans équilibre (E01, E02) : panneau explicatif dans la zone des diagrammes, qui ne masque plus le titre de la
+  coupe, avec un bouton vers la dernière phase calculée ; « non vérifiable, non vérifié » remplacé par un seul état ;
+  message de rupture à la française (« le déplacement dépasse 5,0 m »).
+
 ### Testé
+`lancer_tests.ps1` après ces derniers correctifs : pytest 407 réussis, 6 ignorés ; ruff 0 ; tsc 0 ; eslint 0 ;
+vitest 118 ; fumée Chrome sans erreur ; captures contrôlées : coupe infinie (vue 3D et maquette HTML), E04, P06,
+phases en rupture de E01 et E02 sur toutes les vues de résultats, sans erreur console.
 `lancer_tests.ps1` après les correctifs : pytest 406 réussis, 6 ignorés ; ruff 0 ; tsc 0 ; eslint 0 ; vitest 111 ;
 fumée Chrome sans erreur. Avant les correctifs :
 `lancer_tests.ps1` sur l'état final : pytest 404 réussis, 6 ignorés (cas RIDO / K-Réa absents) ; ruff 0 ; tsc 0 ;
@@ -800,8 +819,8 @@ vue Géométrie d'une paroi circulaire. Non-régression figée du lot 0 et jeux 
   d'ovalisation) ; vérifications de l'anneau sur le 2D ; écoulement autour d'un puits non modélisé en
   axisymétrique (réseau plan) ; palplanches circulaires refusées (TODO-SOURCE).
 - Vue Géométrie : pas de glisser-déposer des sommets.
-- Maquette 3D d'une paroi ouverte (`ferme: false`) : contrôlée à l'écran, la polyligne est encore dessinée fermée
-  (paroi et fond de fouille sur l'arête de fermeture) ; le calcul, lui, en tient compte. Reporté, comme prévu au plan.
+- Maquette 3D d'une paroi ouverte (`ferme: false`) : corrigé avec la coupe infinie (même mécanisme de contour ouvert),
+  contrôlé à l'écran sur une paroi en L ouverte.
 
 ### Questions ouvertes
 1. Déposer dans `docs/rido` le manuel RIDO et 3 à 5 fichiers avec leurs sorties.

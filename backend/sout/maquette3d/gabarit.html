@@ -92,6 +92,25 @@ const marge = Math.max(8, 0.5 * taille);
 const aire = C.reduce((s, [x0, y0], i) => { const [x1, y1] = C[(i + 1) % n]; return s + x0 * y1 - x1 * y0; }, 0) / 2;
 const sens = aire > 0 ? 1 : -1;
 const H = D.paroi.tete - D.paroi.pied;
+// Contour ouvert (coupe 2D infinie, paroi droite) : pas d'arête de fermeture ; terre et fouille sont deux bandes de
+// part et d'autre de l'écran, coupées net aux bouts (même règle que la vue 3D de l'interface).
+const ouvert = D.ferme === false && n >= 2;
+const nA = ouvert ? n - 1 : n;
+function decale(w) {
+  const ni = [];
+  for (let k = 0; k < nA; k++) { const A = C[k], B = C[k + 1], L = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1; ni.push([-(B[1] - A[1]) / L * sens, (B[0] - A[0]) / L * sens]); }
+  return C.map((P, i) => {
+    const n1 = ni[Math.max(0, Math.min(i - 1, nA - 1))], n2 = ni[Math.min(i, nA - 1)];
+    const bx = n1[0] + n2[0], by = n1[1] + n2[1], lb = Math.hypot(bx, by) || 1;
+    const f = w / Math.max(0.2, (bx * n2[0] + by * n2[1]) / lb);
+    return [P[0] + bx / lb * f, P[1] + by / lb * f];
+  });
+}
+const butonsMax = Math.max(0, ...Object.values(D.appuis || {}).filter((a) => a.type === "buton").map((a) => (a.longueur || 0) + 1));
+const CF = ouvert ? [...C, ...decale(Math.max(marge, butonsMax)).reverse()] : C;     // zone de la fouille
+const CT = ouvert ? [...C, ...decale(-marge).reverse()] : null;                       // zone de terre (contour ouvert)
+if (ouvert) for (const [x, y] of [...CF, ...CT]) { xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); ymin = Math.min(ymin, y); ymax = Math.max(ymax, y); }
+const margeExt = ouvert ? 0 : marge;
 
 // ----------------------------------------------------------------------------- caméra (orbite)
 const cible = P((xmin + xmax) / 2, (ymin + ymax) / 2, D.paroi.tete - 0.4 * H);
@@ -193,11 +212,11 @@ function colorer(geom, ph, mode, sDe) {
 
 // abscisse développée le long du contour d'un point three
 const longueurs = [0];
-for (let k = 0; k < n; k++) { const [x0, y0] = C[k], [x1, y1] = C[(k + 1) % n]; longueurs.push(longueurs[k] + Math.hypot(x1 - x0, y1 - y0)); }
+for (let k = 0; k < nA; k++) { const [x0, y0] = C[k], [x1, y1] = C[(k + 1) % n]; longueurs.push(longueurs[k] + Math.hypot(x1 - x0, y1 - y0)); }
 function abscisse(v) {
   const x = v.x, y = -v.z;
   let best = Infinity, sBest = 0;
-  for (let k = 0; k < n; k++) {
+  for (let k = 0; k < nA; k++) {
     const [x0, y0] = C[k], [x1, y1] = C[(k + 1) % n];
     const L = Math.hypot(x1 - x0, y1 - y0) || 1, tx = (x1 - x0) / L, ty = (y1 - y0) / L;
     const s = Math.min(Math.max((x - x0) * tx + (y - y0) * ty, 0), L);
@@ -212,7 +231,7 @@ function paroi(ph, mode, groupe) {
   const p = D.paroi;
   const matBase = mode ? new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })
                        : matiere(p.type === "paroi_moulee" || p.type.startsWith("pieux") ? 0xa0a0a0 : 0x6d7b8a);
-  for (let k = 0; k < n; k++) {
+  for (let k = 0; k < nA; k++) {
     const A = C[k], B = C[(k + 1) % n];
     const L = Math.hypot(B[0] - A[0], B[1] - A[1]); if (L < 1e-6) continue;
     const t = [(B[0] - A[0]) / L, (B[1] - A[1]) / L];
@@ -279,28 +298,29 @@ function paroi(ph, mode, groupe) {
 
 // ----------------------------------------------------------------------------- sol, eau, fond
 function sol(ph, groupe) {
-  const ext = [[xmin - marge, ymin - marge], [xmax + marge, ymin - marge], [xmax + marge, ymax + marge], [xmin - marge, ymax + marge]];
+  const ext = [[xmin - margeExt, ymin - margeExt], [xmax + margeExt, ymin - margeExt], [xmax + margeExt, ymax + margeExt], [xmin - margeExt, ymax + margeExt]];
   const contourOrd = sens > 0 ? C : [...C].reverse();
   D.couches.forEach((c, i) => {
     const bas = i + 1 < D.couches.length ? D.couches[i + 1].toit : D.z_bas;
     const haut = Math.min(c.toit, ph.terrain);
     const mat = matiere(COULEURS_SOL[i % COULEURS_SOL.length], { transparent: true, opacity: 0.28, depthWrite: false });
-    const a = bloc(ext, contourOrd, Math.max(bas, ph.fond), haut, mat);       // autour de la fouille
+    const a = ouvert ? bloc(CT, null, Math.max(bas, ph.fond), haut, mat)      // côté terre d'une coupe ouverte
+                     : bloc(ext, contourOrd, Math.max(bas, ph.fond), haut, mat);   // autour de la fouille
     const b = bloc(ext, null, bas, Math.min(haut, ph.fond), mat);             // sous le fond
     for (const m of [a, b]) if (m) { groupe.add(m); groupe.add(new T.LineSegments(new T.EdgesGeometry(m.geometry, 30), new T.LineBasicMaterial({ color: 0x8a7350, transparent: true, opacity: 0.5 }))); }
   });
-  const fond = bloc(C, null, ph.fond - 0.05, ph.fond, matiere(0x8b5a2b));
+  const fond = bloc(CF, null, ph.fond - 0.05, ph.fond, matiere(0x8b5a2b));
   if (fond) groupe.add(fond);
 }
 function eau(ph, groupe) {
   const matEau = matiere(0x3b8fd9, { transparent: true, opacity: 0.35, depthWrite: false });
-  const ext = [[xmin - marge, ymin - marge], [xmax + marge, ymin - marge], [xmax + marge, ymax + marge], [xmin - marge, ymax + marge]];
+  const ext = [[xmin - margeExt, ymin - margeExt], [xmax + margeExt, ymin - margeExt], [xmax + margeExt, ymax + margeExt], [xmin - margeExt, ymax + margeExt]];
   if (ph.eau_amont !== null) {
     const trou = ph.eau_amont > ph.fond ? (sens > 0 ? C : [...C].reverse()) : null;
-    const m = bloc(ext, trou, ph.eau_amont - 0.02, ph.eau_amont, matEau); if (m) groupe.add(m);
+    const m = ouvert ? bloc(CT, null, ph.eau_amont - 0.02, ph.eau_amont, matEau) : bloc(ext, trou, ph.eau_amont - 0.02, ph.eau_amont, matEau); if (m) groupe.add(m);
   }
   if (ph.eau_aval !== null && ph.eau_aval > ph.fond) {
-    const m = bloc(C, null, ph.fond, ph.eau_aval, matiere(0x3b8fd9, { transparent: true, opacity: 0.3, depthWrite: false }));
+    const m = bloc(CF, null, ph.fond, ph.eau_aval, matiere(0x3b8fd9, { transparent: true, opacity: 0.3, depthWrite: false }));
     if (m) groupe.add(m);
   }
 }
@@ -308,15 +328,15 @@ function eau(ph, groupe) {
 // ----------------------------------------------------------------------------- géométrie en plan
 function dedans(x, y) {
   let c = false;
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const [xi, yi] = C[i], [xj, yj] = C[j];
+  for (let i = 0, j = CF.length - 1; i < CF.length; j = i++) {
+    const [xi, yi] = CF[i], [xj, yj] = CF[j];
     if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
   }
   return c;
 }
 function distanceContour(x, y) {
   let best = Infinity;
-  for (let k = 0; k < n; k++) {
+  for (let k = 0; k < nA; k++) {
     const [x0, y0] = C[k], [x1, y1] = C[(k + 1) % n];
     const L = Math.hypot(x1 - x0, y1 - y0) || 1, tx = (x1 - x0) / L, ty = (y1 - y0) / L;
     const s = Math.min(Math.max((x - x0) * tx + (y - y0) * ty, 0), L);
@@ -327,7 +347,7 @@ function distanceContour(x, y) {
 /** Points d'intersection d'une droite du plan (x = x0 ou y = y0) avec le contour, avec la normale intérieure de l'arête. */
 function intersectionsContour(axe, v) {
   const out = [];
-  for (let k = 0; k < n; k++) {
+  for (let k = 0; k < nA; k++) {
     const A = C[k], B = C[(k + 1) % n];
     const a = axe === "x" ? A[0] : A[1], b = axe === "x" ? B[0] : B[1];
     if ((a - v) * (b - v) > 0 || a === b) continue;
@@ -351,7 +371,7 @@ function hydraulique(ph, groupe) {
   // bouchon
   if (hy.bouchon) {
     const b = hy.bouchon, haut = Math.min(b.toit, ph.fond);
-    const m = bloc(C, null, b.base, haut, matiere(0x7a9a7a, { transparent: true, opacity: 0.55 }));
+    const m = bloc(CF, null, b.base, haut, matiere(0x7a9a7a, { transparent: true, opacity: 0.55 }));
     if (m) { groupe.add(m); etiquettes.push({ pos: P((xmin + xmax) / 2, (ymin + ymax) / 2, haut), texte: `bouchon ${b.type} (${(haut - b.base).toFixed(1)} m)` }); }
   }
   // surface piézométrique à la cote du fond (charge sous la fouille et dans le massif)
@@ -401,7 +421,7 @@ function hydraulique(ph, groupe) {
   if (document.getElementById("voirGrad").checked && hy.gradient_sortie && hy.gradient_sortie_max > 0) {
     const xs = hy.gradient_sortie_x, gs = hy.gradient_sortie;
     const pasA = Math.max(1, Math.round(xs.length / 8));
-    for (let k = 0; k < n; k++) {
+    for (let k = 0; k < nA; k++) {
       const A = C[k], B = C[(k + 1) % n], L = Math.hypot(B[0] - A[0], B[1] - A[1]); if (L < 1e-6) continue;
       const t = [(B[0] - A[0]) / L, (B[1] - A[1]) / L], ni = [-t[1] * sens, t[0] * sens];
       const nb = Math.max(1, Math.round(L / Math.max(2, taille / 10)));
@@ -475,7 +495,7 @@ function appuis(ph, groupe) {
     }
     if (a.lierne && !liernesFaites.has(pa.appui)) {
       liernesFaites.add(pa.appui);
-      for (let k = 0; k < n; k++) {
+      for (let k = 0; k < nA; k++) {
         const A = C[k], B = C[(k + 1) % n], L = Math.hypot(B[0] - A[0], B[1] - A[1]);
         if (L < 1e-6) continue;
         const t = [(B[0] - A[0]) / L, (B[1] - A[1]) / L], ni = [-t[1] * sens, t[0] * sens];
@@ -500,7 +520,7 @@ const voirSol = document.getElementById("voirSol"), voirEau = document.getElemen
 curseur.max = String(D.phases.length - 1);
 curseur.value = String(D.phases.length - 1);
 document.getElementById("titre").textContent = D.projet;
-document.getElementById("avert").textContent = (D.plan_defaut ? "Plan par défaut (rectangle 20 × 12 m) : ajoutez un bloc « plan » au script. " : "")
+document.getElementById("avert").textContent = (D.plan_defaut ? (D.note_plan || "Sans tracé en plan : coupe 2D infinie. Le tracé réel se saisit dans l'étape Géométrie.") + " " : "")
   + (D.p3d ? "Couleurs : champ pseudo-3D." : "Couleurs : profil du calcul 2D, identique sur tout le linéaire.");
 D.phases.forEach((p, i) => (p.index = i));
 let groupe = null;

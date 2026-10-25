@@ -32,10 +32,10 @@ export type Legende = LegendeContinue | LegendeDiscrete
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`
 
 /** Longueur développée d'un contour fermé (m). */
-function perimetreContour(contour: number[][] | undefined): number {
+function perimetreContour(contour: number[][] | undefined, ferme = true): number {
   if (!contour || contour.length < 2) return 0
   let L = 0
-  for (let i = 0; i < contour.length; i++) {
+  for (let i = 0; i < (ferme ? contour.length : contour.length - 1); i++) {
     const a = contour[i]
     const b = contour[(i + 1) % contour.length]
     L += Math.hypot(b[0] - a[0], b[1] - a[1])
@@ -47,10 +47,14 @@ function perimetreContour(contour: number[][] | undefined): number {
  *  modélisée, laissée en gris), ou profil 2D de la coupe de chaque tronçon, extrudé le long du tronçon. */
 export function noteDeformee(res: Resultats): string {
   const p3 = res.pseudo3d
-  if (!p3) return 'profil 2D de la coupe de chaque tronçon, extrudé le long du tronçon et atténué aux angles (visuel)'
+  const ferme = res.maquette?.ferme !== false
+  if (!p3) {
+    if (!ferme && (res.maquette?.contour.length ?? 0) <= 2) return 'profil 2D de la coupe, extrudé le long du tronçon (écran supposé infini, déformation plane)'
+    return `profil 2D de la coupe de chaque tronçon, extrudé le long du tronçon et atténué aux angles${ferme ? '' : ' intérieurs'} (visuel)`
+  }
   if (!p3.fermee && p3.s.length) {
     const L = p3.s[p3.s.length - 1]
-    if (perimetreContour(res.maquette?.contour) > L + 1e-6) return `champ pseudo-3D (paroi droite de ${nb(L, 0)} m) ; au-delà : hors longueur modélisée, en gris`
+    if (perimetreContour(res.maquette?.contour, ferme) > L + 1e-6) return `champ pseudo-3D (paroi droite de ${nb(L, 0)} m) ; au-delà : hors longueur modélisée, en gris`
   }
   return 'champ pseudo-3D'
 }

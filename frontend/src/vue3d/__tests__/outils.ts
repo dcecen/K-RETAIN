@@ -18,6 +18,17 @@ export function jeu(nom: NomJeu): Resultats {
   return structuredClone((JEUX[nom] as { resultats: Resultats }).resultats)
 }
 
+/** Jeu figé dessiné sur un contour rectangulaire fermé 20 × 12 m explicite. Depuis le 25/10/2026, un script sans
+ *  tracé en plan (fouille_exemple) est dessiné en coupe infinie ouverte ; les tests écrits pour un contour fermé à
+ *  quatre côtés lui donnent ce rectangle comme le ferait un bloc geometrie (donnée d'entrée, pas valeur attendue). */
+export function jeuRectangle(nom: NomJeu): Resultats {
+  const r = jeu(nom)
+  r.maquette!.contour = [[0, 0], [20, 0], [20, 12], [0, 12]]
+  r.maquette!.ferme = true
+  r.maquette!.plan_defaut = false
+  return r
+}
+
 /** Réponse complète du calcul (résultats de la première coupe + projet à coupes). */
 export function jeuProjet(nom: NomJeu): { resultats: Resultats; projet: ProjetCoupes } {
   return structuredClone(JEUX[nom] as { resultats: Resultats; projet: ProjetCoupes })

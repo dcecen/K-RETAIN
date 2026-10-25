@@ -237,6 +237,8 @@ export interface Maquette {
     profil: string | null; b: number; h: number; tf: number; tw: number; blindage: number | null }
   contour: number[][]
   plan_defaut: boolean
+  /** Explication du contour dessiné quand le script n'a pas de tracé en plan (rectangle d'illustration, paroi droite). */
+  note_plan?: string | null
   couches: { nom: string; toit: number }[]
   z_bas: number
   appuis: Record<string, AppuiMaquette>

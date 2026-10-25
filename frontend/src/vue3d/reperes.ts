@@ -2,6 +2,7 @@
 // marqueurs d'alerte sur les éléments dont une vérification dépasse 90 %.
 import * as THREE from 'three'
 import { nb } from '../lib/format'
+import { resumeEtat } from '../lib/verifs'
 import { demiEpaisseur, extremitesAppui, lambert } from './elements'
 import { hacher, versThree } from './geometrie'
 import { pointsAttention } from './navigation'
@@ -76,7 +77,7 @@ function specAlertes(ctx: Contexte): Spec[] {
           }
           if (!pos) continue
           const qui = type === 'paroi' ? 'paroi' : type === 'lierne' ? `lierne ${nom}` : type === 'fond' ? 'fond de fouille' : type === 'bouchon' ? 'bouchon' : nom
-          o.push({ id: `alerte.${pt.selection}`, pos, texte: `${qui} : ${pt.taux !== null ? `taux ${nb(pt.taux * 100, 0)} %` : 'non vérifiable'}${pt.etat === 'non_ok' ? ', non vérifié' : ''}`,
+          o.push({ id: `alerte.${pt.selection}`, pos, texte: `${qui} : ${resumeEtat(pt.taux, pt.etat)}`,
             calque: 'resultats.alertes', classe: pt.etat === 'non_ok' || (pt.taux ?? 0) >= 1 ? 'alerte rouge' : 'alerte orange', selection: pt.selection })
         }
       }

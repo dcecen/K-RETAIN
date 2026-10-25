@@ -1,5 +1,5 @@
 import type { Resultats } from '../lib/api'
-import { couleurEtat, etatHydraulique, TEXTE_SEUIL_ATTENTION } from '../lib/verifs'
+import { couleurEtat, etatHydraulique, resumeEtat, TEXTE_SEUIL_ATTENTION } from '../lib/verifs'
 import type { Selection } from '../lib/etat'
 import { cote, nb, pourcent, uniteCote } from '../lib/format'
 import { IconeAlerte, IconeFermer, IconeInfo } from '../lib/icones'
@@ -103,7 +103,7 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
         {res.avertissements.map((a, i) => <div key={i} className="alerte orange"><IconeAlerte />{a}</div>)}
         {alertes.map((v, i) => (
           <div key={`v${i}`} className={`alerte ${v.etat === 'non_ok' ? 'rouge' : 'orange'}`}><IconeAlerte />
-            <span>{v.nom}, {v.element} : {v.taux !== null ? `taux ${pourcent(v.taux)}` : 'non vérifiable'}{v.etat === 'non_ok' ? ', non vérifié' : ''}</span></div>
+            <span>{v.nom}, {v.element} : {resumeEtat(v.taux, v.etat)}</span></div>
         ))}
         {res.avertissements.length === 0 && alertes.length === 0 && (
           <div className="alerte info"><IconeInfo />Aucun avertissement ; toutes les vérifications ont un taux inférieur à {TEXTE_SEUIL_ATTENTION}.

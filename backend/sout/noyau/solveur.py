@@ -217,8 +217,9 @@ def resoudre_general(
         n_new = np.abs(R_new).max()
         u, R, kt, nR = u_new, R_new, kt_new, n_new
         if np.abs(u[ddl_y]).max() > y_rupture:
-            raise RuptureEquilibre(
-                f"déplacement supérieur à {y_rupture} m : butée ou appuis insuffisants (rupture)"
+            raise RuptureEquilibre(   # texte affiché tel quel dans l'interface : décimale à la française
+                f"le déplacement dépasse {float(y_rupture):.1f} m, butée ou appuis insuffisants pour équilibrer l'écran"
+                .replace(".", ",", 1)
             )
         st_new = statuts(u)
         # Statuts stabilisés et pas complet négligeable : le système linéaire

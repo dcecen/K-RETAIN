@@ -18,6 +18,34 @@ ICI = Path(__file__).resolve().parent
 RECTANGLE_DEFAUT = [[0.0, 0.0], [20.0, 0.0], [20.0, 12.0], [0.0, 12.0]]
 
 
+def coupe_infinie(hauteur: float) -> tuple[list[list[float]], str]:
+    """Contour d'affichage d'une étude 2D sans tracé en plan : un tronçon droit d'écran, ouvert aux deux bouts
+    (l'écran est supposé infini, déformation plane), long de deux hauteurs d'écran et au moins 16 m. Aucune géométrie
+    de fouille n'est inventée : terre d'un côté, fouille de l'autre, coupées net aux deux bouts."""
+    L = float(max(16.0, round(2.0 * hauteur)))
+    return ([[0.0, 0.0], [L, 0.0]],
+            f"Coupe 2D : écran supposé de longueur infinie (déformation plane), tronçon de {L:g} m dessiné, coupé aux deux "
+            "bouts ; aucune géométrie en plan n'est inventée. Le tracé réel se saisit dans l'étape Géométrie.")
+
+
+def contour_paroi_droite(longueur: float, angle: float | None) -> tuple[list[list[float]], str]:
+    """Contour d'affichage d'une paroi droite pseudo-3D sans tracé en plan, et la note qui l'explique : polyligne
+    ouverte de la longueur modélisée, droite, ou en deux côtés égaux de part et d'autre de l'angle de fouille placé
+    à mi-longueur (pseudo3d.angle). Le calcul n'utilise pas ce contour : seule la présence de l'angle compte."""
+    L = float(longueur)
+    if angle is None or abs(angle - 180.0) < 1e-6:
+        return ([[0.0, 0.0], [L, 0.0]],
+                f"Paroi droite pseudo-3D de {L:g} m sans tracé en plan : dessinée droite, ouverte aux deux bouts. Le tracé "
+                "réel se saisit dans l'étape Géométrie.")
+    a = angle if 0.0 < angle < 180.0 else 90.0      # angle rentrant : dessiné à 90°, sans effet sur le calcul
+    h, t = L / 2, np.radians(a)
+    A, B, C = [0.0, h], [0.0, 0.0], [float(h * np.sin(t)), float(h * np.cos(t))]
+    note = (f"Paroi pseudo-3D de {L:g} m avec un angle de fouille à mi-longueur : deux côtés de {h:g} m de part et "
+            f"d'autre de l'angle{' (angle rentrant dessiné à 90°)' if a != angle else ''}, ouverts aux bouts. Le tracé réel "
+            "se saisit dans l'étape Géométrie.")
+    return [[round(x, 6) for x in p] for p in (A, B, C)], note
+
+
 from ..plan.geometrie import placer_appuis  # noqa: E402  (géométrie partagée)
 
 
@@ -57,15 +85,23 @@ def geometrie(ex) -> dict:
                        "pied_bracon": a.pied_bracon, "espacement": a.espacement, "D": D}
     defaut = s.plan is None
     contour = s.plan.contour if s.plan else RECTANGLE_DEFAUT
+    note_plan, ouvert = None, False
+    if defaut:
+        # sans tracé en plan, rien n'est inventé : coupe 2D infinie, ou paroi droite pseudo-3D sur sa longueur
+        ouvert = True
+        if s.calcul.mode == "pseudo3d" and s.pseudo3d is not None and s.pseudo3d.longueur:
+            contour, note_plan = contour_paroi_droite(s.pseudo3d.longueur, s.pseudo3d.angle)
+        else:
+            contour, note_plan = coupe_infinie(s.paroi.tete - s.paroi.pied)
     if getattr(s.paroi, "forme", "plane") == "circulaire" and s.paroi.rayon:
         # paroi circulaire : polygone d'affichage (celui du calcul en pseudo-3D, 48 côtés en 2D axisymétrique)
         from ..parois.anneau import contour_polygone, nombre_cotes_polygone
         n = (nombre_cotes_polygone(s.paroi.rayon, s.pseudo3d.pas_horizontal)
              if s.calcul.mode == "pseudo3d" and s.pseudo3d is not None else 48)
-        contour, defaut = contour_polygone(s.paroi.rayon, n), False
+        contour, defaut, note_plan, ouvert = contour_polygone(s.paroi.rayon, n), False, None, False
         paroi.update(forme="circulaire", rayon=s.paroi.rayon)
     plan_appuis = ([ap.model_dump() for ap in s.plan.appuis] if s.plan and s.plan.appuis
-                   else placer_appuis(contour, appuis))
+                   else placer_appuis(contour, appuis, ferme=not ouvert))
     couches = sorted(({"nom": c.nom, "toit": c.toit} for c in m.couches), key=lambda c: -c["toit"])
     # gradient critique de la couche du fond, par phase (flèches de gradient de la maquette)
     from ..sol.couches import indice_couche
@@ -85,7 +121,7 @@ def geometrie(ex) -> dict:
             zones.append({"nom": z.nom, "cotes": list(z.etendue.cotes) if z.etendue.cotes else None, "de": z.etendue.de, "a": z.etendue.a,
                           "polygone": [[round(float(x), 4), round(float(y), 4)] for x, y in polygone_zone(geo, z)]})
     return {
-        "projet": s.projet, "paroi": paroi, "contour": contour, "plan_defaut": defaut,
+        "projet": s.projet, "paroi": paroi, "contour": contour, "plan_defaut": defaut, "note_plan": note_plan,
         "couches": couches, "z_bas": s.paroi.pied - max(3.0, 0.25 * (s.paroi.tete - s.paroi.pied)),
         "appuis": appuis, "plan_appuis": plan_appuis, "i_critique": i_crit,
         "assemblages": {nom: {"type": a.type, "appui": a.appui} for nom, a in s.assemblages.items()},
@@ -95,7 +131,7 @@ def geometrie(ex) -> dict:
         # géométrie normalisée (bloc geometrie ou forme ancienne convertie) : côtés nommés, fermeture, zones de fond,
         # longueur de plaque modélisée (paroi droite pseudo-3D : au-delà, pas de résultat)
         "cotes": dict(geo.cotes) if geo is not None else (s.plan.cotes if s.plan else {}),
-        "ferme": geo.ferme if geo is not None else True,
+        "ferme": False if ouvert else (geo.ferme if geo is not None else True),
         "zones": zones,
         "longueur_modele": s.pseudo3d.longueur if s.pseudo3d is not None else None,
     }
