@@ -3,6 +3,8 @@
 # Butée simple (free earth support, Costet & Sanglerat ; Craig) : moments autour de l'ancrage
 # ⇒ hauteur critique 8,57 m ; à la limite, effort d'ancrage T = Ka·γ·D²/2 − Kp·γ·(D − h)²/2 = 126,3 kN/m.
 # ATTENDU : phase à 8,55 m calculée, effort d'ancrage voisin de 126 kN/m (à 5 %) ; phase à 8,80 m en rupture.
+# SOURCE : méthode de la butée simple (free earth support : Costet & Sanglerat ; Craig, Soil Mechanics),
+# coefficients de Rankine (1857).
 projet: E02 Écran ancré — butée simple (h critique 8,57 m, T = 126,3 kN/m)
 calcul: { kh: impose, pas: 0.1 }
 paroi: { type: paroi_moulee, EI: 1.0e9, tete: 0.0, pied: -12.0 }

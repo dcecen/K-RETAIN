@@ -4,6 +4,8 @@
 # posée 3 m derrière le milieu de la paroi sud.
 # ATTENDU : le buton au droit de la grue porte environ 13 % de plus que sans grue (comparer en
 # supprimant la surcharge) ; la paroi nord, en face, est repoussée vers sa terre ; équilibre global nul.
+# SOURCE : statique des butons (liens EA/L, action = réaction) et diffusion élastique d'une charge ponctuelle
+# (Boussinesq ; Poulos & Davis 1974, Elastic Solutions for Soil and Rock Mechanics).
 projet: E06 Fouille fermée — double écran (grue derrière la paroi sud)
 calcul: { mode: pseudo3d, kh: impose, pas: 0.25 }
 pseudo3d: { pas_horizontal: 1.0 }

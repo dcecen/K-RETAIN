@@ -1,0 +1,21 @@
+# VÉRIFICATION ÉLÉMENTAIRE E13 — force en tête d'une poutre semi-infinie sur fondation de Winkler (Hetényi)
+# Écran EI = 1e5 kN·m²/m fiché de 0 à −30 m dans un sol homogène (kh = 20 000 kN/m³ sur chaque face, soit
+# k = 40 000 kN/m² par mètre d'écran), terrain à 0 des deux côtés, surcharge 100 kPa sur les deux faces pour que
+# les ressorts restent élastiques. Un buton en tête mis en charge au vérin impose F0 = 10 kN/m (phase de pose seule).
+# Hetényi : λ = (k/4EI)^¼ = 0,5623 /m (λL = 16,9 > 4π : poutre semi-infinie) ; y(0) = 2·F0·λ/k = 0,281 mm ;
+# |M| max = 0,3224·F0/λ = 5,73 kN·m/m à la profondeur π/(4λ) = 1,40 m.
+# ATTENDU : flèche en tête 0,281 mm et moment maximal 5,73 kN·m/m à 5 % ; effort du buton = 10 kN/m (1e-6).
+# SOURCE : Hetényi M. (1946), Beams on Elastic Foundation, chap. II (poutre semi-infinie, force à l'extrémité libre) ;
+# mêmes formules que le rapport de validation (cas winkler_semi_infinie_force).
+projet: "E13 Hetényi — force en tête : y(0) = 0,281 mm, M max = 5,73 kN·m/m"
+calcul: { kh: impose, pas: 0.05 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -30.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 30, c: 0, kh: 20000 }
+surcharges:
+  - { nom: Q_terre, type: repartie, q: 100, cote_ecran: amont }
+  - { nom: Q_fouille, type: repartie, q: 100, cote_ecran: aval }
+appuis:
+  B1: { type: buton, raideur: 1000, cote: 0.0, espacement: 1.0, precharge: 10 }
+phases:
+  - { nom: Mise en charge au vérin (F0 = 10 kN/m), poser: B1 }

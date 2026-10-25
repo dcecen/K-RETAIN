@@ -1,0 +1,16 @@
+# VÉRIFICATION ÉLÉMENTAIRE E19 — stabilité générale (Bishop) pour φ = 0 : équilibre des moments exact
+# Argile φ = 0, c = 25 kPa, γ = 18 kN/m³, fouille de 30 m de large à −4,0 m, écran très raide de 0 à −10 m.
+# Pour φ = 0, la méthode de Bishop se réduit à l'équilibre des moments autour du centre du cercle :
+# F = c·L_arc·R / Σ W·(xc − x). Le test recalcule F pour le cercle critique annoncé (centre, rayon) par une
+# intégration fine et indépendante de la masse glissante.
+# ATTENDU : F caractéristique du cercle critique (détail de la vérification) retrouvé à 1 % par l'intégration.
+# SOURCE : Bishop A.W. (1955), The use of the slip circle in the stability analysis of slopes, Géotechnique 5 ;
+# cas φ = 0 (méthode des tranches sans frottement).
+projet: E19 Stabilité générale — Bishop φ = 0 = équilibre des moments
+calcul: { kh: impose, pas: 0.1, largeur_fouille: 30 }
+paroi: { type: paroi_moulee, EI: 1.0e7, tete: 0.0, pied: -10.0 }
+sol:
+  - { nom: Argile, toit: 0.0, gamma: 18, gamma_dejauge: 8, phi: 0.0, c: 25, kh: 10000 }
+phases:
+  - { nom: "Terrassement à -4,0", excaver: -4.0 }
+verifications: [stabilite_generale]

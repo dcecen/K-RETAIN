@@ -205,16 +205,47 @@ def valeurs_normatives() -> dict:
             "fichiers": {nom: _aplatir_normes(arbre) for nom, arbre in n.donnees.items()}}
 
 
+GROUPES_ELEMENTAIRES = {"2d": "Exemples élémentaires 2D", "3d": "Exemples élémentaires 3D"}
+
+
+def entete_exemple(texte: str) -> dict:
+    """Titre (clé projet), résultat attendu (« # ATTENDU : ») et source (« # SOURCE : ») lus dans l'en-tête de
+    commentaires d'un script d'exemple ; chaque rubrique continue sur les lignes de commentaire qui suivent."""
+    titre, rubriques, courante = "", {"attendu": [], "source": []}, None
+    for ligne in texte.splitlines():
+        if ligne.startswith("#"):
+            corps = ligne.lstrip("#").strip()
+            haut = corps.upper()
+            if haut.startswith("ATTENDU"):
+                courante, corps = "attendu", corps.partition(":")[2].strip()
+            elif haut.startswith("SOURCE"):
+                courante, corps = "source", corps.partition(":")[2].strip()
+            elif haut.startswith("VÉRIFICATION ÉLÉMENTAIRE") or haut.startswith("VERIFICATION ELEMENTAIRE"):
+                courante = None
+            if courante and corps:
+                rubriques[courante].append(corps)
+            continue
+        if ligne.startswith("projet:") and not titre:
+            titre = ligne.partition(":")[2].strip().strip("'\"")
+        courante = None
+    return {"titre": titre, "attendu": " ".join(rubriques["attendu"]), "source": " ".join(rubriques["source"])}
+
+
+def _exemple(p: Path, groupe: str) -> dict:
+    texte = p.read_text(encoding="utf-8")
+    return {"nom": p.stem, "groupe": groupe, "texte": texte, **entete_exemple(texte)}
+
+
 @app.get("/api/exemples")
 def exemples() -> list[dict]:
-    """Scripts proposés dans le menu Fichier : exemples de projet (exemples/*.yaml) puis scripts de
-    vérification élémentaire (exemples/elementaires/*.yaml, résultat attendu et source en en-tête)."""
-    projets = [{"nom": p.stem, "groupe": "Exemples", "texte": p.read_text(encoding="utf-8")}
-               for p in sorted(EXEMPLES.glob("*.yaml"))]
-    elementaires = [{"nom": p.stem, "groupe": "Vérifications élémentaires", "texte": p.read_text(encoding="utf-8")}
-                    for p in sorted((EXEMPLES / "elementaires").glob("*.yaml"))]
-    modeles = [{"nom": p.stem, "groupe": "Modèles", "texte": p.read_text(encoding="utf-8")}
-               for p in sorted((EXEMPLES / "modeles").glob("*.yaml"))]
+    """Scripts proposés dans le menu Fichier : modèles (exemples/modeles), exemples de projet (exemples/*.yaml),
+    puis exemples élémentaires 2D et 3D (exemples/elementaires/2d, 3d : résultat attendu et source en en-tête,
+    renvoyés dans `attendu` et `source`, titre dans `titre`)."""
+    modeles = [_exemple(p, "Modèles") for p in sorted((EXEMPLES / "modeles").glob("*.yaml"))]
+    projets = [_exemple(p, "Exemples") for p in sorted(EXEMPLES.glob("*.yaml"))]
+    elementaires = [_exemple(p, "Vérifications élémentaires") for p in sorted((EXEMPLES / "elementaires").glob("*.yaml"))]
+    for dossier, groupe in GROUPES_ELEMENTAIRES.items():
+        elementaires += [_exemple(p, groupe) for p in sorted((EXEMPLES / "elementaires" / dossier).glob("*.yaml"))]
     return modeles + projets + elementaires
 
 

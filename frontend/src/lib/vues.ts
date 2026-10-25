@@ -35,7 +35,7 @@ export const VUES: DefVue[] = [
   { cle: 'script', groupe: 'outils', libelle: 'Script YAML', sousTitre: 'Référence du modèle : chaque formulaire le met à jour, et inversement' },
   { cle: 'assemblages', groupe: 'outils', libelle: 'Assemblages', sousTitre: 'Dessin et vérification des assemblages d’appuis' },
   { cle: 'materiaux', groupe: 'outils', libelle: 'Base matériaux', sousTitre: 'Profilés, palplanches, butons, armatures, aciers, bétons' },
-  { cle: 'aide', groupe: 'outils', libelle: 'Aide', sousTitre: 'Premiers pas, raccourcis, conventions, guide du script' },
+  { cle: 'aide', groupe: 'outils', libelle: 'Aide', sousTitre: 'Premiers pas, catalogue des exemples, raccourcis, conventions, guide du script' },
 ]
 
 /** Vue affichée après un calcul lancé depuis une vue de saisie ou d'outils. */

@@ -3,6 +3,8 @@
 # l'excavation suivante le charge ensuite élastiquement.
 # ATTENDU : effort de B1 après « Pose et précharge » = 50 kN/m (précharge 300 kN / espacement 6 m) ;
 # effort final > 50 kN/m ; équilibre des forces (sol + eau + appui) nul à chaque phase.
+# SOURCE : convention K-Réa de la mise en charge au vérin (effort = précharge à la fin de la phase de pose) ;
+# statique (somme des forces horizontales nulle).
 projet: E03 Précharge au vérin — effort après la pose = 50 kN/m
 calcul: { kh: impose, pas: 0.1 }
 paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }

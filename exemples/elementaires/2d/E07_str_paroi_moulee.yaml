@@ -3,6 +3,8 @@
 # Calcul manuel (diagramme rectangulaire λ = 0,8, η = 1, fcd = 20 MPa, fyd = 434,8 MPa) :
 # λx = 20e-4 × 434,8 / 20 = 0,0435 m ; M_Rd = 20 000 × 0,0435 × (0,53 − 0,0217) = 442 kN·m/m.
 # ATTENDU (onglet Vérifications, « Paroi moulée — flexion (face fouille) ») : M_Rd = 442 kN·m/m.
+# SOURCE : EN 1992-1-1 § 3.1.7 (diagramme rectangulaire des contraintes) et § 6.1 (flexion simple) ; coefficients
+# partiels γc, γs lus dans docs/normes/ec2.yaml (« à confirmer »).
 projet: E07 Béton armé — M_Rd de la paroi moulée = 442 kN·m/m
 calcul: { kh: impose, pas: 0.1 }
 paroi: { type: paroi_moulee, epaisseur: 0.6, beton: C30/37, enrobage: 0.07, armatures_fouille: 20, armatures_terre: 10, tete: 0.0, pied: -12.0 }

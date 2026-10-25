@@ -1,0 +1,23 @@
+# VÉRIFICATION ÉLÉMENTAIRE E18 — fond de fouille : soulèvement (UPL), boulance (HYD), renard
+# Écran de 0 à −14 m, nappe amont à 0, fouille à −5,0 m pompée (nappe aval au fond) : Δh = 5 m ; cheminement
+# 14 m côté terre + 9 m côté fouille = 23 m (Bligh). Sable γ = 20, γ' = 10 kN/m³ ; buton rigide en tête.
+# À la main : perte de charge côté fouille Δh_av = 5 × 9/23 = 1,957 m ; gradient de sortie i = 1,957/9 = 0,217 ;
+# au pied, u (charge amont) = 10 × 14 = 140 kPa contre σv total fond -> pied = 20 × 9 = 180 kPa (rapport 0,78) ;
+# boulance : surpression au pied 10 × 1,957 = 19,6 kPa contre σ'v = 10 × 9 = 90 kPa (rapport 0,22).
+# ATTENDU (vérifications « Fond de fouille ») : u = 140 kPa, σv = 180 kPa, Δh côté fouille 1,96 m, surpression
+# 19,6 kPa, σ'v = 90 kPa, gradient 0,217, lus dans le détail de chaque vérification (1 %).
+# SOURCE : EN 1997-1 (états limites UPL et HYD) repris par la NF P 94-282 ; longueur de cheminement de Bligh ;
+# pressions hydrostatiques de part et d'autre.
+projet: E18 Fond de fouille — UPL, HYD et renard calculés à la main
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -14.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 20000 }
+eau:
+  service: { amont: 0.0, aval: 0.0 }
+appuis:
+  B1: { type: buton, raideur: 100000, cote: -0.5, espacement: 1.0 }
+phases:
+  - { nom: Pose du buton en tête, poser: B1 }
+  - { nom: "Terrassement à -5,0 et pompage au fond", excaver: -5.0, eau: { aval: -5.0 } }
+verifications: [fond_de_fouille]

@@ -273,8 +273,9 @@ export interface Resultats {
   }
 }
 
-/** Script du menu Fichier : exemple de projet ou vérification élémentaire (exemples/elementaires). */
-export interface Exemple { nom: string; texte: string; groupe?: string }
+/** Script du menu Fichier : modèle, exemple de projet ou exemple élémentaire (exemples/elementaires/2d, 3d) ;
+ *  pour les exemples élémentaires, titre (clé projet), résultat attendu et source lus dans l'en-tête. */
+export interface Exemple { nom: string; texte: string; groupe?: string; titre?: string; attendu?: string; source?: string }
 
 /** Coupe de calcul d'un projet 2D (voir backend/sout/script/coupes.py). */
 export interface CoupeRes {

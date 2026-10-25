@@ -1,0 +1,19 @@
+# VÉRIFICATION ÉLÉMENTAIRE E10 — eau hydrostatique dissymétrique : pression nette γw·Δh
+# Écran de 0 à −14 m dans un sable homogène, nappe amont à −1,0 m ; fouille à −4,0 m pompée (nappe aval au fond).
+# Régime hydrostatique : u_amont = 10 × (−1 − z), u_aval = 10 × (−4 − z) sous le fond. La pression nette vaut
+# 10 × (−1 − z) entre −1 et −4 m puis 30 kPa constante sous −4 m ; résultante nette = 45 + 30 × 10 = 345 kN/m.
+# ATTENDU : pressions d'eau exactes en tout point (1e-9) ; résultante nette 345 kN/m (à 0,1 %, intégration sur
+# le maillage) ; l'écran butonné en tête reste en équilibre.
+# SOURCE : hydrostatique, u = γw·(z_nappe − z), γw = 10 kN/m³ (calcul.gamma_w).
+projet: E10 Eau hydrostatique dissymétrique — pression nette 30 kPa sous le fond, résultante 345 kN/m
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -14.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 20000 }
+eau:
+  service: { amont: -1.0, aval: -1.0 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -0.5, espacement: 1.0 }
+phases:
+  - { nom: Pose du buton en tête, poser: B1 }
+  - { nom: "Terrassement à -4,0 et pompage au fond", excaver: -4.0, eau: { aval: -4.0 } }

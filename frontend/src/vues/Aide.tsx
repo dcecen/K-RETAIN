@@ -1,7 +1,48 @@
 import { useEffect, useRef, useState } from 'react'
 import { marked } from 'marked'
+import type { Exemple } from '../lib/api'
 
-export type SectionAide = 'premiers-pas' | 'conventions' | 'raccourcis' | 'guide'
+export type SectionAide = 'premiers-pas' | 'conventions' | 'raccourcis' | 'guide' | 'catalogue'
+
+/** Groupes du catalogue des exemples élémentaires, dans l'ordre d'affichage. */
+const GROUPES_CATALOGUE = ['Exemples élémentaires 2D', 'Exemples élémentaires 3D', 'Vérifications élémentaires']
+
+/** Catalogue des exemples élémentaires : code, titre, résultat attendu, source, ouverture dans l'application.
+ *  Les cas de poutres pures et de plaque sans sol (rapport de validation) ne s'écrivent pas en script : le langage
+ *  ne prévoit ni charge directe sur la paroi ni paroi sans sol. */
+export function CatalogueExemples({ exemples, onExemple }: { exemples: Exemple[]; onExemple?: (e: Exemple) => void }) {
+  const groupes = GROUPES_CATALOGUE.map((g) => [g, exemples.filter((e) => e.groupe === g)] as const).filter(([, l]) => l.length > 0)
+  if (groupes.length === 0) return <div className="note" style={{ padding: 10 }}>Aucun exemple élémentaire proposé par le serveur (dossier exemples/elementaires).</div>
+  return (
+    <>
+      {groupes.map(([g, liste]) => (
+        <div key={g}>
+          <h3 style={{ margin: '10px 0 4px' }}>{g} <span className="doux" style={{ fontWeight: 400 }}>({liste.length})</span></h3>
+          <table className="tableau catalogue-exemples">
+            <thead><tr><th>Code</th><th>Titre</th><th>Résultat attendu</th><th>Source</th><th /></tr></thead>
+            <tbody>
+              {liste.map((e) => {
+                const code = e.nom.slice(0, 3)
+                const titre = (e.titre || e.nom).replace(new RegExp(`^${code}\\s*`), '')
+                return (
+                  <tr key={e.nom}>
+                    <td className="mono">{code}</td>
+                    <td>{titre}<div className="doux" style={{ fontSize: 11 }}>{e.nom}.yaml</div></td>
+                    <td>{e.attendu || <span className="faible">non renseigné dans l'en-tête</span>}</td>
+                    <td className="doux">{e.source || <span className="faible">non renseignée</span>}</td>
+                    <td>{onExemple && <button className="btn" onClick={() => onExemple(e)} title="Charger ce script (le script courant est remplacé après confirmation)">Ouvrir</button>}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ))}
+      <p className="note">Chaque exemple est aussi un test automatique (backend/tests/validation/test_exemples_elementaires.py) qui recalcule le résultat attendu.
+        Les poutres pures (RDM, Winkler) et la plaque sans sol du rapport de validation ne s'écrivent pas en script : le langage ne prévoit ni charge directe sur la paroi ni paroi sans sol.</p>
+    </>
+  )
+}
 
 /** Aide intégrée : premiers pas, conventions, raccourcis clavier, guide du script (docs/guide_script.md). */
 const RACCOURCIS: [string, string, string][] = [
@@ -21,7 +62,7 @@ const RACCOURCIS: [string, string, string][] = [
   ['Ctrl+Maj+D', 'Diagnostic de rendu (objets, triangles, mémoire)', 'maquette 3D'],
 ]
 
-export function Aide({ version, section }: { version: string; section: SectionAide | null }) {
+export function Aide({ version, section, exemples = [], onExemple }: { version: string; section: SectionAide | null; exemples?: Exemple[]; onExemple?: (e: Exemple) => void }) {
   const [guide, setGuide] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [sommaire, setSommaire] = useState<{ id: string; texte: string; niveau: number }[]>([])
@@ -53,6 +94,9 @@ export function Aide({ version, section }: { version: string; section: SectionAi
           <li><b>Calcul</b> : bouton « Calculer » ou Ctrl+Entrée. Les phases s'enchaînent ; une rupture est signalée avec la phase concernée.</li>
           <li><b>Résultats</b> : synthèse, diagrammes de la phase active (frise en bas), efforts d'appui, vérifications, maquette 3D, hypothèses et référentiel. Exports : menu « Exporter » (note de calcul, image, maquette HTML, script).</li>
         </ol>
+      </div>
+      <div className="bloc" id="aide-catalogue"><div className="bloc-titre">Catalogue des exemples élémentaires <span className="doux" style={{ fontWeight: 400 }}>(menu Fichier)</span></div>
+        <div style={{ padding: '0 10px 6px' }}><CatalogueExemples exemples={exemples} onExemple={onExemple} /></div>
       </div>
       <div className="bloc" id="aide-conventions"><div className="bloc-titre">Conventions et unités</div>
         <ul className="liste-aide">

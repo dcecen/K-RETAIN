@@ -1,0 +1,20 @@
+# VÉRIFICATION ÉLÉMENTAIRE E21 — moment résistant d'une palplanche (EN 1993-5)
+# Palplanche AZ 26-700 en S355GP (base matériaux, jeu DEMO), classe de section 2 déclarée (le jeu DEMO n'en donne
+# pas), sans corrosion. M_c,Rd = W·fy/γM0 avec W le module plastique (classe 1 ou 2 ; sinon élastique), fy = 355 MPa,
+# γM0 lu dans docs/normes/ec3.yaml.
+# ATTENDU (vérification « Palplanches — flexion et cisaillement ») : M_c,Rd = W·fy/γM0 recalculé par le test
+# depuis la base matériaux et les normes (1e-3, arrondi du détail) ; taux = γ_effets·M_k / M_c,Rd.
+# SOURCE : EN 1993-5 § 5.2.2 (résistance d'une section de palplanche en flexion) et EN 1993-1-1 § 6.2.5 ;
+# γM0 et γ_effets « à confirmer » (docs/normes, valeurs de mémoire).
+projet: E21 Palplanche — M_c,Rd = W·fy/γM0 (AZ 26-700, S355GP)
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, profil: AZ 26-700, acier: S355GP, classe_section: 2, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 20000 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -1.0, espacement: 1.0 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose du buton, poser: B1 }
+  - { nom: "Terrassement final à -6,0", excaver: -6.0 }
+verifications: [structure]

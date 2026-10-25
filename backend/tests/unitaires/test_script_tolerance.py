@@ -10,7 +10,7 @@ from sout.api import app
 from sout.script.lecteur import ScriptInvalide, lire_script, valider
 
 RACINE = Path(__file__).resolve().parents[3]
-BASE = (RACINE / "exemples" / "elementaires" / "E03_precharge_au_verin.yaml").read_text(encoding="utf-8")
+BASE = (RACINE / "exemples" / "elementaires" / "2d" / "E03_precharge_au_verin.yaml").read_text(encoding="utf-8")
 CLIENT = TestClient(app)
 
 

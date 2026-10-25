@@ -1,0 +1,17 @@
+# VÉRIFICATION ÉLÉMENTAIRE E12 — surcharge en bande : diffusion élastique de Boussinesq
+# Bande q = 50 kPa, largeur 4 m, à 2 m du parement côté terre, ajoutée à la phase 2. Au droit de l'écran, à la
+# profondeur h : Δσv = q/π·[α + sin α·cos(α + 2β)], β = atan(2/h), α = atan(6/h) − β (bande vue depuis le point).
+# À h = 2 m : α = 0,4636, β = 0,7854 : Δσv = 50/π × (0,4636 − 0,2000) = 4,2 kPa ; à h = 5 m : 10,2 kPa.
+# ATTENDU : entre les phases 1 et 2, Δp0 côté terre = K0·Δσv(z) (K0 = 0,5) à toute profondeur (1e-6).
+# SOURCE : Poulos H.G. & Davis E.H. (1974), Elastic Solutions for Soil and Rock Mechanics, § 3.2 (strip load) ;
+# K0 de Jaky (1944) ; transmission de Δσv aux ressorts sans effet miroir (hypothèse RetainWall).
+projet: E12 Surcharge en bande — Δσv de Boussinesq (4,2 kPa à 2 m, 10,2 kPa à 5 m)
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 30, c: 0, kh: 20000 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -0.5, espacement: 1.0 }
+phases:
+  - { nom: "Terrassement à -2,0 et pose du buton", excaver: -2.0, poser: B1 }
+  - { nom: Bande 50 kPa à 2 m du parement (largeur 4 m), ajouter_surcharges: [{ nom: Q, type: bande, q: 50, distance: 2.0, largeur: 4.0 }] }

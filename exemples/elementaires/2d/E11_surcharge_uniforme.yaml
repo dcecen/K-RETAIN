@@ -1,0 +1,17 @@
+# VÉRIFICATION ÉLÉMENTAIRE E11 — surcharge uniforme : décalage des pressions K0·q et Ka·q
+# Sable φ = 30°, δ = 0 (Rankine : Ka = 1/3 ; Jaky : K0 = 1 − sin 30° = 0,5), écran de 0 à −12 m, fouille à −2 m,
+# buton en tête. Une surcharge uniforme q = 20 kPa est ajoutée côté terre à la phase 2.
+# ATTENDU : entre les phases 1 et 2, la pression au repos p0 côté terre augmente de K0·q = 10 kPa et la poussée
+# limite pa de Ka·q = 6,67 kPa, à toute profondeur (1e-9) ; côté fouille, p0, pa et pp ne changent pas.
+# SOURCE : Δσv = q pour une surcharge illimitée ; Rankine (1857) pour Ka, Jaky (1944) pour K0 ; hypothèse
+# RetainWall : la pression de référence se décale de Kd·Δσ'v avec Kd = K0 (docs/ETAT.md, J2).
+projet: E11 Surcharge uniforme — Δp0 = K0·q = 10 kPa, Δpa = Ka·q = 6,67 kPa
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 30, c: 0, kh: 20000 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -0.5, espacement: 1.0 }
+phases:
+  - { nom: "Terrassement à -2,0 et pose du buton", excaver: -2.0, poser: B1 }
+  - { nom: Surcharge uniforme 20 kPa côté terre, ajouter_surcharges: [{ nom: Q, type: repartie, q: 20 }] }

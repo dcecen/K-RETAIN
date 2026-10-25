@@ -1,0 +1,20 @@
+# VÉRIFICATION ÉLÉMENTAIRE E22 — résistance de l'armature d'un tirant
+# Tirant incliné à 20° (2 torons T15,7 du jeu DEMO), précontraint à 300 kN, écran de 0 à −12 m. La résistance de
+# calcul de l'armature vaut R = n·A·fp0,1k/γ_armature ; le taux de travail est γ_effets·T_k / R, avec T_k l'effort
+# axial maximal du tirant sur les phases.
+# ATTENDU (vérification « Tirant — armature ») : résistance de calcul R recalculée par le test depuis la base
+# matériaux et docs/normes (1e-3) ; taux = γ_effets·T_k/R (1e-3).
+# SOURCE : NF P 94-282 (armature de tirant, γ_armature) ; EN 1992-1-1 § 3.3 (fp0,1k des aciers de précontrainte) ;
+# coefficients « à confirmer » (docs/normes, valeurs de mémoire).
+projet: "E22 Tirant — armature : R = n·A·fp0,1k/γ, taux = γ_effets·T_k/R"
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 20000 }
+appuis:
+  T1: { type: tirant, element: TORON-DEMO-T15.7, nombre: 2, cote: -1.5, espacement: 2.0, angle: 20, precharge: 300, longueur_libre: 8.0, longueur_scellee: 6.0 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose et mise en tension du tirant, poser: T1 }
+  - { nom: "Terrassement final à -6,0", excaver: -6.0 }
+verifications: [structure]

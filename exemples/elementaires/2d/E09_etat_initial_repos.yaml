@@ -1,0 +1,17 @@
+# VÉRIFICATION ÉLÉMENTAIRE E09 — état initial : sol au repos, écran immobile
+# Deux couches (remblai γ = 18 kN/m³ sur 3 m, puis sable γ = 20), nappe à −2,0 m des deux côtés (γ' = 9 puis 11),
+# écran de 0 à −12 m sans excavation. Au repos, les pressions K0·σ'v sont égales sur les deux faces : l'écran ne
+# bouge pas. À −5,0 m : σ'v = 18 × 2 + 9 × 1 + 11 × 2 = 67 kPa ; K0 = 1 − sin 35° = 0,4264 ; p0 = 28,6 kPa.
+# ATTENDU : y = 0 et M = 0 à la phase « Repos » ; p0 = K0·σ'v sur les deux faces (28,6 kPa à −5,0 m) et pression
+# d'eau u = 10 × (−2 − z) sous la nappe, retrouvés à 1e-6 par le test.
+# SOURCE : contrainte effective de Terzaghi (σ' = σ − u) ; K0 de Jaky (1944) ; pression hydrostatique.
+projet: E09 État initial au repos — p0 = K0·σ'v, écran immobile
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Remblai, toit: 0.0, gamma: 18, gamma_dejauge: 9, phi: 28, c: 0, kh: 10000 }
+  - { nom: Sable, toit: -3.0, gamma: 20, gamma_dejauge: 11, phi: 35, c: 0, kh: 20000 }
+eau:
+  service: { amont: -2.0, aval: -2.0 }
+phases:
+  - { nom: Repos }

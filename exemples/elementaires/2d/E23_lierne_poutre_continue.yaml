@@ -1,0 +1,20 @@
+# VÉRIFICATION ÉLÉMENTAIRE E23 — lierne en poutre continue sur les butons
+# Butons tous les 4 m sur une lierne HEB 400 (S355). La lierne reprend la réaction de la paroi q (kN/m, effort du
+# buton par mètre d'écran) en poutre continue sur deux travées (cas défavorable) : M = q·e²/8 et V = 0,625·q·e,
+# puis efforts de calcul = γ_effets × ces valeurs.
+# ATTENDU (vérification « Lierne — flexion bi-axiale et cisaillement ») : My = γ_effets·q·e²/8 et V = γ_effets·0,625·q·e
+# avec q = effort maximal du buton ; V/My = 5/e = 1,25 /m (1 %).
+# SOURCE : poutre continue sur deux travées égales (RDM : M sur appui = q·e²/8, réaction d'appui central 1,25·q·e) ;
+# EN 1993-1-1 § 6.2.5 et § 6.2.6 pour les résistances.
+projet: E23 Lierne — M = q·e²/8, V = 0,625·q·e (poutre continue sur les butons)
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 20000 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -1.0, espacement: 4.0, lierne: HEB 400, acier: S355 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose du buton, poser: B1 }
+  - { nom: "Terrassement final à -6,0", excaver: -6.0 }
+verifications: [structure]

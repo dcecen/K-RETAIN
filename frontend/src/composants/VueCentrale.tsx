@@ -1,4 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react'
+import type { Exemple } from '../lib/api'
 import type { Vue } from '../lib/etat'
 import { uniteCote } from '../lib/format'
 import type { Chemin } from '../lib/scriptDoc'
@@ -24,12 +25,13 @@ const Onglet3D = lazy(() => import('../vue3d/Onglet3D').then((m) => ({ default: 
 const CHARGEMENT = <div className="vide-centre"><span>Chargement…</span></div>
 
 /** Zone centrale : en-tête de la vue puis son contenu. */
-export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d }: {
+export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d, onExemple }: {
   p: Projet
   a: Affichage
   onCalculer: () => void
   changerCoupe: (i: number) => void
   ajouterDepuis3d: (chemin: Chemin, valeur: unknown, message: string) => void
+  onExemple?: (e: Exemple) => void
 }) {
   const { vue } = a
   const d = defVue(vue)
@@ -113,7 +115,7 @@ export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d }:
           </div>
         )
       case 'materiaux': return <Materiaux surImport={() => void p.rechargerReferences()} />
-      case 'aide': return <Aide version={p.serveur} section={a.sectionAide} />
+      case 'aide': return <Aide version={p.serveur} section={a.sectionAide} exemples={p.exemples} onExemple={onExemple} />
       default: return null
     }
   }

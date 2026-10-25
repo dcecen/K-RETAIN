@@ -1,0 +1,19 @@
+# VÉRIFICATION ÉLÉMENTAIRE E24 — appui unilatéral : le buton décolle puis reprend
+# Un buton ne reprend pas d'effort négatif (traction). Posé après un terrassement à −4 m, il est déchargé par un
+# remblai côté fouille jusqu'à −1 m qui repousse l'écran vers la terre : son effort tombe à zéro et il est signalé
+# inactif. Un nouveau terrassement à −4 m le remet en charge.
+# ATTENDU : effort de B1 = 0 et appui inactif à la phase 3 (remblai) ; effort > 0 et appui actif à la phase 4.
+# SOURCE : définition de l'appui unilatéral (ressort qui ne travaille qu'en compression), convention du script
+# (unilateral : oui par défaut sauf dalle).
+projet: E24 Appui unilatéral — effort nul après remblai côté fouille, reprise au terrassement suivant
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 20000 }
+appuis:
+  B1: { type: buton, raideur: 100000, cote: -0.5, espacement: 1.0 }
+phases:
+  - { nom: "Terrassement à -4,0", excaver: -4.0 }
+  - { nom: Pose du buton, poser: B1 }
+  - { nom: "Remblai côté fouille à -1,0 : l'écran recule, le buton décolle", remblayer: { aval: -1.0 } }
+  - { nom: "Nouveau terrassement à -4,0 : le buton reprend", excaver: -4.0 }

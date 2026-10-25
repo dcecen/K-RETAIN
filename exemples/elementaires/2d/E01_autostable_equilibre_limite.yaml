@@ -4,6 +4,8 @@
 # Costet & Sanglerat ; Craig) : hauteur critique d'excavation h = 5,05 m.
 # ATTENDU : la phase « 0,97 × h critique » se calcule ; la phase « 1,03 × h critique » est signalée
 # en rupture (aucun équilibre). Rapport : docs/validation/rafale_elementaire (cas ecran_autostable_rigide).
+# SOURCE : équilibre limite rigide-plastique d'un écran autostable (Costet & Sanglerat, Cours pratique de
+# mécanique des sols ; Craig, Soil Mechanics), coefficients de Rankine (1857).
 projet: E01 Écran autostable rigide — équilibre limite (h critique 5,05 m)
 calcul: { kh: impose, pas: 0.1 }
 paroi: { type: paroi_moulee, EI: 1.0e9, tete: 0.0, pied: -10.0 }

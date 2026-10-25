@@ -4,6 +4,7 @@
 # χ = 0,533 ; N_b,Rd = χ·N_pl/γM1 = 3 683 kN.
 # ATTENDU (onglet Vérifications, « Buton — flambement et flexion ») : χ = 0,53 et N_b,Rd = 3 683 kN
 # (indépendants de l'effort et de la température).
+# SOURCE : EN 1993-1-1 § 6.3.1.1 et § 6.3.1.2 (courbe de flambement a, α = 0,21) ; γM1 lu dans docs/normes/ec3.yaml.
 projet: E08 Acier — flambement du buton 508 × 12,5 (N_b,Rd = 3 683 kN)
 calcul: { kh: impose, pas: 0.1 }
 paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }

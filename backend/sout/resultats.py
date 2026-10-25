@@ -64,6 +64,20 @@ def _butee_valeurs(ph) -> tuple[float | None, float | None]:
     return float(np.sum(av["L"] * av["p"])), float(np.sum(av["L"] * av["pp"]))
 
 
+def _bilan_forces(ph) -> dict:
+    """Bilan des forces horizontales sur l'écran à la fin de la phase : pressions des terres des deux faces,
+    pressions d'eau et efforts d'appui (statique : la somme doit être nulle). `relatif` rapporte le résidu à la
+    somme des valeurs absolues (échelle des forces en jeu)."""
+    am, av = ph.pressions["amont"], ph.pressions["aval"]
+    e = ph.eau
+    L = np.repeat(np.diff(ph.z) / 2, 2)
+    appuis = sum(a["effort"] for a in ph.appuis)
+    F = float(np.sum(am["L"] * am["p"]) - np.sum(av["L"] * av["p"]) + np.sum((e["u_amont"] - e["u_aval"]) * L) - appuis)
+    brut = float(np.sum(am["L"] * np.abs(am["p"])) + np.sum(av["L"] * np.abs(av["p"]))
+                 + np.sum(np.abs(e["u_amont"] - e["u_aval"]) * L) + sum(abs(a["effort"]) for a in ph.appuis))
+    return {"residu_kN_m": F, "echelle_kN_m": brut, "relatif": F / max(brut, 1e-12)}
+
+
 def _butee_mobilisee(ph) -> float | None:
     """Bm/Bt : butée mobilisée rapportée à la butée limite, côté fouille (valeur caractéristique)."""
     Bm, Bt = _butee_valeurs(ph)
@@ -211,6 +225,7 @@ def serialiser(res: ResultatCalcul, modele: Modele, projet: str = "", catalogue=
                     "V_absmax": float(np.abs(ph.V).max()),
                     "butee_mobilisee": _butee_mobilisee(ph),
                     "Bm_kN_m": _butee_valeurs(ph)[0], "Bt_kN_m": _butee_valeurs(ph)[1],
+                    "bilan": _bilan_forces(ph),
                 },
             })
             for a in ph.appuis:

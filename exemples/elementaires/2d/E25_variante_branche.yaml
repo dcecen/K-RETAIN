@@ -1,0 +1,21 @@
+# VÉRIFICATION ÉLÉMENTAIRE E25 — variante de phasage (branche « depuis »)
+# Après la pose du buton, deux suites sont étudiées : le terrassement à −6,5 m avec pompage (phase 3) et une
+# variante à −5,5 m sans pompage (phase 4) qui repart de l'état après la pose (depuis: Pose du buton). Une branche
+# est exactement le calcul linéaire qui s'arrêterait à sa phase de départ puis enchaînerait la variante.
+# ATTENDU : la phase 4 (variante) est identique à la phase 3 du script linéaire « terrassement −2,0, pose,
+# terrassement −5,5 » : 1e-9 sur les déplacements et l'effort du buton, 1e-6 sur les moments (résidu du solveur).
+# SOURCE : définition des branches de phasage (instantané de l'état après chaque phase, docs/ETAT.md).
+projet: E25 Variante de phasage — branche = calcul linéaire tronqué
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -14.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 20000 }
+eau:
+  service: { amont: -2.0, aval: -2.0 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -1.0, espacement: 1.0 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose du buton, poser: B1 }
+  - { nom: "Terrassement à -6,5 et pompage", excaver: -6.5, eau: { aval: -7.0 } }
+  - { nom: "Variante : terrassement à -5,5 sans pompage", depuis: Pose du buton, excaver: -5.5 }

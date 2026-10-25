@@ -6,6 +6,10 @@ import type { Theme } from '../lib/theme'
 import type { SectionAide } from '../vues/Aide'
 import { Menu } from './Menu'
 
+/** Groupes du menu Fichier pour les exemples élémentaires (dossiers exemples/elementaires/2d et 3d ; l'ancien
+ *  groupe « Vérifications élémentaires » reste lu si des scripts sont encore à la racine du dossier). */
+const GROUPES_ELEMENTAIRES = ['Exemples élémentaires 2D', 'Exemples élémentaires 3D', 'Vérifications élémentaires']
+
 /** En-tête de commentaires d'un script (ce qui est vérifié, résultat attendu, source) pour l'info-bulle. */
 function enTete(texte: string): string {
   return texte.split('\n').filter((l) => l.startsWith('#')).map((l) => l.replace(/^#\s?/, '')).join('\n')
@@ -65,16 +69,23 @@ export function BarreTitre(p: {
                 <span className="detail-entree">{e.nom}.yaml</span>
               </button>
             ))}
-            {groupe('Vérifications élémentaires').length > 0 && (
-              <>
+            {GROUPES_ELEMENTAIRES.filter((g) => groupe(g).length > 0).map((g) => (
+              <div key={g}>
                 <hr />
-                <div className="titre-groupe">Vérifications élémentaires</div>
-                {groupe('Vérifications élémentaires').map((e) => (
-                  <button key={e.nom} onClick={() => { p.onExemple(e); fermer() }} title={enTete(e.texte)}>
-                    {titreScript(e.texte, e.nom)}
+                <div className="titre-groupe">{g}</div>
+                {groupe(g).map((e) => (
+                  <button key={e.nom} onClick={() => { p.onExemple(e); fermer() }}
+                    title={e.attendu ? `Attendu : ${e.attendu}${e.source ? `\nSource : ${e.source}` : ''}` : enTete(e.texte)}>
+                    {e.titre || titreScript(e.texte, e.nom)}
                   </button>
                 ))}
-              </>
+              </div>
+            ))}
+            {GROUPES_ELEMENTAIRES.some((g) => groupe(g).length > 0) && (
+              <button onClick={() => { p.onAide('catalogue'); fermer() }}>
+                Catalogue des exemples élémentaires
+                <span className="detail-entree">résultat attendu et source de chaque exemple</span>
+              </button>
             )}
             <hr />
             <button onClick={() => { choisirFichier('*', p.onRido); fermer() }}>Importer un fichier RIDO…</button>
@@ -114,6 +125,7 @@ export function BarreTitre(p: {
             <button onClick={() => { p.onAide('guide'); fermer() }}>Guide du langage de script</button>
             <button onClick={() => { p.onAide('raccourcis'); fermer() }}>Raccourcis clavier</button>
             <button onClick={() => { p.onAide('conventions'); fermer() }}>Conventions de signe et unités</button>
+            <button onClick={() => { p.onAide('catalogue'); fermer() }}>Catalogue des exemples élémentaires</button>
             <hr />
             <button onClick={() => { window.open('/api/validation/rapport', '_blank', 'noopener'); fermer() }}>
               Rapport de validation

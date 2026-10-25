@@ -1,0 +1,18 @@
+# VÉRIFICATION ÉLÉMENTAIRE E16 — convergence du maillage
+# Écran butonné (EI 1e5 kN·m²/m), sable kh = 20 000 kN/m³, fouille finale à −6 m. Le script est calculé avec un
+# maillage grossier (pas 0,5 m) ; le test le recalcule aux pas 0,1 m puis 0,02 m.
+# ATTENDU : y max, M max et effort du buton au pas 0,5 m à moins de 2 % des valeurs au pas 0,02 m (mesuré : 1,3 %),
+# et à moins de 0,2 % au pas 0,1 m (mesuré : 0,1 %) ; les écarts décroissent avec le pas.
+# SOURCE : convergence de la méthode des éléments finis (poutre d'Euler-Bernoulli sur ressorts élasto-plastiques) ;
+# rapport de validation, cas ecran_convergence_maillage.
+projet: E16 Convergence du maillage — pas 0,5 m à 1 % du pas 0,02 m
+calcul: { kh: impose, pas: 0.5 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 20000 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -1.0, espacement: 1.0 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose du buton, poser: B1 }
+  - { nom: "Terrassement final à -6,0", excaver: -6.0 }

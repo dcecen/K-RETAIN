@@ -1,0 +1,14 @@
+# VÉRIFICATION ÉLÉMENTAIRE E15 — butée limite de la fiche calculée à la main
+# Sable homogène φ = 30°, δ = 0 (Rankine : Kp = tan²(45° + φ/2) = 3), γ = 20 kN/m³, sans eau ; écran autostable
+# de 0 à −10 m, fouille à −3,0 m : fiche D = 7 m. Butée limite = ∫ Kp·γ·(z_fond − z) dz sur la fiche
+# = Kp·γ·D²/2 = 3 × 20 × 49 / 2 = 1 470 kN/m.
+# ATTENDU : Bt = 1 470 kN/m (synthèse de la phase, « Bt_kN_m », à 1e-6) ; butée mobilisée Bm < Bt.
+# SOURCE : Rankine (1857), Kp = tan²(π/4 + φ/2) ; intégration de la pression limite de butée sur la fiche.
+projet: E15 Butée limite — Bt = Kp·γ·D²/2 = 1 470 kN/m
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -10.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 30, c: 0, kh: 20000 }
+phases:
+  - { nom: "Terrassement à -3,0", excaver: -3.0 }
+verifications: [butee]

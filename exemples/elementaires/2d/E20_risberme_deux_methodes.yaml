@@ -1,0 +1,22 @@
+# VÉRIFICATION ÉLÉMENTAIRE E20 — risberme : fond équivalent et surcharge équivalente
+# Fouille finale à −6,5 m avec une risberme contre l'écran (crête −4,0 m, largeur 2 m, pente 1/1) pendant la
+# phase 3. Méthode du fond équivalent avec cote_equivalente = cote de la crête : le calcul doit être identique à
+# une excavation à −4,0 m. Méthode de la surcharge équivalente : des bandes de poids remplacent le volume de la
+# risberme, Σ q_i·b_i = γ × aire = 20 × 8,125 = 162,5 kN/m (aire du trapèze = 2,5 × (2 + 2,5/2)).
+# ATTENDU : phase 3 identique (1e-9) à celle du même script excavé à −4,0 m sans risberme ; 9 bandes de 0,5 m
+# (les 2 bandes de poids nul au-delà du pied du talus sont omises), somme = 162,5 kN/m (1e-9).
+# SOURCE : définition des deux méthodes (docs/ETAT.md, terrain du 22/10/2026) ; aire d'un trapèze.
+projet: E20 Risberme — fond équivalent ≡ excavation à la crête ; bandes = γ × aire = 162,5 kN/m
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -14.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 20000 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -1.0, espacement: 1.0 }
+fouille:
+  risbermes:
+    - { nom: R1, phases: [3, 3], cote_crete: -4.0, largeur_crete: 2.0, pente: 1.0, cote_pied: -6.5, methode: fond_equivalent, cote_equivalente: -4.0 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose du buton, poser: B1 }
+  - { nom: "Terrassement à -6,5 avec risberme (fond équivalent -4,0)", excaver: -6.5 }

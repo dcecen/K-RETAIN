@@ -49,8 +49,8 @@ def test_script_de_coupe_hors_du_dossier_exemples_refuse():
         with pytest.raises(ErreurCoupe) as ex:
             chemin_script_coupe(mauvais, "C1")
         assert "exemples" in str(ex.value), mauvais
-    bon = chemin_script_coupe("elementaires/E01_autostable_equilibre_limite.yaml", "C1")
-    assert bon.is_file() and bon.parent.name == "elementaires"
+    bon = chemin_script_coupe("elementaires/2d/E01_autostable_equilibre_limite.yaml", "C1")
+    assert bon.is_file() and bon.parent.name == "2d" and bon.parent.parent.name == "elementaires"
     with pytest.raises(ErreurCoupe) as ex:
         chemin_script_coupe("inexistant.yaml", "C1")
     assert "introuvable" in str(ex.value)

@@ -4,6 +4,8 @@
 # buton ne retient que sa ligne de 1 m. C'est le comportement « RIDO 2D juxtaposé ».
 # ATTENDU : |y| max = déplacement de l'écran 2D sans appui (identique à 1e-6) ; forte ondulation
 # le long de la paroi (onglet Pseudo-3D). Comparer avec E05 (même paroi, vraie plaque).
+# SOURCE : plaque orthotrope par analogie de grillage (Hambly, Bridge Deck Behaviour) avec Ds = 0 : poutres
+# verticales indépendantes, identité mécanique avec l'écran 2D (contrôlée à 1e-6).
 projet: E04 Pseudo-3D Ds = 0 — coupes 2D assemblées (référence)
 calcul: { mode: pseudo3d, kh: impose, pas: 0.25 }
 pseudo3d: { longueur: 48, pas_horizontal: 1.0, rapport_rigidite_horizontale: 0.0 }

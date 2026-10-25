@@ -1,0 +1,25 @@
+# VÉRIFICATION ÉLÉMENTAIRE E14 — équilibre global de l'écran à chaque phase
+# Écran butonné à deux niveaux (le premier préchargé), nappe dissymétrique après pompage, surcharge en bande.
+# À chaque phase, la somme des forces horizontales appliquées à l'écran (pressions des terres des deux faces,
+# pressions d'eau, efforts d'appui) est nulle : c'est la statique que le solveur doit respecter.
+# ATTENDU : résidu relatif des forces ≤ 1e-6 à chaque phase (synthèse « bilan » des résultats) ; pressions
+# mobilisées toujours comprises entre la poussée et la butée limites.
+# SOURCE : statique (équilibre des forces horizontales) ; loi des ressorts élasto-plastiques bornée par pa et pp.
+projet: E14 Équilibre global — somme des forces nulle à chaque phase
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -14.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 15000 }
+eau:
+  service: { amont: -2.0, aval: -2.0 }
+surcharges:
+  - { nom: Q, type: bande, q: 20, distance: 1.0, largeur: 5.0 }
+appuis:
+  B1: { type: buton, raideur: 30000, cote: -1.0, espacement: 1.0, precharge: 40 }
+  B2: { type: buton, raideur: 30000, cote: -4.5, espacement: 1.0 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose de B1 et précharge, poser: B1 }
+  - { nom: "Terrassement à -5,5 et pompage", excaver: -5.5, eau: { aval: -6.0 } }
+  - { nom: Pose de B2, poser: B2 }
+  - { nom: "Terrassement final à -8,0 et pompage", excaver: -8.0, eau: { aval: -8.5 } }
