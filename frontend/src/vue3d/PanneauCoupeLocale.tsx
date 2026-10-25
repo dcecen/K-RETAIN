@@ -7,14 +7,15 @@ import type { PositionCoupeLocale } from './coupeLocale'
 import type { Contour } from './geometrie'
 import type { SourceResultats } from './sourceResultats'
 
-/** Panneau « Couper ici » : courbes à la position de la coupe locale, réglage de la position, épinglage. */
-export function PanneauCoupeLocale({ geo, source, position, phase, theme, cotes, onPosition, onEpingler, onFermer }: {
+/** Panneau « Courbes en un point » : courbes à la position choisie sur la paroi, réglage de la position, épinglage. */
+export function PanneauCoupeLocale({ geo, source, position, phase, theme, cotes, unite, onPosition, onEpingler, onFermer }: {
   geo: Contour
   source: SourceResultats
   position: PositionCoupeLocale
   phase: number
   theme: Theme
   cotes: Record<string, number>
+  unite?: string
   onPosition: (p: PositionCoupeLocale) => void
   onEpingler: (nom: string) => void
   onFermer: () => void
@@ -24,9 +25,9 @@ export function PanneauCoupeLocale({ geo, source, position, phase, theme, cotes,
   const a = geo.aretes[position.k]
   const nomCote = Object.entries(cotes).find(([, v]) => v === position.k)?.[0]
   return (
-    <aside className="panneau-coupe-locale" aria-label="Coupe locale">
+    <aside className="panneau-coupe-locale" aria-label="Courbes en un point">
       <div className="panneau-entete">
-        Couper ici <span className="raccourci">C</span>
+        Courbes en un point <span className="raccourci">C</span>
         <span className="espace" />
         <button className="btn icone discret" title="Fermer" onClick={onFermer}><IconeFermer taille={14} /></button>
       </div>
@@ -46,11 +47,11 @@ export function PanneauCoupeLocale({ geo, source, position, phase, theme, cotes,
         {courbes?.coupe && <> · <b>{courbes.coupe}</b></>}
       </div>
       <div className="courbes">
-        {courbes && <CoupeDiagrammes res={courbes.res} phase={courbes.phase} theme={theme} />}
+        {courbes && <CoupeDiagrammes res={courbes.res} phase={courbes.phase} theme={theme} unite={unite} />}
       </div>
       <div className="pied">
-        <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder={`Nom de la coupe (ex. C4 — ${nomCote ?? `côté ${position.k}`}, s = ${nb(position.sl, 1)} m)`} aria-label="Nom de la coupe à épingler" />
-        <button className="btn" disabled={!nom.trim()} title="Ajoute cette coupe aux coupes de calcul du script (bloc coupes)" onClick={() => { onEpingler(nom.trim()); setNom('') }}>Épingler et ajouter au script</button>
+        <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder={`Nom de la coupe de calcul (ex. C4 — ${nomCote ?? `côté ${position.k}`}, s = ${nb(position.sl, 1)} m)`} aria-label="Nom de la coupe à épingler" />
+        <button className="btn" disabled={!nom.trim()} title="Ajoute cette position aux coupes de calcul du script (bloc coupes) : à recalculer" onClick={() => { onEpingler(nom.trim()); setNom('') }}>Ajouter comme coupe de calcul</button>
       </div>
     </aside>
   )

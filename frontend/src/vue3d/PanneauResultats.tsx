@@ -58,7 +58,7 @@ function TableVerifs({ liste }: { liste: Verif[] }) {
 }
 
 /** Panneau de résultats de la maquette : Courbes, Efforts, Vérifications, filtrés sur la sélection. */
-export function PanneauResultats({ res, projet, coupeActive, phase, selection, modele, theme, resultatsPour, largeur, curseurZ, volet, onVolet,
+export function PanneauResultats({ res, projet, coupeActive, phase, selection, modele, theme, unite, resultatsPour, largeur, curseurZ, volet, onVolet,
   onSelection, onPhase, onOuvrir, onFermer, onCentrer, onSurvolZ, onLargeur }: {
   res: Resultats
   projet: ProjetCoupes | null
@@ -67,6 +67,7 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
   selection: string | null
   modele: Modele
   theme: Theme
+  unite?: string
   resultatsPour?: (k: number, sl: number, phase: number) => { res: Resultats; phase: number; coupe: string | null }
   largeur: number
   curseurZ: number | null
@@ -74,7 +75,7 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
   onVolet: (v: Volet) => void
   onSelection: (id: string | null) => void
   onPhase: (i: number) => void
-  onOuvrir: (onglet: 'coupe' | 'efforts' | 'verifications') => void
+  onOuvrir: (vue: 'coupe' | 'efforts' | 'verifications' | 'synthese') => void
   onFermer: () => void
   onCentrer: (id: string) => void
   onSurvolZ: (z: number | null) => void
@@ -120,18 +121,10 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
 
   const courbes = () => {
     if (!sel) {
-      const syn = projet && !projet.unique && projet.coupes.length > 1 ? projet.synthese : null
-      const d = res.dimensionnant
       return (
         <div className="insp-section">
-          <div className="insp-titre">Synthèse {syn ? `projet (${projet!.coupes.length} coupes)` : ''}</div>
-          <dl className="lignes-cle">
-            <dt>Déplacement max</dt><dd>{nb(d.deplacement?.valeur_mm)} mm{syn && (syn.chiffres.deplacement as Obj)?.coupe ? ` · ${String((syn.chiffres.deplacement as Obj).coupe).split(' — ')[0]}` : ''}</dd>
-            <dt>Moment max</dt><dd>{nb(d.moment_positif?.valeur, 0)} kN·m/m</dd>
-            <dt>Moment min</dt><dd>{nb(d.moment_negatif?.valeur, 0)} kN·m/m</dd>
-            <dt>Tranchant max</dt><dd>{nb(d.tranchant?.valeur, 0)} kN/m</dd>
-            {Object.entries(d.appuis ?? {}).map(([n, a]) => <span key={n} style={{ display: 'contents' }}><dt>{n} max</dt><dd>{nb(a.effort_kN_m, 0)} kN/m · {nb(a.effort_axial_kN, 0)} kN</dd></span>)}
-          </dl>
+          <div className="note" style={{ marginBottom: 8 }}>Aucun objet sélectionné. Cliquez la paroi, un appui, une couche, le fond de fouille ou une surcharge pour voir ses courbes ; les valeurs dimensionnantes sont dans la vue Synthèse.</div>
+          <button className="btn" onClick={() => onOuvrir('synthese')}>Ouvrir la synthèse</button>
           <div className="insp-titre" style={{ marginTop: 10 }}>Vérifications non vérifiées ou à taux ≥ {TEXTE_SEUIL_ATTENTION}</div>
           {attention.length === 0 ? <div className="note">Aucune : toutes les vérifications ont un taux inférieur à {TEXTE_SEUIL_ATTENTION}.</div> : (
             <ul className="points-attention">
@@ -146,7 +139,7 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
       )
     }
     if (sel.type === 'paroi' || sel.type === 'coupe' || sel.type === 'coupe_locale') {
-      return <div className="courbes-pleines"><CoupeDiagrammes res={r} phase={ctxSel.phase} theme={theme} curseurZ={curseurZ} onSurvolZ={onSurvolZ} /></div>
+      return <div className="courbes-pleines"><CoupeDiagrammes res={r} phase={ctxSel.phase} theme={theme} unite={unite} curseurZ={curseurZ} onSurvolZ={onSurvolZ} /></div>
     }
     if (nomAppui) {
       const x = lignesAppui.map((l) => `${l.i}`)
@@ -324,7 +317,7 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
       <div className="panneau-entete">
         <span className="filtre" title={titreFiltre(sel, ctxSel.coupeNom, ctxSel.phase)}>{titreFiltre(sel, ctxSel.coupeNom, ctxSel.phase)}</span>
         <span className="espace" />
-        <button className="btn discret" onClick={() => onOuvrir(ongletPleinEcran[volet])} title="Ouvrir cet onglet en plein écran, filtré sur la sélection">Plein écran</button>
+        <button className="btn discret" onClick={() => onOuvrir(ongletPleinEcran[volet])} title={volet === 'verifications' ? 'Ouvrir la vue Vérifications, filtrée sur la sélection' : 'Ouvrir la vue complète'}>Vue complète</button>
         <button className="btn icone discret" title="Fermer (R)" onClick={onFermer}><IconeFermer taille={14} /></button>
       </div>
       <div className="volets" role="tablist">

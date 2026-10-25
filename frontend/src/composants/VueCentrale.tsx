@@ -73,12 +73,13 @@ export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d }:
       case 'pseudo3d': return <Pseudo3D res={res!} phase={a.phase} />
       case '3d':
         return res!.maquette ? (
-          <Onglet3D res={res!} texte={p.texteCalcule()} phase={a.phase} theme={a.theme} projet={p.projet} coupeActive={p.coupeActive} onCoupe={changerCoupe} cotes={p.cotesPlan}
+          <Onglet3D res={res!} texte={p.texteCalcule()} phase={a.phase} theme={a.theme} projet={p.projet} coupeActive={p.coupeActive} cotes={p.cotesPlan}
             onEpingler={(e) => ajouterDepuis3d(['coupes'], e, 'Coupe ajoutée au script : à recalculer')}
             onAjouterSurcharge={(e) => ajouterDepuis3d(['surcharges'], e, 'Surcharge ajoutée au script : à recalculer')}
             onAjouterRisberme={(e) => ajouterDepuis3d(['fouille', 'risbermes'], e, 'Risberme ajoutée au script : à recalculer')}
             selection={a.selection3d} onSelection={a.selectionner3d} modele={modele} onPhase={a.setPhase}
-            onOuvrir={(o) => a.ouvrirDepuis3d(o === 'coupe' ? 'diagrammes' : o)} prereglageInitial={a.prereglage} onPrereglage={a.setPrereglage} />
+            onOuvrir={(o) => a.ouvrirDepuis3d(o === 'coupe' ? 'diagrammes' : o)} prereglageInitial={a.prereglage} onPrereglage={a.setPrereglage}
+            etat3d={a.etat3d} onEtat3d={a.setEtat3d} unite={uniteCote(p.modele)} />
         ) : <div className="vide-centre"><b>Maquette non disponible</b><span>Le serveur n'a pas renvoyé la géométrie de la maquette pour ce calcul.</span></div>
       case 'assemblages':
         return <Assemblages res={res} modele={modele} references={p.references} theme={a.theme}

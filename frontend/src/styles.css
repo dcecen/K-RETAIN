@@ -437,8 +437,13 @@ select.champ { padding: 0 2px; }
   border: 1px solid var(--filet-fort); border-radius: 2px; padding: 6px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 5; }
 .vue3d-diag table { border-collapse: collapse; margin-top: 4px; }
 .vue3d-diag td { padding: 1px 6px 1px 0; }
-.onglet-3d .barre-outils { flex-wrap: nowrap; white-space: nowrap; overflow-x: auto; }
+.onglet-3d .barre-outils { flex-wrap: wrap; height: auto; min-height: 38px; padding: 4px 12px; row-gap: 4px; }
 .onglet-3d .barre-outils label { white-space: nowrap; }
+.outil-actif { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--accent); border-radius: 2px; background: var(--accent-doux); color: var(--texte); font-size: 12px; white-space: nowrap; }
+.outil-actif .btn { height: 22px; padding: 0 6px; font-size: 12px; }
+.menu-liste label { display: flex; align-items: center; gap: 8px; padding: 6px 12px; cursor: pointer; }
+.menu-liste label select, .menu-liste label input[type=range] { margin-left: auto; }
+.menu-liste button.actif { background: var(--selection); }
 
 /* ---------------------------------------------------------------- panneau des calques */
 .panneau-calques { width: 290px; flex-shrink: 0; border-left: 1px solid var(--filet); background: var(--panneau); display: flex; flex-direction: column; min-height: 0; }

@@ -113,8 +113,21 @@ if (await aller('Maquette 3D', { attente: 4000 })) {
   await touche('r', 'KeyR', 82)
   await dormir(1500)
   await capture('08_maquette3d_resultats')
+  // un seul panneau à la fois : L ouvre les calques et ferme les résultats ; C ouvre les courbes en un point
+  await touche('l', 'KeyL', 76)
+  await dormir(800)
+  const panneaux = await evaluer(`[!!document.querySelector('.panneau-calques'), !!document.querySelector('.panneau-resultats')]`)
+  if (!(panneaux[0] && !panneaux[1])) journal.push(`maquette : après L, calques=${panneaux[0]} résultats=${panneaux[1]} (attendu : calques seuls)`)
+  await capture('08b_maquette3d_calques')
+  await touche('c', 'KeyC', 67)
+  await dormir(1500)
+  if (!(await evaluer(`!!document.querySelector('.panneau-coupe-locale') && !document.querySelector('.panneau-calques')`))) journal.push('maquette : après C, les courbes en un point ne remplacent pas les calques')
+  await capture('08c_maquette3d_courbes')
   await touche('Escape', 'Escape', 27)
   await dormir(500)
+  if (await evaluer(`!!document.querySelector('.panneau-coupe-locale')`)) journal.push('maquette : Échap ne ferme pas les courbes en un point')
+  // les menus de la barre s'ouvrent
+  if (await aller('Outils', { attente: 500, obligatoire: false })) { await capture('08d_maquette3d_menu_outils'); await touche('Escape', 'Escape', 27); await dormir(300) }
 }
 // Saisie : première couche, puis chaque étape
 await evaluer(`(() => { const b = [...document.querySelectorAll('.noeud.enfant')][0]; b?.click() })()`)
