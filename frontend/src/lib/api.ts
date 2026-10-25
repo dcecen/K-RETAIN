@@ -245,6 +245,8 @@ export interface Resultats {
     /** Abscisses des angles (sommets du contour ou angle de la paroi droite) et mode fouille fermée. */
     sommets?: number[]
     fermee?: boolean
+    /** Longueur développée modélisée (m) : périmètre en fouille fermée, longueur de la paroi droite sinon. */
+    longueur?: number
     phases: {
       nom: string
       ok: boolean
@@ -285,6 +287,7 @@ export interface CoupeRes {
   correspondance: number[]                        // indice projet de chaque phase de la coupe
   resultats?: Resultats                           // absent pour la première coupe (= resultats de la réponse)
   en_cache?: boolean
+  automatique?: boolean                           // coupe créée par calcul.coupes_automatiques (une par côté du contour)
 }
 
 export interface SyntheseVerif {

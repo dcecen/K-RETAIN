@@ -14,6 +14,7 @@ import { modeCalque, reglageCalque, type Contexte, type Element, type Spec } fro
 
 export const NZ = 48          // lignes de la grille de paroi selon z
 const COULEUR_NEUTRE = 0xb8c0cc
+export const COULEUR_HORS_MODELE = 0x8a93a2   // paroi au-delà de la longueur modélisée (pseudo-3D paroi droite)
 const COULEUR_POSITIF = 0xc7362c   // face fouille tendue (M > 0) : rouge
 const COULEUR_NEGATIF = 0x2c5da8   // bleu
 const COULEUR_EAU = 0x3b8fd9
@@ -21,10 +22,19 @@ const COULEUR_TERRE = 0x8b6b3e
 const COULEUR_FOUILLE = 0x2e7d4f
 
 // ------------------------------------------------------------------ accès aux résultats
-/** Fonction z -> valeur pour un point de paroi (abscisse développée s), d'après le profil 2D ou le champ pseudo-3D. */
+/** Vrai si l'abscisse développée s dépasse la longueur modélisée d'une paroi droite pseudo-3D (le contour du plan
+ *  est plus long que la plaque calculée) : aucun résultat n'existe à cet endroit, rien n'est extrapolé. */
+export function horsModele(res: Resultats, s: number): boolean {
+  const p3 = res.pseudo3d
+  return !!p3 && !p3.fermee && p3.s.length > 0 && s > p3.s[p3.s.length - 1] + 1e-6
+}
+
+/** Fonction z -> valeur pour un point de paroi (abscisse développée s), d'après le profil 2D ou le champ pseudo-3D ;
+ *  null si la phase n'est pas calculée ou si le point est hors de la longueur modélisée. */
 export function profilValeur(res: Resultats, phase: number, quoi: 'y' | 'M' | 'V', s: number): ((z: number) => number) | null {
   const ph = res.phases[phase]
   if (!ph?.ok) return null
+  if (horsModele(res, s)) return null
   const p3 = res.pseudo3d
   if (p3) {
     const q = p3.phases[phase]
@@ -155,59 +165,77 @@ export function sourcePour(ctx: Contexte, k: number, sl: number): { res: Resulta
   return ctx.d.resultatsPour?.(k, sl, ctx.phase) ?? { res: ctx.d.res, phase: ctx.phase, coupe: null }
 }
 
-/** Décalage de la déformée (m) en chaque nœud de la grille pour une phase : y(z) × amplification × atténuation aux angles. */
-function decalages(ctx: Contexte, a: Arete, g: Grille, phase: number, amp: number, enveloppe: 'max' | 'min' | null = null): Float32Array | null {
-  const src = sourcePour(ctx, a.k, g.sl[Math.floor(g.ns / 2)])
-  const res = src.res
-  if (!enveloppe) phase = src.phase
-  const out = new Float32Array(g.ns * g.nz)
-  const p3 = !!res.pseudo3d
-  const la = Math.min(0.25 * a.L, ctx.d.m.paroi.tete - ctx.d.m.paroi.pied)
-  let f: ((z: number) => number) | null
-  if (enveloppe) {
-    const env = res.enveloppes
-    if (!env.z) return null
-    const v = enveloppe === 'max' ? env.y_max_mm! : env.y_min_mm!
-    f = (z) => interpBorne(env.z!, v, z)
-  } else f = profilValeur(res, phase, 'y', 0)
-  if (!f) return null
+/** Signature des sources de résultats le long d'une arête (coupe et phase de chaque colonne, par plages) :
+ *  clé de cache des surfaces, qui change dès qu'un tronçon change de coupe ou de phase correspondante. */
+function signatureSources(ctx: Contexte, a: Arete, g: Grille): string {
+  let sig = ''
+  let prec = ''
   for (let i = 0; i < g.ns; i++) {
-    const fi = p3 && !enveloppe ? profilValeur(res, phase, 'y', g.s[i])! : f
-    const att = p3 ? 1 : attenuationAngle(g.sl[i], a.L, la)
-    for (let j = 0; j < g.nz; j++) out[i * g.nz + j] = (fi(g.z[j]) / 1000) * amp * att
+    const src = sourcePour(ctx, a.k, g.sl[i])
+    const cur = `${src.coupe ?? ''}:${src.phase}`
+    if (cur !== prec) { sig += `${i}=${cur};`; prec = cur }
   }
-  return out
+  return sig
+}
+
+/** Décalage de la déformée (m) en chaque nœud de la grille pour une phase : y(z) × amplification × atténuation aux angles.
+ *  Chaque colonne lit la coupe de calcul de son propre tronçon (station par station) ; une colonne sans résultat
+ *  (hors longueur modélisée, phase non calculée) reste non déformée. */
+function decalages(ctx: Contexte, a: Arete, g: Grille, phase: number, amp: number, enveloppe: 'max' | 'min' | null = null): Float32Array | null {
+  const out = new Float32Array(g.ns * g.nz)
+  const la = Math.min(0.25 * a.L, ctx.d.m.paroi.tete - ctx.d.m.paroi.pied)
+  let vide = true
+  for (let i = 0; i < g.ns; i++) {
+    const src = sourcePour(ctx, a.k, g.sl[i])
+    const res = src.res
+    const p3 = !!res.pseudo3d
+    let f: ((z: number) => number) | null
+    if (enveloppe) {
+      const env = res.enveloppes
+      if (!env.z || horsModele(res, g.s[i])) continue
+      const v = enveloppe === 'max' ? env.y_max_mm! : env.y_min_mm!
+      f = (z) => interpBorne(env.z!, v, z)
+    } else f = profilValeur(res, enveloppe ? phase : src.phase, 'y', g.s[i])
+    if (!f) continue
+    vide = false
+    const att = p3 ? 1 : attenuationAngle(g.sl[i], a.L, la)
+    for (let j = 0; j < g.nz; j++) out[i * g.nz + j] = (f(g.z[j]) / 1000) * amp * att
+  }
+  return vide ? null : out
 }
 
 function couleursGrille(ctx: Contexte, a: Arete, g: Grille, mode: ModeCouleur, ech: EchelleCouleur | null): Float32Array {
   const out = new Float32Array(3 * g.ns * g.nz)
-  const src = sourcePour(ctx, a.k, g.sl[Math.floor(g.ns / 2)])
-  const res = src.res
-  const phase = src.phase
-  if (mode === 'taux') {
-    const t = tauxParoi(res.verifications)
-    const s = seuils(ctx)
-    const fond = ctx.ph.terrain_aval
-    for (let i = 0; i < g.ns; i++) for (let j = 0; j < g.nz; j++) {
-      const z = g.z[j]
-      const taux = z < fond ? t.fiche : t.courant
-      _c.setHex(COULEURS_TAUX[t.verifiable || (z < fond && taux !== null) ? classeTaux(taux, s) : 'gris'])
-      out.set([_c.r, _c.g, _c.b], 3 * (i * g.nz + j))
-    }
-    return out
-  }
-  if (mode === 'aucun' || !ech) {
-    _c.setHex(COULEUR_NEUTRE)
-    for (let k = 0; k < g.ns * g.nz; k++) out.set([_c.r, _c.g, _c.b], 3 * k)
-    return out
-  }
-  const quoi = ech.quoi === 'yabs' ? 'y' : ech.quoi
+  const s = mode === 'taux' ? seuils(ctx) : null
+  const tauxParCoupe = new Map<string, ReturnType<typeof tauxParoi>>()
+  const fond = ctx.ph.terrain_aval
   for (let i = 0; i < g.ns; i++) {
-    const f = profilValeur(res, phase, quoi, g.s[i])
+    const src = sourcePour(ctx, a.k, g.sl[i])
+    const res = src.res
+    const hors = horsModele(res, g.s[i])
+    if (hors || mode === 'aucun' || (mode !== 'taux' && !ech)) {
+      _c.setHex(hors ? COULEUR_HORS_MODELE : COULEUR_NEUTRE)
+      for (let j = 0; j < g.nz; j++) out.set([_c.r, _c.g, _c.b], 3 * (i * g.nz + j))
+      continue
+    }
+    if (mode === 'taux') {
+      const cle = src.coupe ?? ''
+      if (!tauxParCoupe.has(cle)) tauxParCoupe.set(cle, tauxParoi(res.verifications))
+      const t = tauxParCoupe.get(cle)!
+      for (let j = 0; j < g.nz; j++) {
+        const z = g.z[j]
+        const taux = z < fond ? t.fiche : t.courant
+        _c.setHex(COULEURS_TAUX[t.verifiable || (z < fond && taux !== null) ? classeTaux(taux, s!) : 'gris'])
+        out.set([_c.r, _c.g, _c.b], 3 * (i * g.nz + j))
+      }
+      continue
+    }
+    const quoi = ech!.quoi === 'yabs' ? 'y' : ech!.quoi
+    const f = profilValeur(res, src.phase, quoi, g.s[i])
     for (let j = 0; j < g.nz; j++) {
       let v = f ? f(g.z[j]) : 0
-      if (ech.quoi === 'yabs') v = Math.abs(v)
-      couleurValeur(v, ech.min, ech.max, ech.palette, _c)
+      if (ech!.quoi === 'yabs') v = Math.abs(v)
+      couleurValeur(v, ech!.min, ech!.max, ech!.palette, _c)
       out.set([_c.r, _c.g, _c.b], 3 * (i * g.nz + j))
     }
   }
@@ -268,8 +296,8 @@ function specsSurface(ctx: Contexte): Spec[] {
           const c = k.scene.calques
           const deformee = c.visible('resultats.deformee')
           const amp = deformee ? amplification(k) : 0
-          const srcK = sourcePour(k, a.k, a.L / 2)
-          const cleD = `${k.phase}|${amp}|${srcK.coupe ?? ''}|${srcK.phase}`
+          const sig = signatureSources(k, a, g)
+          const cleD = `${k.phase}|${amp}|${sig}`
           if (!cacheDec.has(cleD)) cacheDec.set(cleD, deformee ? decalages(k, a, g, k.phase, amp) : null)
           const dec = cacheDec.get(cleD) ?? null
           const pa = bg.attributes.position as THREE.BufferAttribute
@@ -279,7 +307,7 @@ function specsSurface(ctx: Contexte): Spec[] {
           bg.computeBoundingSphere()
           const mode = modeCouleurActif(k)
           const ech = echelleCouleur(k, mode)
-          const cleC = `${k.phase}|${srcK.coupe ?? ''}|${srcK.phase}|${mode}|${ech ? `${ech.quoi}|${ech.min}|${ech.max}|${ech.palette}` : ''}|${mode === 'taux' ? JSON.stringify(seuils(k)) + k.ph.terrain_aval : ''}`
+          const cleC = `${k.phase}|${sig}|${mode}|${ech ? `${ech.quoi}|${ech.min}|${ech.max}|${ech.palette}` : ''}|${mode === 'taux' ? JSON.stringify(seuils(k)) + k.ph.terrain_aval : ''}`
           if (!cacheCoul.has(cleC)) cacheCoul.set(cleC, couleursGrille(k, a, g, mode, ech))
           const ca = bg.attributes.color as THREE.BufferAttribute
           ;(ca.array as Float32Array).set(cacheCoul.get(cleC)!)

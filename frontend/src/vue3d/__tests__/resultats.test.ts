@@ -2,9 +2,10 @@ import type * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { definirMode, definirReglage, definirVisible, etatInitial, versScene } from '../calques'
 import { FABRIQUES_CHANTIER } from '../elements'
-import { legendes } from '../legendes'
+import { legendes, noteDeformee } from '../legendes'
 import { classeTaux, couleurPalette, PALETTES } from '../palettes'
-import { amplificationAuto, bornes, extremes, FABRIQUES_RESULTATS_PAROI, NZ, profilValeur, tauxParoi } from '../resultats'
+import { amplificationAuto, bornes, COULEUR_HORS_MODELE, extremes, FABRIQUES_RESULTATS_PAROI, horsModele, NZ, profilValeur, tauxParoi } from '../resultats'
+import { champPseudo3D } from '../sourceResultats'
 import { indicePhase, jeu, nouvelleScene } from './outils'
 import { Color } from 'three'
 
@@ -177,5 +178,46 @@ describe('résultats de la paroi en 3D', () => {
     const t = new Color()
     couleurPalette(0.5, 'divergente', t)
     expect(t.r).toBeGreaterThan(0.9)
+  })
+
+  it('pseudo-3D paroi droite : au-delà de la longueur modélisée, la paroi reste grise et non déformée', () => {
+    const res = jeu('p3d')                                      // paroi droite de 48 m sur un contour de 96 m
+    const L = res.pseudo3d!.s[res.pseudo3d!.s.length - 1]
+    const derniere = res.phases.length - 1
+    expect(horsModele(res, L - 1)).toBe(false)
+    expect(horsModele(res, L + 5)).toBe(true)
+    expect(profilValeur(res, derniere, 'y', L - 1)).not.toBeNull()
+    expect(profilValeur(res, derniere, 'y', L + 5)).toBeNull()
+    expect(champPseudo3D(res)!.courbes(L + 5, derniere)).toBeNull()
+    expect(noteDeformee(res)).toContain('hors longueur modélisée')
+    const { sc } = nouvelleScene(TOUT)
+    sc.charger(res)
+    let e = definirVisible(etatInitial(), 'resultats.deplacement', true)
+    e = definirVisible(e, 'resultats.deformee', true)
+    sc.appliquerCalques(versScene(e))
+    sc.phase(derniere)
+    const gris = new Color(COULEUR_HORS_MODELE)
+    const ecart = (k: number, surf: THREE.Mesh, fant: THREE.Mesh) => {
+      const p = surf.geometry.attributes.position as THREE.BufferAttribute
+      const f = fant.geometry.attributes.position as THREE.BufferAttribute
+      return Math.hypot(p.getX(k) - f.getX(k), p.getZ(k) - f.getZ(k))
+    }
+    // arête 2 (s de 48 à 72 m) : à partir de la deuxième colonne (s > 48), gris et confondue avec la paroi initiale
+    const m2 = surface(sc, 2)
+    const fant2 = sc.elements.get('resultats.surface.2')!.objet.children[1] as THREE.Mesh
+    const col = m2.geometry.attributes.color as THREE.BufferAttribute
+    let dmax = 0
+    for (let k = NZ; k < col.count; k++) {
+      expect(col.getX(k)).toBeCloseTo(gris.r, 5)
+      expect(col.getZ(k)).toBeCloseTo(gris.b, 5)
+      dmax = Math.max(dmax, ecart(k, m2, fant2))
+    }
+    expect(dmax).toBeLessThan(1e-9)
+    // arête 0 (s de 0 à 24 m) : dans le modèle, déformée et colorée par le champ
+    const m0 = surface(sc, 0)
+    const fant0 = sc.elements.get('resultats.surface.0')!.objet.children[1] as THREE.Mesh
+    let d0 = 0
+    for (let k = 0; k < (m0.geometry.attributes.position as THREE.BufferAttribute).count; k++) d0 = Math.max(d0, ecart(k, m0, fant0))
+    expect(d0).toBeGreaterThan(0.1)
   })
 })

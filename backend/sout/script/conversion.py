@@ -162,23 +162,37 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
                                            gamma=_gamma_a(z_amont), methode="surcharge_equivalente", cotes_paroi=_cotes(t.cote_paroi)))
     except ErreurTerrain as e:
         raise ErreurConversion(str(e)) from None
-    beta = None
-    if t.pente_beta is not None or (t.profil is not None and t.methode_pente == "coulomb_beta"):
-        if t.pente_beta is not None:
-            beta = t.pente_beta
-        else:
-            (d0, z0), (d1, z1) = t.profil[0], t.profil[-1]
-            beta = math.degrees(math.atan2(z1 - z0, d1 - d0))
     cc = s.coupe_calcul
     from ..plan.geometrie import cote_concerne
+    # Pseudo-3D en fouille fermée : la plaque porte tous les côtés du contour. Les objets de terrain rattachés à
+    # un côté sont gardés et deviennent des bandes « SurchargePlan » filtrées ligne par ligne (sol.terrain) ;
+    # pour une coupe 2D, les objets des autres côtés sont écartés dès la conversion.
+    fermee_p3d = (s.calcul.mode == "pseudo3d" and s.pseudo3d is not None and s.pseudo3d.longueur is None
+                  and s.plan is not None)
+    beta = None
+    if t.pente_beta is not None or (t.profil is not None and t.methode_pente == "coulomb_beta"):
+        if fermee_p3d and t.cote_paroi is not None:
+            raise ErreurConversion("terrain : pente côté terre limitée à certains côtés (cote_paroi) non disponible en "
+                                   "pseudo-3D fouille fermée (coefficients de poussée uniques sur le contour) : retirez "
+                                   "cote_paroi ou utilisez methode_pente: surcharge_equivalente")
+        if cote_concerne(_cotes(t.cote_paroi), cc):   # pente rattachée à d'autres côtés : sans effet sur cette coupe
+            if t.pente_beta is not None:
+                beta = t.pente_beta
+            else:
+                (d0, z0), (d1, z1) = t.profil[0], t.profil[-1]
+                beta = math.degrees(math.atan2(z1 - z0, d1 - d0))
     for o in objets:
         # objet rattaché à certains côtés : ignoré par les coupes des autres côtés
-        if not cote_concerne(o.cotes_paroi, cc):
+        if not fermee_p3d and not cote_concerne(o.cotes_paroi, cc):
             continue
         if o.methode == "coin_de_rupture":
             raise ErreurConversion(f"{o.type} « {o.nom} » : méthode du coin de rupture non disponible — TODO-NORME : "
                                    "publication à fournir dans docs/normes (surcharges_et_terrain.risberme_coin_de_rupture)")
         if o.methode == "fond_equivalent":
+            if fermee_p3d and o.cotes_paroi is not None:
+                raise ErreurConversion(f"{o.type} « {o.nom} » : méthode du fond équivalent limitée à un côté, non disponible en "
+                                       "pseudo-3D fouille fermée (fond de fouille unique sur le contour) : utilisez "
+                                       "surcharge_equivalente ou retirez cote_paroi")
             continue
         bandes = bandes_equivalentes(o)
         if o.phase_debut is None:
@@ -199,9 +213,11 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
                 eau[cle] = getattr(ph.eau, cle)
         excaver = ph.excaver
         for o in objets:   # méthode du fond équivalent : fond relevé à la cote choisie pendant la vie de l'objet
-            if o.methode == "fond_equivalent" and o.phase_debut == k_ph and o.cote_equivalente is not None:
+            if o.methode != "fond_equivalent" or not cote_concerne(o.cotes_paroi, cc):   # objet d'un autre côté : sans effet
+                continue
+            if o.phase_debut == k_ph and o.cote_equivalente is not None:
                 excaver = o.cote_equivalente
-            if o.methode == "fond_equivalent" and o.phase_fin is not None and o.phase_fin + 1 == k_ph and (excaver is None or excaver > o.base):
+            if o.phase_fin is not None and o.phase_fin + 1 == k_ph and (excaver is None or excaver > o.base):
                 excaver = o.base
         remblai_amont = ph.remblayer.amont if ph.remblayer else None
         if remblai_phase == k_ph and s.terrain.remblai is not None:

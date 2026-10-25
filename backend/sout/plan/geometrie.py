@@ -45,6 +45,20 @@ def cote_concerne(cotes_paroi, coupe) -> bool:
     return f"#{getattr(coupe, 'k', None)}" in cotes_paroi
 
 
+def objet_concerne(cotes_paroi, troncon, coupe) -> bool:
+    """Généralise `cote_concerne` à un objet limité à un tronçon du côté : `troncon` = (de, a), abscisses
+    locales le long du côté (m) ; None = côté entier. Sans coupe : toujours concerné."""
+    if not cote_concerne(cotes_paroi, coupe):
+        return False
+    if troncon is None or coupe is None:
+        return True
+    s = getattr(coupe, "s", None)
+    if s is None:
+        return True
+    de, a = sorted(troncon)
+    return de - 1e-9 <= s <= a + 1e-9
+
+
 def perimetre(contour: list) -> float:
     return sum(a["L"] for a in aretes(contour))
 

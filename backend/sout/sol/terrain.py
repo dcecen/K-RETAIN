@@ -292,6 +292,7 @@ class ObjetTerrain:
     phase_fin: int | None = None
     cotes_paroi: tuple[str, ...] | None = None
     cote_equivalente: float | None = None       # méthode fond_equivalent (valeur choisie par l'ingénieur)
+    troncon: tuple[float, float] | None = None  # étendue [de, a] le long du côté (m) ; None = côté entier
     pas: float = 0.5                            # largeur des bandes équivalentes (m)
 
     def hauteur(self, d: float) -> float:
@@ -338,12 +339,17 @@ def profil_gradins(marches, cote_pied: float) -> tuple[tuple[float, float], ...]
     return tuple(pts)
 
 
-def bandes_equivalentes(o: ObjetTerrain) -> list[Surcharge]:
+def bandes_equivalentes(o: ObjetTerrain) -> list:
     """Méthode de la surcharge équivalente : le volume de sol est remplacé par son poids, appliqué
     à la cote de base sous forme de bandes verticales (largeur `pas`) diffusées par Boussinesq
     (`sol.surcharges.delta_sigma_v`, bande). Choix de modélisation RetainWall : les bandes
     conservent la forme du volume ; une surcharge uniforme unique serait plus grossière.
-    Le poids volumique est pris hors nappe (volume supposé émergé)."""
+    Le poids volumique est pris hors nappe (volume supposé émergé).
+
+    Objet sans restriction de côté ni de tronçon : bandes historiques (`Surcharge`), infinies le long
+    de la paroi. Objet rattaché à des côtés ou à un tronçon : bandes `SurchargePlan` (type bande,
+    `cotes_paroi`, `emprise` = tronçon) que `delta_sigma_v_plan` filtre et rapporte à chaque coupe ou
+    ligne verticale du pseudo-3D ; sans tronçon, la bande reste infinie et la valeur est identique."""
     out = []
     n = max(1, int(math.ceil(o.etendue / o.pas)))
     w = o.etendue / n
@@ -352,17 +358,21 @@ def bandes_equivalentes(o: ObjetTerrain) -> list[Surcharge]:
         h = o.hauteur(d0 + w / 2)
         if h <= 1e-6:
             continue
-        out.append(Surcharge(nom=f"{PREFIXE_TERRAIN}{o.nom}:{i}", type="bande", q=o.gamma * h, distance=d0, largeur=w,
-                             cote=o.base, cote_ecran=o.face))
+        nom = f"{PREFIXE_TERRAIN}{o.nom}:{i}"
+        if o.cotes_paroi is None and o.troncon is None:
+            out.append(Surcharge(nom=nom, type="bande", q=o.gamma * h, distance=d0, largeur=w, cote=o.base, cote_ecran=o.face))
+        else:
+            out.append(SurchargePlan(nom=nom, type="bande", q=o.gamma * h, distance=d0, largeur=w, emprise=o.troncon,
+                                     cote=o.base, cote_ecran=o.face, cotes_paroi=o.cotes_paroi))
     return out
 
 
-def surcharges_terrain(objets, coupe: CoupeCalcul | None) -> list[tuple[ObjetTerrain, list[Surcharge]]]:
+def surcharges_terrain(objets, coupe: CoupeCalcul | None) -> list[tuple[ObjetTerrain, list]]:
     """Bandes équivalentes des objets concernant la coupe (les autres méthodes n'en produisent pas)."""
-    from ..plan.geometrie import cote_concerne
+    from ..plan.geometrie import objet_concerne
     out = []
     for o in objets:
-        if not cote_concerne(o.cotes_paroi, coupe):
+        if not objet_concerne(o.cotes_paroi, o.troncon, coupe):
             continue
         if o.methode == "coin_de_rupture":
             raise ErreurTerrain(f"{o.type} « {o.nom} » : méthode du coin de rupture non disponible — "

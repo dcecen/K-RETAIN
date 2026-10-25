@@ -315,6 +315,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `jeu_eau` | texte |  |  | jeu de niveaux d'eau utilisé (défaut : le premier du bloc eau) |
 | `mode` | 2d / pseudo3d |  | 2d | 2d (par section) ou pseudo3d (plaque sur ressorts) |
 | `largeur_fouille` | nombre |  |  | largeur de la fouille pour la stabilité générale (m) ; défaut : 2 × hauteur de paroi (> 0) |
+| `coupes_automatiques` | true / false |  | False | avec un bloc plan et sans bloc coupes : une coupe de calcul 2D par côté du contour dès que des surcharges ou des objets de terrain dépendent du côté (sinon coupe unique au milieu du côté le plus long) |
 
 ### paroi
 

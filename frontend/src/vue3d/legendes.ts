@@ -31,6 +31,30 @@ export type Legende = LegendeContinue | LegendeDiscrete
 
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`
 
+/** Longueur développée d'un contour fermé (m). */
+function perimetreContour(contour: number[][] | undefined): number {
+  if (!contour || contour.length < 2) return 0
+  let L = 0
+  for (let i = 0; i < contour.length; i++) {
+    const a = contour[i]
+    const b = contour[(i + 1) % contour.length]
+    L += Math.hypot(b[0] - a[0], b[1] - a[1])
+  }
+  return L
+}
+
+/** Origine de la déformée affichée : champ pseudo-3D (avec, le cas échéant, la part du contour hors de la longueur
+ *  modélisée, laissée en gris), ou profil 2D de la coupe de chaque tronçon, extrudé le long du tronçon. */
+export function noteDeformee(res: Resultats): string {
+  const p3 = res.pseudo3d
+  if (!p3) return 'profil 2D de la coupe de chaque tronçon, extrudé le long du tronçon et atténué aux angles (visuel)'
+  if (!p3.fermee && p3.s.length) {
+    const L = p3.s[p3.s.length - 1]
+    if (perimetreContour(res.maquette?.contour) > L + 1e-6) return `champ pseudo-3D (paroi droite de ${nb(L, 0)} m) ; au-delà : hors longueur modélisée, en gris`
+  }
+  return 'champ pseudo-3D'
+}
+
 /** Légendes à afficher pour l'état des calques et la phase active. */
 export function legendes(res: Resultats, c: EtatCalquesScene, phase: number, animation = false): Legende[] {
   const out: Legende[] = []
@@ -40,7 +64,7 @@ export function legendes(res: Resultats, c: EtatCalquesScene, phase: number, ani
     const r = reglageCalque<number | string>(c, 'resultats.deformee', 'amplification', 'auto')
     const amp = r === 'auto' || r === 0 ? amplificationAuto(res) : Number(r)
     out.push({ type: 'discrete', id: 'deformee', titre: `Déformée × ${nb(amp, 0)}${r === 'auto' || r === 0 ? ' (auto : 2 m à l\'écran)' : ''}`, classes: [], phase: nomPhase,
-      note: res.pseudo3d ? 'champ pseudo-3D' : 'profil 2D extrudé, atténué aux angles (visuel)' })
+      note: noteDeformee(res) })
   }
   if (vis('resultats.taux')) {
     const o = reglageCalque(c, 'resultats.taux', 'orange', SEUILS_DEFAUT.orange)

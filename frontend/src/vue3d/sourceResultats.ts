@@ -114,6 +114,7 @@ export function champPseudo3D(res: Resultats): ChampPlaque | null {
       const q = p3.phases[phase]
       if (!q?.ok || !q.y_mm || !q.M) return null
       const S = p3.s
+      if (!p3.fermee && S.length && s > S[S.length - 1] + 1e-6) return null   // hors longueur modélisée : rien n'est extrapolé
       let i = 0
       while (i < S.length - 1 && S[i + 1] < s) i++
       const i1 = Math.min(i + 1, S.length - 1)
@@ -131,11 +132,13 @@ export function sourcePseudo3D(res: Resultats, geo: Contour): SourceResultats | 
     const q = res.pseudo3d!.phases[phase]
     const base = res.phases[phase]?.appuis
     if (!q?.appuis || !base) return base
-    // effort de l'appui le plus proche en s (par nom), sinon valeur 2D
+    // effort de l'appui le plus proche en s (par nom), sinon valeur 2D ; un buton reliant deux parois (fouille
+    // fermée) est aussi repéré par son autre extrémité s2 : sur la paroi d'en face, c'est le buton en vis-à-vis
+    const dist = (x: { s: number; s2?: number | null }) => Math.min(Math.abs(x.s - s), x.s2 == null ? Infinity : Math.abs(x.s2 - s))
     return base.map((a) => {
       const cands = q.appuis!.filter((x) => x.nom === a.nom)
       if (!cands.length) return a
-      const prox = cands.reduce((m, x) => (Math.abs(x.s - s) < Math.abs(m.s - s) ? x : m))
+      const prox = cands.reduce((m, x) => (dist(x) < dist(m) ? x : m))
       // effort du point en kN par appui : kN/m = effort/espacement, axial = effort/cos(angle) (comme verifs_struct) ;
       // les valeurs ELU suivent le rapport axial pseudo-3D / axial 2D
       const e = prox.espacement ?? 1

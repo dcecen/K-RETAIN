@@ -55,7 +55,9 @@ export function Phases({ ctx, selection, onSelection, phaseActive, onPhaseActive
   const phases: Modele[] = Array.isArray(ctx.modele.phases) ? ctx.modele.phases : []
   const appuis = Object.keys(ctx.modele.appuis ?? {})
   const surcharges: string[] = (ctx.modele.surcharges ?? []).map((s: Modele, i: number) => String(s?.nom ?? `S${i + 1}`))
-  const objetsTerrain: string[] = ['risbermes', 'talus', 'gradins'].flatMap((k) => (Array.isArray(ctx.modele.fouille?.[k]) ? ctx.modele.fouille[k].map((o: Modele, i: number) => String(o?.nom ?? `${k} ${i + 1}`)) : []))
+  // nom par défaut d'un objet sans clé nom : même règle que le moteur (conversion.py : Risberme1, Talus1, Gradins1)
+  const NOM_DEFAUT: Record<string, string> = { risbermes: 'Risberme', talus: 'Talus', gradins: 'Gradins' }
+  const objetsTerrain: string[] = ['risbermes', 'talus', 'gradins'].flatMap((k) => (Array.isArray(ctx.modele.fouille?.[k]) ? ctx.modele.fouille[k].map((o: Modele, i: number) => String(o?.nom ?? `${NOM_DEFAUT[k]}${i + 1}`)) : []))
   const sel = selection?.type === 'phase' ? selection.index : null
   const ph = sel !== null ? phases[sel] : null
   const unite = uniteCote(ctx.modele)
@@ -154,7 +156,12 @@ export function Phases({ ctx, selection, onSelection, phaseActive, onPhaseActive
                 <div className="grille-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
                   {champPhase('aval', `Remblai aval à (${unite})`, '—', ['phases', sel, 'remblayer', 'aval'])}
                   {champPhase('amont', `Remblai amont à (${unite})`, '—', ['phases', sel, 'remblayer', 'amont'])}
-                  <label style={{ gridColumn: '1 / -1' }}>Ajouter des surcharges<Cases ctx={ctx} chemin={['phases', sel, 'ajouter_surcharges']} valeur={ph.ajouter_surcharges} options={surcharges} bloc="Phase" cle="ajouter_surcharges" libelle="Surcharges ajoutées" /></label>
+                  {/* ajouter_surcharges attend des blocs de surcharge complets (schéma) : une liste de noms serait refusée au calcul.
+                      La phase d'application d'une surcharge se règle dans l'étape Surcharges (colonne Phase). */}
+                  <div className="doux" style={{ gridColumn: '1 / -1', fontSize: 12 }}>
+                    Surcharges appliquées à partir d'une phase : colonne « Phase » de l'étape Surcharges.
+                    {Array.isArray(ph.ajouter_surcharges) && ph.ajouter_surcharges.length > 0 && ` Ce script ajoute ici ${ph.ajouter_surcharges.length} surcharge(s) décrite(s) dans le script (ajouter_surcharges).`}
+                  </div>
                   <label style={{ gridColumn: '1 / -1' }}>Retirer des surcharges<Cases ctx={ctx} chemin={['phases', sel, 'retirer_surcharges']} valeur={ph.retirer_surcharges} options={surcharges} bloc="Phase" cle="retirer_surcharges" libelle="Surcharges retirées" /></label>
                   {(objetsTerrain.length > 0 || ph.terrasser_risberme) && <label style={{ gridColumn: '1 / -1' }}>Terrasser (risbermes, talus, gradins)<Cases ctx={ctx} chemin={['phases', sel, 'terrasser_risberme']} valeur={ph.terrasser_risberme} options={objetsTerrain} bloc="Phase" cle="terrasser_risberme" libelle="Objets de terrain terrassés" /></label>}
                 </div>

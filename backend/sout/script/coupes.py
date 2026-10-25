@@ -43,10 +43,11 @@ class CoupePreparee:
     empreinte: str               # hachage du script fusionné (cache)
     herite: list[str] = field(default_factory=list)
     local: list[str] = field(default_factory=list)
+    automatique: bool = False     # coupe créée par calcul.coupes_automatiques (une par côté du contour)
 
     def vers_dict(self) -> dict:
         return {"nom": self.nom, "zone": {"k": self.k, "de": self.de, "a": self.a}, "trace": self.trace,
-                "empreinte": self.empreinte, "herite": self.herite, "local": self.local}
+                "empreinte": self.empreinte, "herite": self.herite, "local": self.local, "automatique": self.automatique}
 
 
 @dataclass
@@ -202,6 +203,33 @@ def _surcharges_en_plan(s: Script) -> bool:
     return any(sc.type in ("rectangulaire", "ponctuelle", "lineaire") or sc.cote_paroi is not None or sc.emprise is not None for sc in toutes)
 
 
+def _donnees_par_cote(s: Script) -> bool:
+    """Des données dépendent du côté de paroi : surcharges en plan, objets de terrain ou pente côté terre
+    rattachés à certains côtés. Sans elles, toutes les coupes d'un contour seraient identiques."""
+    if _surcharges_en_plan(s) or s.terrain.cote_paroi is not None:
+        return True
+    return any(o.cote_paroi is not None for liste in (s.fouille.risbermes, s.fouille.talus, s.fouille.gradins) for o in liste)
+
+
+def _coupes_automatiques(s: Script, principal: dict, aretes: list[dict], contour) -> Projet:
+    """Une coupe 2D par côté du contour (calcul.coupes_automatiques) : chaque côté reçoit les surcharges et les
+    objets de terrain qui le concernent, rapportés au milieu du côté ; le projet est un projet à coupes."""
+    cotes = s.plan.cotes if s.plan else {}
+    noms = {k: n for n, k in cotes.items()}
+    local = sorted(k for k in principal if k not in CLES_NON_HERITEES)
+    coupes = []
+    for ar in aretes:
+        if ar["L"] <= 1e-9:
+            continue
+        nom = f"Auto — côté {noms.get(ar['k'], ar['k'])}"
+        trace = _trace_defaut(ar, 0.0, ar["L"], min(8.0, max(4.0, 0.3 * ar["L"])))
+        txt = _dumper({**principal, "coupe_calcul": position_coupe(ar, ar["L"] / 2, nom, cotes)})
+        coupes.append(CoupePreparee(nom, ar["k"], 0.0, ar["L"], trace, txt, empreinte(txt), [], local, automatique=True))
+    avert = [f"Coupes automatiques : {len(coupes)} coupes 2D, une par côté du contour (surcharges et objets de terrain "
+             "rapportés au milieu de chaque côté) ; les effets d'angle de la fouille ne sont pas calculés."]
+    return Projet(coupes, contour, [], avert, False)
+
+
 def preparer(texte: str, s: Script) -> Projet:
     """Coupes du projet, prêtes à calculer : textes fusionnés, tronçons, trace, avertissements."""
     contour = s.plan.contour if s.plan else RECTANGLE_DEFAUT
@@ -210,12 +238,19 @@ def preparer(texte: str, s: Script) -> Projet:
     if not s.coupes:
         txt = texte
         avert = []
-        if s.plan is not None and s.coupe_calcul is None and _surcharges_en_plan(s):
-            # coupe unique rapportée au milieu du côté le plus long pour localiser les surcharges en plan
+        if s.plan is not None and s.coupe_calcul is None and _donnees_par_cote(s):
+            if s.calcul.coupes_automatiques and s.calcul.mode != "pseudo3d":
+                return _coupes_automatiques(s, principal, aretes, contour)
+            # coupe unique rapportée au milieu du côté le plus long pour localiser les données dépendant du côté
             ar = max(aretes, key=lambda a: a["L"])
             txt = _dumper({**principal, "coupe_calcul": position_coupe(ar, ar["L"] / 2, "Coupe unique", s.plan.cotes)})
-            avert.append(f"Coupe unique : les surcharges en plan sont rapportées au milieu du côté {ar['k']} "
-                         "(ajoutez un bloc coupes pour les rapporter à chaque côté).")
+            if s.calcul.mode == "pseudo3d":
+                avert.append(f"Calcul 2D d'accompagnement : coupe unique au milieu du côté {ar['k']} ; le pseudo-3D rapporte "
+                             "les surcharges en plan et les objets de terrain à chaque ligne verticale du contour.")
+            else:
+                avert.append(f"Coupe unique : les surcharges et objets de terrain rattachés à un côté sont rapportés au milieu "
+                             f"du côté {ar['k']} et le même profil est affiché sur toute la paroi. Pour un profil par côté : "
+                             "calcul.coupes_automatiques: true (une coupe 2D par côté), un bloc coupes, ou calcul.mode: pseudo3d.")
         c0 = CoupePreparee(nom="Coupe unique", k=-1, de=0.0, a=0.0, trace=[], texte=txt, empreinte=empreinte(txt),
                            herite=[], local=sorted(k for k in principal if k not in CLES_NON_HERITEES))
         return Projet([c0], contour, [], avert, True)

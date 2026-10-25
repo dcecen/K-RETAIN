@@ -30,6 +30,9 @@ class Calcul(_Base):
     mode: Literal["2d", "pseudo3d"] = Field("2d", description="2d (par section) ou pseudo3d (plaque sur ressorts)")
     largeur_fouille: float | None = Field(
         None, gt=0, description="largeur de la fouille pour la stabilité générale (m) ; défaut : 2 × hauteur de paroi")
+    coupes_automatiques: bool = Field(
+        False, description="avec un bloc plan et sans bloc coupes : une coupe de calcul 2D par côté du contour dès que des "
+                           "surcharges ou des objets de terrain dépendent du côté (sinon coupe unique au milieu du côté le plus long)")
 
 
 class Blindage(_Base):

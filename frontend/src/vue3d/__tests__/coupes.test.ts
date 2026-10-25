@@ -88,4 +88,23 @@ describe('coupes de calcul dans la maquette', () => {
     sc.charger(resultats, { projet, resultatsPour: resolveur(projet, resultats, 2) })
     expect(sc.fab.creations).toBe(c0)
   })
+
+  it('une arête partagée par deux coupes : chaque tronçon prend sa coupe, colonne par colonne', () => {
+    const { resultats, projet } = jeuProjet('coupes')
+    // C1 sur la moitié ouest du côté sud (30 m), C2 (sol plus faible) sur la moitié est : même arête, deux coupes
+    projet.coupes[0].zone = { k: 0, de: 0, a: 15 }
+    projet.coupes[1].zone = { k: 0, de: 15, a: 30 }
+    const { sc } = nouvelleScene(TOUT)
+    sc.charger(resultats, { projet, resultatsPour: resolveur(projet, resultats, 0) })
+    sc.appliquerCalques(versScene(definirVisible(etatInitial(), 'resultats.deplacement', true)))
+    sc.phase(3)
+    const col = (sc.elements.get('resultats.surface.0')!.objet.children[0] as THREE.Mesh).geometry.attributes.color as THREE.BufferAttribute
+    const ns = col.count / NZ                                  // une colonne par mètre : sl = indice de colonne
+    const j = Math.round(((-1.0 - -14) / 14) * (NZ - 1))
+    const ouest = 2 * NZ + j                                   // sl = 2 m : tronçon de C1
+    const est = (ns - 3) * NZ + j                              // sl = 28 m : tronçon de C2
+    expect(Math.abs(col.getX(ouest) - col.getX(est)) + Math.abs(col.getZ(ouest) - col.getZ(est))).toBeGreaterThan(0.05)
+    expect(col.getX(ouest)).toBeCloseTo(col.getX(5 * NZ + j), 6)      // deux colonnes du même tronçon : même couleur
+    expect(col.getX(est)).toBeCloseTo(col.getX((ns - 6) * NZ + j), 6)
+  })
 })
