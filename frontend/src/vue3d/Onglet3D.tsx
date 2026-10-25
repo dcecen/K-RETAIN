@@ -179,7 +179,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   const exporterImage = (facteur: 1 | 2) => {
     const p = poignee.current
     if (!p) return
-    telecharger(imagePng(p.rendu, p.scene.scene, p.scene.camera, liste, facteur, theme === 'sombre'), `maquette_phase${phase + 1}${facteur === 2 ? '_x2' : ''}.png`)
+    telecharger(imagePng(p.rendu, p.scene.scene, p.scene.camera, liste, facteur, theme === 'sombre'), `maquette_phase${phase}${facteur === 2 ? '_x2' : ''}.png`)
   }
   const exporterScene = async () => {
     const p = poignee.current
@@ -187,7 +187,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
     try {
       const blob = await exporterGltf(p.scene.scene)
       const url = URL.createObjectURL(blob)
-      telecharger(url, `maquette_phase${phase + 1}.glb`)
+      telecharger(url, `maquette_phase${phase}.glb`)
       window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
     } catch (e) {
       void informer(`Export glTF impossible : ${messageErreur(e)}`)
@@ -279,7 +279,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
         <label title="Superpose en fantôme la déformée d'une phase de référence">Comparer :
           <select value={Number(calques.feuilles['resultats.comparaison']?.reglages?.phase ?? 0)} onChange={(e) => comparer(Number(e.target.value))} aria-label="Phase de référence">
             <option value={0}>—</option>
-            {res.phases.map((p, i) => <option key={i} value={i + 1}>{i + 1}. {p.nom}</option>)}
+            {res.phases.map((p, i) => <option key={i} value={i + 1}>{i}. {p.nom}</option>)}
           </select>
         </label>
         <span className="espace" />

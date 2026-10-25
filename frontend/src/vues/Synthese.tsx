@@ -3,6 +3,7 @@ import type { Vue } from '../lib/etat'
 import { nb, pourcent } from '../lib/format'
 import { IconeAlerte, IconeInfo } from '../lib/icones'
 import { pointsAttention } from '../vue3d/navigation'
+import { TEXTE_SEUIL_ATTENTION } from '../lib/verifs'
 
 /** Synthèse du calcul : état, vérifications, valeurs dimensionnantes sur toutes les phases, efforts d'appui
  *  maximaux, points d'attention. Source unique des maxima (les autres vues renvoient ici). */
@@ -57,9 +58,9 @@ export function Synthese({ res, projet, onVue, onSelection3d }: {
       </section>
 
       <section className="bloc">
-        <div className="bloc-titre">Points d'attention <span className="doux" style={{ fontWeight: 400 }}>(vérifications non vérifiées ou à taux ≥ 90 %)</span></div>
+        <div className="bloc-titre">Points d'attention <span className="doux" style={{ fontWeight: 400 }}>(vérifications non vérifiées ou à taux ≥ {TEXTE_SEUIL_ATTENTION})</span></div>
         {attention.length === 0 ? (
-          <div className="alerte info" style={{ margin: 10 }}><IconeInfo />Aucun : toutes les vérifications ont un taux inférieur à 90 %.{nNonVerifiable > 0 && ' Certaines sont non vérifiables (valeur de norme manquante) : voir la vue Vérifications.'}</div>
+          <div className="alerte info" style={{ margin: 10 }}><IconeInfo />Aucun : toutes les vérifications ont un taux inférieur à {TEXTE_SEUIL_ATTENTION}.{nNonVerifiable > 0 && ' Certaines sont non vérifiables (valeur de norme manquante) : voir la vue Vérifications.'}</div>
         ) : (
           <ul className="points-attention" style={{ padding: 6 }}>
             {attention.map((p, i) => (

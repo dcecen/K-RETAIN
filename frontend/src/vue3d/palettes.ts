@@ -1,4 +1,5 @@
 // Palettes de couleur des résultats et des taux de travail (fonctions pures).
+import { SEUIL_ATTENTION } from '../lib/verifs'
 import * as THREE from 'three'
 
 export type NomPalette = 'divergente' | 'sequentielle' | 'signe'
@@ -36,7 +37,7 @@ export function degradeCss(nom: NomPalette): string {
 }
 
 export interface Seuils { orange: number; rouge: number }
-export const SEUILS_DEFAUT: Seuils = { orange: 0.9, rouge: 1.0 }
+export const SEUILS_DEFAUT: Seuils = { orange: SEUIL_ATTENTION, rouge: 1.0 }
 
 export type ClasseTaux = 'vert' | 'orange' | 'rouge' | 'gris'
 

@@ -112,7 +112,7 @@ export function Hypotheses({ res, modele, phase, version }: { res: Resultats; mo
         <p className="note" style={{ padding: '6px 12px' }}>Ka et Kp : coefficients horizontaux de poussée et de butée, {res.couches[0]?.methode_k ?? 'méthode du script'}. La cohésion est prise en compte par les états correspondants (termes 2c√Ka et 2c√Kp). Une valeur « — » signifie que le coefficient n'a pas pu être évalué (domaine de validité, table absente).</p>
       </div>
 
-      <div className="bloc"><div className="bloc-titre">Phase {phase + 1} : {ph.nom}</div>
+      <div className="bloc"><div className="bloc-titre">{phase === 0 ? 'État initial' : `Phase ${phase}`} : {ph.nom}</div>
         {!ph.ok ? <div className="alerte rouge" style={{ margin: 8 }}>{ph.message}</div> : (
           <>
             <table className="tableau" style={{ width: 'auto' }}>

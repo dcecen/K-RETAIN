@@ -58,7 +58,7 @@ export function Efforts({ res, phase, onPhase, onAppui }: {
               const p = res.phases[i]
               return (
                 <tr key={i} className={`cliquable ${i === phase ? 'actif' : ''}`} onClick={() => onPhase(i)}>
-                  <td>{i + 1}. {p.nom}</td>
+                  <td>{i}. {p.nom}</td>
                   <td className="num">{nb(p.terrain_aval, 2)}</td>
                   {noms.map((n) => {
                     const v = val(i, n)

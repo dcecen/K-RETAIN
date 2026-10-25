@@ -2,6 +2,7 @@
 // points d'attention (vérifications ≥ 90 %), vérifications rattachées à un objet. Fonctions pures.
 import type { ProjetCoupes, Resultats, Verif } from '../lib/api'
 import { filtreAssemblage, FILTRE_LIERNE, verifsAppui } from './appuis'
+import { SEUIL_ATTENTION } from '../lib/verifs'
 
 export type TypeSelection = 'paroi' | 'appui' | 'lierne' | 'assemblage' | 'coupe' | 'coupe_locale' | 'fond' | 'bouchon' | 'couche' | 'surcharge' | 'terrain'
 
@@ -41,7 +42,7 @@ export function verifsPour(sel: SelectionAnalysee | null, res: Resultats, assemb
 export interface PointAttention { selection: string; libelle: string; taux: number | null; etat: Verif['etat']; phase: string | null }
 
 /** Éléments dont une vérification dépasse le seuil (ou est non vérifiée), triés par taux décroissant. */
-export function pointsAttention(res: Resultats, assemblages: Record<string, { appui: string | null }> = {}, seuil = 0.9): PointAttention[] {
+export function pointsAttention(res: Resultats, assemblages: Record<string, { appui: string | null }> = {}, seuil = SEUIL_ATTENTION): PointAttention[] {
   const noms = new Set(res.appuis.map((a) => a.nom))
   const out: PointAttention[] = []
   for (const v of res.verifications ?? []) {
@@ -93,13 +94,14 @@ export function titreFiltre(sel: SelectionAnalysee | null, coupeNom: string | nu
   const objet = !sel ? 'Projet' : sel.type === 'paroi' ? `Paroi (côté ${sel.k ?? 0})` : sel.type === 'couche' ? `Couche ${(sel.index ?? 0) + 1}`
     : sel.type === 'coupe' ? sel.nom.split(' — ')[0] : sel.type === 'coupe_locale' ? 'Couper ici' : sel.type === 'fond' ? 'Fond de fouille' : sel.type === 'bouchon' ? 'Bouchon'
     : sel.type === 'lierne' ? `Lierne de ${sel.nom}` : sel.type === 'surcharge' ? `Surcharge ${(sel.index ?? 0) + 1}` : sel.nom
-  return [objet, coupeNom ? `coupe ${coupeNom.split(' — ')[0]}` : null, `phase ${phase + 1}`].filter(Boolean).join(' · ')
+  return [objet, coupeNom ? `coupe ${coupeNom.split(' — ')[0]}` : null, phase === 0 ? 'état initial' : `phase ${phase}`].filter(Boolean).join(' · ')
 }
 
 // ------------------------------------------------------------------ ancre d'URL
 export interface EtatAncre { coupe: number; phase: number; selection: string | null; prereglage: string | null }
 
-/** `#c1-p8-s_appui:B2-l_structure` (coupe et phase numérotées à partir de 1). */
+/** `#c1-p8-s_appui:B2-l_structure` (coupe et phase numérotées à partir de 1 dans l'ancre : format d'URL inchangé,
+ *  indépendant de la numérotation affichée où l'état initial est la phase 0). */
 export function encoderAncre(e: EtatAncre): string {
   const parts = [`c${e.coupe + 1}`, `p${e.phase + 1}`]
   if (e.selection) parts.push(`s_${encodeURIComponent(e.selection)}`)

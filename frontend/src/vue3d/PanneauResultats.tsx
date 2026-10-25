@@ -8,6 +8,7 @@ import { couleurs, COULEURS_SOL, type Theme } from '../lib/theme'
 import { CoupeDiagrammes } from '../vues/CoupeDiagrammes'
 import { Efforts } from '../vues/Efforts'
 import { analyserSelection, pointsAttention, titreFiltre, verifsPour } from './navigation'
+import { TEXTE_SEUIL_ATTENTION } from '../lib/verifs'
 
 export type Volet = 'courbes' | 'efforts' | 'verifications'
 const LIBELLE: Record<Verif['etat'], string> = { ok: 'Vérifié', attention: 'Vérifié', non_ok: 'Non vérifié', non_verifiable: 'Non vérifiable' }
@@ -131,8 +132,8 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
             <dt>Tranchant max</dt><dd>{nb(d.tranchant?.valeur, 0)} kN/m</dd>
             {Object.entries(d.appuis ?? {}).map(([n, a]) => <span key={n} style={{ display: 'contents' }}><dt>{n} max</dt><dd>{nb(a.effort_kN_m, 0)} kN/m · {nb(a.effort_axial_kN, 0)} kN</dd></span>)}
           </dl>
-          <div className="insp-titre" style={{ marginTop: 10 }}>Vérifications non vérifiées ou à taux ≥ 90 %</div>
-          {attention.length === 0 ? <div className="note">Aucune : toutes les vérifications ont un taux inférieur à 90 %.</div> : (
+          <div className="insp-titre" style={{ marginTop: 10 }}>Vérifications non vérifiées ou à taux ≥ {TEXTE_SEUIL_ATTENTION}</div>
+          {attention.length === 0 ? <div className="note">Aucune : toutes les vérifications ont un taux inférieur à {TEXTE_SEUIL_ATTENTION}.</div> : (
             <ul className="points-attention">
               {attention.map((p, i) => (
                 <li key={i} className={p.etat === 'non_ok' || (p.taux ?? 0) >= 1 ? 'rouge' : 'orange'} onClick={() => { onSelection(p.selection); onCentrer(p.selection) }} title="Centrer la maquette et ouvrir la vérification">
@@ -148,7 +149,7 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
       return <div className="courbes-pleines"><CoupeDiagrammes res={r} phase={ctxSel.phase} theme={theme} curseurZ={curseurZ} onSurvolZ={onSurvolZ} /></div>
     }
     if (nomAppui) {
-      const x = lignesAppui.map((l) => `${l.i + 1}`)
+      const x = lignesAppui.map((l) => `${l.i}`)
       const traces: Obj[] = [
         { x, y: lignesAppui.map((l) => l.a!.effort_kN_m), name: 'effort (kN/m)', type: 'scatter', mode: 'lines+markers', line: { color: couleurs().accent } },
         { x, y: lignesAppui.map((l) => l.a!.effort_axial_kN), name: 'effort axial (kN)', type: 'scatter', mode: 'lines+markers', yaxis: 'y2', line: { color: couleurs().orange } },
@@ -158,12 +159,12 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
         <div className="insp-section">
           <div className="insp-titre">{nomAppui} — effort au fil des phases</div>
           <Mini theme={theme} traces={traces} layout={{ xaxis: { title: { text: 'phase', font: { size: 10 } }, type: 'category' }, yaxis: { title: { text: 'kN/m', font: { size: 10 } } }, yaxis2: { overlaying: 'y', side: 'right', title: { text: 'kN', font: { size: 10 } }, tickfont: { size: 10 } },
-            shapes: [{ type: 'line', xref: 'x', yref: 'paper', x0: `${ctxSel.phase + 1}`, x1: `${ctxSel.phase + 1}`, y0: 0, y1: 1, line: { color: couleurs().doux, dash: 'dot', width: 1 } }] }} />
+            shapes: [{ type: 'line', xref: 'x', yref: 'paper', x0: `${ctxSel.phase}`, x1: `${ctxSel.phase}`, y0: 0, y1: 1, line: { color: couleurs().doux, dash: 'dot', width: 1 } }] }} />
           {fleches.length > 0 && (
             <>
               <div className="insp-titre" style={{ marginTop: 8 }}>Flèche (module de vérification)</div>
-              <Mini theme={theme} hauteur={180} traces={[{ x: fleches.map((l) => `${l.i + 1}`), y: fleches.map((l) => l.a!.fleche_mm), name: 'flèche (mm)', type: 'bar', marker: { color: couleurs().vert } },
-                { x: fleches.map((l) => `${l.i + 1}`), y: fleches.map((l) => l.a!.fleche_poids_propre_mm), name: 'poids propre seul', type: 'scatter', mode: 'markers', marker: { color: couleurs().doux } }]}
+              <Mini theme={theme} hauteur={180} traces={[{ x: fleches.map((l) => `${l.i}`), y: fleches.map((l) => l.a!.fleche_mm), name: 'flèche (mm)', type: 'bar', marker: { color: couleurs().vert } },
+                { x: fleches.map((l) => `${l.i}`), y: fleches.map((l) => l.a!.fleche_poids_propre_mm), name: 'poids propre seul', type: 'scatter', mode: 'markers', marker: { color: couleurs().doux } }]}
                 layout={{ xaxis: { type: 'category' }, yaxis: { title: { text: 'mm', font: { size: 10 } } } }} />
             </>
           )}
@@ -287,7 +288,7 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
             <tbody>
               {lignesAppui.map(({ i, p, a }) => (
                 <tr key={i} className={`cliquable ${i === ctxSel.phase ? 'actif' : ''} ${a!.actif ? '' : 'inactif'}`} onClick={() => onPhase(i)}>
-                  <td>{i + 1}. {p.nom}</td><td className="num">{nb(a!.effort_kN_m)}</td><td className="num">{nb(a!.effort_axial_kN, 0)}</td>
+                  <td>{i}. {p.nom}</td><td className="num">{nb(a!.effort_kN_m)}</td><td className="num">{nb(a!.effort_axial_kN, 0)}</td>
                   <td className="num">{a!.effort_elu_kN != null ? nb(a!.effort_elu_kN, 0) : '—'}</td><td className="num">{a!.fleche_mm != null ? nb(a!.fleche_mm) : '—'}</td>
                 </tr>
               ))}

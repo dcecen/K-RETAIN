@@ -1,5 +1,5 @@
 import type { Resultats } from '../lib/api'
-import { couleurEtat, etatHydraulique } from '../lib/verifs'
+import { couleurEtat, etatHydraulique, TEXTE_SEUIL_ATTENTION } from '../lib/verifs'
 import type { Selection } from '../lib/etat'
 import { cote, nb, pourcent, uniteCote } from '../lib/format'
 import { IconeAlerte, IconeFermer, IconeInfo } from '../lib/icones'
@@ -46,7 +46,7 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
   return (
     <>
       <div className="insp-section">
-        <div className="insp-titre">Phase {phase + 1} / {res.phases.length}</div>
+        <div className="insp-titre">{phase === 0 ? 'État initial' : `Phase ${phase} / ${res.phases.length - 1}`}</div>
         <div className="insp-nom">{ph.nom}</div>
         <dl className="lignes-cle">
           {ph.parent !== null && ph.parent !== phase - 1 && <><dt>Phase de départ</dt><dd style={{ fontFamily: 'inherit' }}>{res.phases[ph.parent]?.nom}</dd></>}
@@ -98,14 +98,14 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
         )}
       </div>
       <div className="insp-section">
-        <div className="insp-titre" title="Avertissements du calcul et vérifications non vérifiées ou à taux ≥ 90 %">Avertissements</div>
+        <div className="insp-titre" title={`Avertissements du calcul et vérifications non vérifiées ou à taux ≥ ${TEXTE_SEUIL_ATTENTION}`}>Avertissements</div>
         {res.avertissements.map((a, i) => <div key={i} className="alerte orange"><IconeAlerte />{a}</div>)}
         {alertes.map((v, i) => (
           <div key={`v${i}`} className={`alerte ${v.etat === 'non_ok' ? 'rouge' : 'orange'}`}><IconeAlerte />
             <span>{v.nom}, {v.element} : {v.taux !== null ? `taux ${pourcent(v.taux)}` : 'non vérifiable'}{v.etat === 'non_ok' ? ', non vérifié' : ''}</span></div>
         ))}
         {res.avertissements.length === 0 && alertes.length === 0 && (
-          <div className="alerte info"><IconeInfo />Aucun avertissement ; toutes les vérifications ont un taux inférieur à 90 %.
+          <div className="alerte info"><IconeInfo />Aucun avertissement ; toutes les vérifications ont un taux inférieur à {TEXTE_SEUIL_ATTENTION}.
             {(res.verifications ?? []).some((v) => v.etat === 'non_verifiable') && ' Certaines sont non vérifiables (valeur de norme manquante).'}</div>
         )}
       </div>
@@ -157,7 +157,7 @@ function Appui({ res, modele, nom, phase }: { res: Resultats | null; modele: Mod
                 const e = p.appuis?.find((x) => x.nom === nom)
                 return e ? (
                   <tr key={i} className={i === phase ? 'actif' : ''}>
-                    <td>{i + 1}. {p.nom}</td><td className="num">{nb(e.effort_kN_m)}</td><td className="num">{nb(e.effort_axial_kN, 0)}</td>
+                    <td>{i}. {p.nom}</td><td className="num">{nb(e.effort_kN_m)}</td><td className="num">{nb(e.effort_axial_kN, 0)}</td>
                   </tr>
                 ) : null
               })}

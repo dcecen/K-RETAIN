@@ -216,7 +216,7 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
   titre(3, 'Tranchant V (kN/m)')
   titre(4, 'Pressions horizontales (kPa)')
   // conventions de signe et légende des pressions dans la figure elle-même (donc dans le PNG exporté)
-  annotations.push({ text: `Phase ${indexPhase + 1} : ${ph.nom}. y > 0 vers la fouille ; M > 0 : face côté fouille tendue ; V = dM/dz ; valeurs extrêmes annotées avec leur cote.`,
+  annotations.push({ text: `${indexPhase === 0 ? 'État initial' : `Phase ${indexPhase}`} : ${ph.nom}. y > 0 vers la fouille ; M > 0 : face côté fouille tendue ; V = dM/dz ; valeurs extrêmes annotées avec leur cote.`,
     xref: 'paper', yref: 'paper', x: 0, y: -0.075, xanchor: 'left', yanchor: 'top', showarrow: false, font: { size: 10, color: c.doux } })
   annotations.push({ text: `Pressions : <span style="color:${c.orange}">— amont mobilisée</span> ; <span style="color:${c.orange}">··· poussée limite</span> ; <span style="color:${c.vert}">— aval mobilisée</span> ; <span style="color:${c.vert}">- - butée limite</span> ; <span style="color:${c.accent}">-·- eau</span> (amont à gauche, aval à droite)`,
     xref: 'paper', yref: 'paper', x: 1, y: -0.075, xanchor: 'right', yanchor: 'top', showarrow: false, font: { size: 10, color: c.doux } })
@@ -326,7 +326,7 @@ export function CoupeDiagrammes({ res, phase, theme, unite = 'm NGF', curseurZ, 
   useEffect(() => {
     enregistrerExport(() => {
       const el = hote.current
-      if (el) void Plotly.downloadImage(el, { format: 'png', filename: `coupe_diagrammes_phase${phase + 1}`, scale: 2, width: 1600, height: 900 })
+      if (el) void Plotly.downloadImage(el, { format: 'png', filename: `coupe_diagrammes_phase${phase}`, scale: 2, width: 1600, height: 900 })
     })
     return () => enregistrerExport(null)
   }, [phase])

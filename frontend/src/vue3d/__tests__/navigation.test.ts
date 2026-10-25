@@ -23,7 +23,7 @@ describe('navigation depuis la maquette', () => {
     expect(verifsPour(analyserSelection('assemblage:A3'), res, res.maquette!.assemblages).every((v) => v.element.startsWith('A3'))).toBe(true)
     expect(verifsPour(null, res, {}).length).toBe(res.verifications!.length)
     expect(analyserSelection('inconnu:x')).toBeNull()
-    expect(titreFiltre(sel, 'C1 — long côté sud', 7)).toBe('B1 · coupe C1 · phase 8')
+    expect(titreFiltre(sel, 'C1 — long côté sud', 7)).toBe('B1 · coupe C1 · phase 7')
   })
 
   it('le fil d’Ariane reflète la sélection et la coupe', () => {

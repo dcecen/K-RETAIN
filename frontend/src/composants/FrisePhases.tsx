@@ -50,15 +50,15 @@ export function FrisePhases({ res, phase, onPhase }: { res: Resultats | null; ph
             <button key={i} role="tab" aria-selected={i === phase}
               className={`case-phase ${i === phase ? 'actif' : ''} ${p.ok ? '' : 'echec'} ${ancetres.has(i) ? 'ancetre' : ''} ${p.depuis ? 'branche' : ''}`}
               onClick={() => onPhase(i)}
-              title={`Phase ${i + 1} : ${p.nom}${p.actions.length ? '\n' + p.actions.map((a) => a.texte).join('\n') : ''}${p.ok ? '' : '\n' + p.message}`}>
+              title={`${i === 0 ? 'État initial' : `Phase ${i}`} : ${p.nom}${p.actions.length ? '\n' + p.actions.map((a) => a.texte).join('\n') : ''}${p.ok ? '' : '\n' + p.message}`}>
               {ICONES[type]}
-              <span className="numero">{i + 1}</span>
+              <span className="numero">{i}</span>
             </button>
           )
         })}
       </div>
       <div className="infos">
-        <span className="nom-phase">{phase + 1}. {ph.nom}</span>
+        <span className="nom-phase">{phase}. {ph.nom}</span>
         <span className="doux">fond <span className="mono">{cote(ph.terrain_aval)}</span></span>
         <span className="doux masquer-etroit">nappe aval <span className="mono">{cote(ph.eau_aval)}</span></span>
       </div>

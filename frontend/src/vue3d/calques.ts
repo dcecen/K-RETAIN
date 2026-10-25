@@ -1,5 +1,6 @@
 // Gestion des calques de la vue 3D, à la manière d'un logiciel de CAO (fonctions pures).
 // L'état n'est stocké que pour les calques « feuilles » ; l'état d'un groupe se déduit de ses enfants.
+import { SEUIL_ATTENTION, TEXTE_SEUIL_ATTENTION } from '../lib/verifs'
 import type { EtatCalquesScene } from './scene'
 
 export interface DefCalque {
@@ -73,7 +74,7 @@ export const ARBRE_CALQUES: DefCalque[] = [
     { id: 'resultats.enveloppes', nom: 'Enveloppes (toutes phases)', visible: false, modes: [{ id: 'deformee', nom: 'Déformée' }, { id: 'moment', nom: 'Moment' }] },
     { id: 'resultats.extremes', nom: 'Étiquettes d\'extrêmes', visible: false },
     { id: 'resultats.comparaison', nom: 'Comparaison : fantôme d\'une phase de référence', visible: false },
-    { id: 'resultats.alertes', nom: 'Alertes (taux ≥ 90 %)' },
+    { id: 'resultats.alertes', nom: `Alertes (taux ≥ ${TEXTE_SEUIL_ATTENTION})` },
   ] },
   { id: 'coupes', nom: 'Coupes de calcul', enfants: [
     { id: 'coupes.plans', nom: 'Plans de coupe nommés' },
@@ -436,7 +437,7 @@ export const REGLAGES: Record<string, DefReglage[]> = {
   ],
   'resultats.comparaison': [{ cle: 'phase', nom: 'phase de référence (0 = aucune)', type: 'nombre', defaut: 0, min: 0, max: 99, pas: 1 }],
   'resultats.taux': [
-    { cle: 'orange', nom: 'seuil orange', type: 'nombre', defaut: 0.9, min: 0.1, max: 2, pas: 0.05 },
+    { cle: 'orange', nom: 'seuil orange', type: 'nombre', defaut: SEUIL_ATTENTION, min: 0.1, max: 2, pas: 0.05 },
     { cle: 'rouge', nom: 'seuil rouge', type: 'nombre', defaut: 1.0, min: 0.1, max: 2, pas: 0.05 },
   ],
   'coupes.zones': [{ cle: 'lisser', nom: 'lisser aux jonctions (visuel)', type: 'bool', defaut: false }],

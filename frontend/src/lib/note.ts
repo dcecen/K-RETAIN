@@ -67,7 +67,7 @@ export function noteCalcul(res: Resultats, ctx: ContexteNote): string {
   // ---- 1. objet
   const objet = `<p>Calcul de l'écran de soutènement du projet « ${h(nomProjet)} » par la méthode aux coefficients de réaction.</p>
 <p>Écran : ${h(res.paroi.type ?? 'type non renseigné')}, tête à ${n(res.paroi.tete, 2)} ${unite}, pied à ${n(res.paroi.pied, 2)} ${unite}, fiche de ${n(res.paroi.tete - res.paroi.pied, 2)} m.
-Phasage : ${res.phases.length} phases, dont l'état initial. Appuis : ${appuisDef.length ? appuisDef.map((a) => `${h(a.nom)} (${h(a.type)}, cote ${n(a.cote, 2)})`).join(', ') : 'aucun'}.</p>
+Phasage : ${res.phases.length - 1} phases après l'état initial (phase 0). Appuis : ${appuisDef.length ? appuisDef.map((a) => `${h(a.nom)} (${h(a.type)}, cote ${n(a.cote, 2)})`).join(', ') : 'aucun'}.</p>
 <p>Résultats fournis : déplacements, moments fléchissants, efforts tranchants, pressions des terres et de l'eau, efforts d'appui par phase ; vérifications géotechniques et structurelles demandées dans le script.</p>`
 
   // ---- 2. documents de référence
@@ -133,20 +133,20 @@ ${tableau(['Nom', 'Type', 'q', 'Distance (m)', 'Largeur (m)', 'Face'], surcharge
 
   // ---- 5. phasage
   const phasage = tableau(['N°', 'Phase', 'Actions', `Fond de fouille (${unite})`, `Nappe amont (${unite})`, `Nappe aval (${unite})`],
-    res.phases.map((p, i) => [String(i + 1), h(p.nom) + (p.depuis ? ` <span class="src">(variante depuis « ${h(p.depuis)} »)</span>` : ''), h(p.actions.map((a) => a.texte).join(' ; ')), n(p.terrain_aval, 2), p.eau_amont === null ? 'aucune' : n(p.eau_amont, 2), p.eau_aval === null ? 'aucune' : n(p.eau_aval, 2)]),
+    res.phases.map((p, i) => [String(i), h(p.nom) + (p.depuis ? ` <span class="src">(variante depuis « ${h(p.depuis)} »)</span>` : ''), h(p.actions.map((a) => a.texte).join(' ; ')), n(p.terrain_aval, 2), p.eau_amont === null ? 'aucune' : n(p.eau_amont, 2), p.eau_aval === null ? 'aucune' : n(p.eau_aval, 2)]),
     ['n', '', '', 'n', 'n', 'n'])
 
   // ---- 6. résultats par phase
   const lignesRes = res.phases.map((p, i) => {
-    if (!p.ok) return [String(i + 1), h(p.nom), `<span class="ko">${h(p.message)}</span>`, '', '', '', '', '', '', '']
+    if (!p.ok) return [String(i), h(p.nom), `<span class="ko">${h(p.message)}</span>`, '', '', '', '', '', '', '']
     const y = extremum(p.z, p.y_mm, 'abs'), mx = extremum(p.z_diag, p.M, 'max'), mn = extremum(p.z_diag, p.M, 'min'), v = extremum(p.z_diag, p.V, 'abs')
-    return [String(i + 1), h(p.nom), `${n(y?.v)} (${n(y?.z, 2)})`, `${n(mx?.v)} (${n(mx?.z, 2)})`, `${n(mn?.v)} (${n(mn?.z, 2)})`, `${n(v?.v)} (${n(v?.z, 2)})`,
+    return [String(i), h(p.nom), `${n(y?.v)} (${n(y?.z, 2)})`, `${n(mx?.v)} (${n(mx?.z, 2)})`, `${n(mn?.v)} (${n(mn?.z, 2)})`, `${n(v?.v)} (${n(v?.z, 2)})`,
       n(p.synthese?.Bm_kN_m), n(p.synthese?.Bt_kN_m), pourcent(p.synthese?.butee_mobilisee), String(p.iterations ?? '')]
   })
   const resultats = tableau(['N°', 'Phase', 'y max (mm) à la cote', 'M max (kN.m/ml) à la cote', 'M min (kN.m/ml) à la cote', 'V max (kN/ml) à la cote', 'Bm (kN/ml)', 'Bt (kN/ml)', 'Bm/Bt', 'Itérations'],
     lignesRes, ['n', '', 'n', 'n', 'n', 'n', 'n', 'n', 'n', 'n'])
   const effortsAppuis = appuisDef.length ? tableau(['N°', 'Phase', ...appuisDef.flatMap((a) => [`${h(a.nom)} (kN/ml)`, `${h(a.nom)} (kN)`])],
-    res.phases.map((p, i) => [String(i + 1), h(p.nom), ...appuisDef.flatMap((a) => { const e = p.appuis?.find((x) => x.nom === a.nom); return e ? [n(e.effort_kN_m) + (e.actif ? '' : ' (décollé)'), n(e.effort_axial_kN, 0)] : ['', ''] })]),
+    res.phases.map((p, i) => [String(i), h(p.nom), ...appuisDef.flatMap((a) => { const e = p.appuis?.find((x) => x.nom === a.nom); return e ? [n(e.effort_kN_m) + (e.actif ? '' : ' (décollé)'), n(e.effort_axial_kN, 0)] : ['', ''] })]),
     ['n', '', ...appuisDef.flatMap(() => ['n', 'n'])]) : '<p>Aucun appui.</p>'
   const dimensionnant = tableau(['Grandeur', 'Valeur', 'Phase'], [
     ['Déplacement maximal', `${n(d.deplacement?.valeur_mm)} mm`, h(d.deplacement?.phase ?? '')],
@@ -170,7 +170,7 @@ ${tableau(['Nom', 'Type', 'q', 'Distance (m)', 'Largeur (m)', 'Face'], surcharge
 
   // ---- 8. conclusion
   const conclusion = `<ul>
-<li>Calcul ${res.complet ? 'mené à terme sur toutes les phases' : `interrompu : ${h(res.phases.find((p) => !p.ok)?.message ?? 'rupture')}`} (${phasesOk.length} phases calculées sur ${res.phases.length}).</li>
+<li>Calcul ${res.complet ? 'mené à terme sur toutes les phases' : `interrompu : ${h(res.phases.find((p) => !p.ok)?.message ?? 'rupture')}`} (${phasesOk.length} états calculés sur ${res.phases.length}, état initial compris).</li>
 <li>Déplacement maximal : ${n(d.deplacement?.valeur_mm)} mm (${h(d.deplacement?.phase ?? '')}). Moment maximal : ${n(d.moment_positif?.valeur)} kN.m/ml ; minimal : ${n(d.moment_negatif?.valeur)} kN.m/ml. Effort tranchant maximal : ${n(d.tranchant?.valeur)} kN/ml.</li>
 <li>Butée mobilisée Bm/Bt maximale : ${pourcent(Math.max(0, ...phasesOk.map((p) => p.synthese?.butee_mobilisee ?? 0)))} (valeurs caractéristiques).</li>
 <li>Vérifications : ${verifs.length} demandées ; vérifiées : ${verifs.length - nonOk.length - nonVerifiables.length} ; non vérifiées : ${nonOk.length}${nonOk.length ? ` (${nonOk.map((v) => `${h(v.nom)}, ${h(v.element)}, taux ${v.taux === null ? '—' : pourcent(v.taux)}`).join(' ; ')})` : ''} ; non vérifiables : ${nonVerifiables.length}${nonVerifiables.length ? ` (${nonVerifiables.map((v) => `${h(v.nom)}, ${h(v.element)}`).join(' ; ')})` : ''}.</li>
