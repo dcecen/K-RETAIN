@@ -15,3 +15,4 @@ sol:
 phases:
   - { nom: "Terrassement à -2,0", excaver: -2.0 }
   - { nom: "Terrassement à -4,0", excaver: -4.0 }
+verifications: [butee, equilibre_vertical, stabilite_generale]

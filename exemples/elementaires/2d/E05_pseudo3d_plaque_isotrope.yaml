@@ -17,3 +17,4 @@ phases:
   - { nom: "Terrassement à -2,0", excaver: -2.0 }
   - { nom: Pose des butons, poser: B }
   - { nom: "Terrassement à -6,0", excaver: -6.0 }
+verifications: [butee, equilibre_vertical, stabilite_generale]

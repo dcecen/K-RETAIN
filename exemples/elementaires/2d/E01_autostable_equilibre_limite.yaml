@@ -14,3 +14,4 @@ sol:
 phases:
   - { nom: "Excavation à 0,97 h critique (4,90 m)", excaver: -4.90 }
   - { nom: "Excavation à 1,03 h critique (5,20 m) : rupture attendue", excaver: -5.20 }
+verifications: [butee, equilibre_vertical, stabilite_generale]

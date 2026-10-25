@@ -23,3 +23,4 @@ phases:
   - { nom: "Terrassement à -5,5 et pompage", excaver: -5.5, eau: { aval: -6.0 } }
   - { nom: Pose de B2, poser: B2 }
   - { nom: "Terrassement final à -8,0 et pompage", excaver: -8.0, eau: { aval: -8.5 } }
+verifications: [butee, equilibre_vertical, stabilite_generale, fond_de_fouille]

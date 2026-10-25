@@ -26,3 +26,4 @@ phases:
   - { nom: Exc1, excaver: -2.0 }
   - { nom: P2 }
   - { nom: Exc2, excaver: -6.0 }
+verifications: [butee, equilibre_vertical, stabilite_generale]

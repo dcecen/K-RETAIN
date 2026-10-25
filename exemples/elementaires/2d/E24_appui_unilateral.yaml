@@ -17,3 +17,4 @@ phases:
   - { nom: Pose du buton, poser: B1 }
   - { nom: "Remblai côté fouille à -1,0 : l'écran recule, le buton décolle", remblayer: { aval: -1.0 } }
   - { nom: "Nouveau terrassement à -4,0 : le buton reprend", excaver: -4.0 }
+verifications: [butee, equilibre_vertical, stabilite_generale]

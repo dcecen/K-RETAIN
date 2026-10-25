@@ -19,3 +19,4 @@ phases:
   - { nom: Pose du buton, poser: B1 }
   - { nom: "Terrassement à -6,5 et pompage", excaver: -6.5, eau: { aval: -7.0 } }
   - { nom: "Variante : terrassement à -5,5 sans pompage", depuis: Pose du buton, excaver: -5.5 }
+verifications: [butee, equilibre_vertical, stabilite_generale, fond_de_fouille]

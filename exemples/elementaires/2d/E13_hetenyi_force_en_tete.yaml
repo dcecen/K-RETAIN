@@ -19,3 +19,4 @@ appuis:
   B1: { type: buton, raideur: 1000, cote: 0.0, espacement: 1.0, precharge: 10 }
 phases:
   - { nom: Mise en charge au vérin (F0 = 10 kN/m), poser: B1 }
+verifications: [butee, equilibre_vertical, stabilite_generale]

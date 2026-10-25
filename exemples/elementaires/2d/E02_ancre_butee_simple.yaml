@@ -16,3 +16,4 @@ phases:
   - { nom: Ancrage, poser: A }
   - { nom: "Excavation à 8,55 m", excaver: -8.55 }
   - { nom: "Excavation à 8,80 m : rupture attendue", excaver: -8.80 }
+verifications: [butee, equilibre_vertical, stabilite_generale]

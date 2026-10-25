@@ -18,3 +18,4 @@ phases:
   - { nom: "Terrassement à -2,0", excaver: -2.0 }
   - { nom: Pose et précharge, poser: B1 }
   - { nom: "Terrassement final à -6,0 et pompage", excaver: -6.0, eau: { aval: -6.5 } }
+verifications: [butee, equilibre_vertical, stabilite_generale, fond_de_fouille]

@@ -496,14 +496,17 @@ class MoteurPhases:
             # (V nul aux extrémités libres) ; q = pression nette sol + eau, par mètre d'écran.
             nd = self.nd
             q = (r.A[:nd] * solution.p[:nd] - r.A[nd:] * solution.p[nd:]) / self.d_L + (u_am - u_av)
-            noeuds_f, forces_f, anneau = appuis.noeud, -solution.efforts_appuis, None
-            if self.k_anneau is not None:   # réaction de l'anneau : force −k·y à chaque nœud, N_θ = E·t·y/R
-                reaction = self.k_anneau * solution.y
-                noeuds_f = np.concatenate([noeuds_f, np.arange(n)])
-                forces_f = np.concatenate([forces_f, -reaction])
+            anneau = None
+            if self.k_anneau is not None:
+                # réaction de l'anneau : pression répartie −k(z)·y sur les demi-mailles de chaque nœud, comme le sol
+                # (une force concentrée par nœud ferait sauter V à chaque nœud : dents de scie). Même résultante que
+                # le système résolu : Σ demi-mailles k·y·L = k·y·hauteur tributaire = k_noeuds·y.
                 an = m.ecran.anneau
+                q = q - an.k(self.z)[self.d_noeud] * solution.y[self.d_noeud]
+                reaction = self.k_anneau * solution.y
                 anneau = {"z": self.z, "w": solution.y, "t": an.t(self.z), "N": an.N(self.z, solution.y), "reaction": reaction}
-            z_diag, M_diag, V_diag = efforts_par_statique(self.z, self.d_zb, self.d_zh, q, noeuds_f, forces_f)
+            z_diag, M_diag, V_diag = efforts_par_statique(self.z, self.d_zb, self.d_zh, q,
+                                                          appuis.noeud, -solution.efforts_appuis)
             present, fl, pa, pp = sol["present"], sol["fl"], sol["pa"], sol["pp"]
 
             pressions = {}

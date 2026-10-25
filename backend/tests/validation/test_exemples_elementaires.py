@@ -48,6 +48,18 @@ def test_les_scripts_elementaires_sont_proposes_dans_le_menu():
     assert any(e.get("groupe") == "Exemples" for e in ex)
 
 
+def test_chaque_exemple_elementaire_demande_des_verifications():
+    """Chaque script du catalogue liste au moins une vérification (sinon la vue Vérifications affiche « Aucune
+    vérification demandée » pendant la démonstration) ; une rupture du calcul est rangée dans la famille « calcul »."""
+    sans = [p.stem for d in (DOSSIER, DOSSIER_3D) for p in d.glob("*.yaml")
+            if not re.search(r"^verifications:\s*\[\s*\w", p.read_text(encoding="utf-8"), re.M)]
+    assert not sans, f"exemples sans vérification demandée : {sans}"
+    vs = _calcul("E01_autostable_equilibre_limite")["verifications"]
+    assert [v["famille"] for v in vs] == ["calcul"] and vs[0]["etat"] == "non_ok"
+    for v in _calcul("E09_etat_initial_repos")["verifications"]:
+        assert v["famille"] in ("butee", "equilibre_vertical", "stabilite_generale"), v["nom"]
+
+
 def test_chaque_exemple_elementaire_a_son_test():
     """Chaque script du catalogue est contrôlé par un test nommé d'après son code (E09 -> test_E09_...)."""
     codes = sorted(p.stem[:3] for d in (DOSSIER, DOSSIER_3D) for p in d.glob("*.yaml"))

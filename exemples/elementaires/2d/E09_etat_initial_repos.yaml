@@ -15,3 +15,4 @@ eau:
   service: { amont: -2.0, aval: -2.0 }
 phases:
   - { nom: Repos }
+verifications: [butee, equilibre_vertical, stabilite_generale]

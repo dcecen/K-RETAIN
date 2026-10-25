@@ -141,7 +141,9 @@ def verif_rupture(jeu: str | None, r: ResultatCalcul) -> Verif:
     quoi = f"jeu d'eau « {jeu} »" if jeu else "calcul"
     return Verif("Calcul — équilibre de l'écran", "geotechnique", "écran", ph.nom if ph else None, "non_ok", None,
                  f"{quoi} : {ph.message if ph else 'calcul incomplet'} — aucune vérification n'est possible sur les phases suivantes",
-                 "sout.noyau.solveur (rupture détectée par le calcul)")
+                 "sout.noyau.solveur (rupture détectée par le calcul)", famille="calcul",
+                 principe="Le calcul s'est interrompu : aucun équilibre de l'écran n'existe pour cette phase (rupture du sol ou "
+                          "non-convergence). Les vérifications géotechniques et structurelles ne sont pas menées sur un calcul incomplet.")
 
 
 def parametres_assemblage(s: Script, a) -> dict:

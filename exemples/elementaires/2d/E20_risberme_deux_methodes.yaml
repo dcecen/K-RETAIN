@@ -20,3 +20,4 @@ phases:
   - { nom: "Terrassement à -2,0", excaver: -2.0 }
   - { nom: Pose du buton, poser: B1 }
   - { nom: "Terrassement à -6,5 avec risberme (fond équivalent -4,0)", excaver: -6.5 }
+verifications: [butee, equilibre_vertical, stabilite_generale]

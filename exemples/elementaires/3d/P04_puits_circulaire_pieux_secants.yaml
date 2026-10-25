@@ -11,7 +11,7 @@
 # SOURCE : Timoshenko & Woinowsky-Krieger, Theory of Plates and Shells, 2e éd., ch. 15 § 114 (coque cylindrique
 # chargée symétriquement) ; Hetényi (1946), Beams on Elastic Foundation (solution particulière d'une charge linéaire).
 projet: "P04 Puits circulaire autostable en pieux sécants : anneau comprimé"
-calcul: { kh: impose, pas: 0.25 }
+calcul: { kh: impose, pas: 0.1 }
 paroi: { type: pieux_secants, beton: C30/37, diametre: 0.8, entraxe: 0.6, tete: 0.0, pied: -16.0, forme: circulaire, rayon: 6.0 }
 sol:
   - { nom: Sable, toit: 0.0, gamma: 18, gamma_dejauge: 10, phi: 30, c: 0, kh: 20000 }

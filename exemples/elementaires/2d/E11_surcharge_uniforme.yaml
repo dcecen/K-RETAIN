@@ -15,3 +15,4 @@ appuis:
 phases:
   - { nom: "Terrassement à -2,0 et pose du buton", excaver: -2.0, poser: B1 }
   - { nom: Surcharge uniforme 20 kPa côté terre, ajouter_surcharges: [{ nom: Q, type: repartie, q: 20 }] }
+verifications: [butee, equilibre_vertical, stabilite_generale]

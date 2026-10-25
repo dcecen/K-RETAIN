@@ -763,7 +763,23 @@ a75795b (2), 53abe82 (3), 31b47bc (4), 777f16d (4h), puis le commit du lot 5.
 8. Changements de spécification signalés : 8 étapes de saisie devenues 9 (`vues.test.ts`), test du menu des
    exemples adapté au catalogue.
 
+### Correctifs après le retour de l'utilisateur (même jour)
+- « Les nouveaux exemples ne fonctionnent pas en vérification » : 18 exemples du catalogue ne demandaient aucune
+  vérification, la vue affichait « Aucune vérification demandée ». Chacun demande maintenant butée, équilibre
+  vertical, stabilité générale et, quand l'eau diffère des deux côtés, fond de fouille ; test ajouté (tout exemple du
+  catalogue demande au moins une vérification). Parcours Chrome des 32 exemples : fiches et schémas affichés, aucune
+  erreur console. Butée non vérifiée sur E03, E14 et E25 : vrai résultat (fiche courte de cas d'essai du moteur,
+  Bm/Bt = 0,72 à 0,93). La rupture de E01 et E02 est rangée dans la famille « Calcul » (elle tombait sous « Structure »).
+- Diagramme V de P04 en dents de scie : la réaction de l'anneau était comptée en force concentrée par nœud dans la
+  statique ; elle est maintenant répartie sur les demi-mailles comme le sol (V continu, nul aux extrémités ; M par la
+  statique = EI·w'' à 2 % sur maillage fin ; test ajouté). P04 et P05 au pas de 0,1 m (anneau très raide, longueur
+  caractéristique 1,5 m). Réaction de l'anneau (N_θ/R) tracée dans le panneau des pressions.
+- Traction circonférentielle (−0,5 kN/m en tête de P04) : vérification à part « Anneau — traction circonférentielle »,
+  qui ne masque plus le taux de compression.
+
 ### Testé
+`lancer_tests.ps1` après les correctifs : pytest 406 réussis, 6 ignorés ; ruff 0 ; tsc 0 ; eslint 0 ; vitest 111 ;
+fumée Chrome sans erreur. Avant les correctifs :
 `lancer_tests.ps1` sur l'état final : pytest 404 réussis, 6 ignorés (cas RIDO / K-Réa absents) ; ruff 0 ; tsc 0 ;
 eslint 0 ; vitest 111 (17 fichiers). Fumée Chrome (`outils/interface/captures.ps1`) : aucune erreur console, étape
 Géométrie comprise (création du bloc, saisie d'un sommet = une seule ligne du script modifiée). Captures ponctuelles

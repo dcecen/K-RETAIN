@@ -103,6 +103,26 @@ def test_force_en_tete_hetenyi_avec_le_module_de_l_anneau():
     assert abs(ph["y_mm"][-1]) < abs(plane["y_mm"][-1])
 
 
+def test_tranchant_par_la_statique_continu_avec_l_anneau():
+    """La réaction de l'anneau est une pression répartie (comme le sol) : V par la statique est continu d'un élément au
+    suivant (aucune force concentrée sans appui), nul aux deux extrémités libres, et M par la statique converge vers
+    M = EI·w'' quand le maillage s'affine (dents de scie de V avant correction : réaction comptée en force nodale)."""
+    from sout.materiaux.base import catalogue_par_defaut
+    from sout.noyau.phasage import calculer
+    from sout.script.conversion import vers_modele
+    p04 = (Path(__file__).resolve().parents[3] / "exemples" / "elementaires" / "3d" / "P04_puits_circulaire_pieux_secants.yaml").read_text(encoding="utf-8")
+    m = vers_modele(lire_script(p04.replace("pas: 0.1", "pas: 0.025")), catalogue_par_defaut())
+    r = calculer(m)
+    for ph in r.phases[1:]:
+        V = ph.V
+        assert np.max(np.abs(V[1:-1:2] - V[2::2])) < 1e-9 * max(1.0, np.abs(V).max())
+        assert abs(V[0]) < 1e-5 * np.abs(V).max() and abs(V[-1]) < 1e-5 * np.abs(V).max()   # résidu du solveur
+        z, y = ph.z, ph.y
+        EI = np.interp(z, 0.5 * (z[1:] + z[:-1]), m.ecran.EI_en(0.5 * (z[1:] + z[:-1])))
+        M_courbure = EI * np.gradient(np.gradient(y, z), z)
+        assert np.abs(ph.M).max() == pytest.approx(np.abs(M_courbure[3:-3]).max(), rel=0.02)
+
+
 def test_grand_rayon_retrouve_la_paroi_plane():
     """R → ∞ : k = E·t/R² → 0, les résultats tendent vers ceux de la paroi plane (1e-6 relatif, R = 1e5 m, posé sur le
     modèle de calcul : le script borne le rayon à 500 m)."""

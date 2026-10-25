@@ -5,8 +5,10 @@
   N_Rd(z) = t(z)·fcd, fcd = αcc·fck/γc (EN 1992-1-1 § 3.1.6 (1)P, compression centrée ; armatures négligées,
   du côté de la sécurité). Le joint des pieux sécants peut être en béton non armé : l'EN 1992-1-1 ch. 12 donne
   alors αcc,pl, absent de docs/normes (TODO-NORME) : la valeur αcc de la section armée est employée et la fiche
-  le signale. Une traction circonférentielle (w vers le terrain) n'est pas reprise par le béton : vérification
-  « non vérifiable » avec la cote et la valeur.
+  le signale.
+- Anneau — traction circonférentielle (seulement si N_θ < 0 quelque part, paroi qui recule vers le terrain) : le
+  béton ne la reprend pas, armatures horizontales à justifier : vérification à part, « non vérifiable », avec la
+  cote et la valeur ; elle ne masque pas le taux de compression.
 - Anneau — stabilité de forme (indicatif) : pression critique d'un tube long sous pression extérieure uniforme
   p_cr = E·t³/(4·R³) (ν = 0, borne inférieure ; Timoshenko & Gere, Theory of Elastic Stability, ch. 7) comparée à
   la pression reprise par l'anneau p = N_θ/R. Aucun coefficient de sécurité n'existe dans docs/normes pour ce
@@ -90,15 +92,27 @@ def verifier_anneau(s, m, r, normes, cle: str, suffixe: str = "") -> list[Verif]
                   f"taux = N_Ed/N_Rd = {taux:.3f}",
                   "joint de pieux sécants non armé : αcc,pl de l'EN 1992-1-1 ch. 12 absent de docs/normes (TODO-NORME), αcc employé"]
         detail += f" ; N_Ed = {N_Ed[k]:.0f} kN/m, N_Rd = t·fcd = {N_Rd[k]:.0f} kN/m à z = {z_c[k]:.2f} m"
-    if traction:
-        lect.manquants.append(f"traction circonférentielle N_θ = {N_t[j]:.1f} kN/m à z = {z_t[j]:.2f} m (phase « {ph_t} ») : "
-                              "non reprise par le béton, armatures horizontales à justifier")
     schema = {"type": "anneau", "phase": ph_c, "R": an.rayon, "t": float(t_c[i]),
               "z": [round(float(x), 3) for x in z_c], "N": [round(float(x), 2) for x in N_c],
               "N_Rd": float(t_c[i] * acc * fck / gc * 1e3) if not lect.manquants and fck else None}
     sorties.append(resultat(f"Anneau — compression circonférentielle{suffixe}", "paroi circulaire", ph_c, taux, detail,
                             SRC_ANNEAU, lect, categorie="structure", famille="anneau", principe=PRINCIPE_COMPRESSION,
                             donnees=donnees, etapes=etapes, schema=schema))
+    # ---- traction circonférentielle (paroi qui recule vers le terrain) : vérification à part, qui ne masque pas la
+    # compression ; le béton ne la reprend pas, les armatures horizontales sont à justifier
+    if traction:
+        lect_t = Lecteur(normes)
+        lect_t.manquants.append("résistance de l'anneau en traction : armatures horizontales à justifier (non automatisé)")
+        sorties.append(resultat(
+            f"Anneau — traction circonférentielle{suffixe}", "paroi circulaire", ph_t, None, "", SRC_ANNEAU, lect_t,
+            categorie="structure", famille="anneau",
+            principe=("Quand la paroi recule vers le terrain (w < 0), l'anneau s'allonge et travaille en traction : "
+                      "N_θ = E·t·w/R < 0. Le béton seul ne reprend pas cette traction ; elle doit être portée par des "
+                      "armatures horizontales continues, non vérifiées ici."),
+            detail_non_verifiable=(f"traction N_θ = {N_t[j]:.1f} kN/m à z = {z_t[j]:.2f} m (phase « {ph_t} ») : "
+                                   "armatures horizontales à justifier"),
+            donnees=[donnee("N_θ", "effort normal circonférentiel minimal (traction < 0)", N_t[j], "kN/m"),
+                     donnee("z", "cote de la traction maximale", z_t[j], "m")]))
     # ---- stabilité de forme (indicatif)
     p = N_c / an.rayon
     with np.errstate(divide="ignore", invalid="ignore"):

@@ -11,6 +11,8 @@ type Obj = any
 
 // Couleur de l'effort tranchant (gris-bleu neutre) et hachures des lithologies (cycle par couche)
 const COULEUR_V = '#4f6d8f'
+/** Réaction de l'anneau d'une paroi circulaire (pression N_θ/R), lisible en thème clair et sombre. */
+const COULEUR_ANNEAU = '#8a5ab0'
 const HACHURES = ['/', '\\', 'x', '-', '|', '+', '.', '']
 
 // Domaines horizontaux des cinq panneaux (coupe, y, M, V, pressions)
@@ -37,7 +39,7 @@ function bornes(res: Resultats) {
   const M = ok.flatMap((p) => p.M ?? [])
   const V = ok.flatMap((p) => p.V ?? [])
   const pa = ok.flatMap((p) => [...p.pressions!.amont.p, ...p.eau!.u_amont])
-  const pv = ok.flatMap((p) => [...p.pressions!.aval.p, ...p.eau!.u_aval])
+  const pv = ok.flatMap((p) => [...p.pressions!.aval.p, ...p.eau!.u_aval, ...(p.anneau?.p_kPa ?? [])])
   const pamax = minMax(pa, 1, 1)[1], pvmax = minMax(pv, 1, 1)[1]
   const plafond = 1.8 * Math.max(pamax, pvmax)
   return {
@@ -192,6 +194,9 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
     traces.push({ x: ph.eau!.u_aval, y: ph.eau!.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: c.accent, width: 1, dash: 'dashdot' }, hoverinfo: 'none' })
     traces.push({ x: neg(p.amont.p), y: p.amont.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: c.orange, width: 2 }, hoverinfo: 'none' })
     traces.push({ x: p.aval.p, y: p.aval.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: c.vert, width: 2 }, hoverinfo: 'none' })
+    if (ph.anneau) {   // paroi circulaire : pression reprise par l'anneau N_θ/R, qui s'oppose à la poussée comme la butée
+      traces.push({ x: ph.anneau.p_kPa, y: ph.anneau.z, xaxis: 'x5', yaxis: 'y', mode: 'lines', line: { color: COULEUR_ANNEAU, width: 2 }, hoverinfo: 'none' })
+    }
 
     // extrêmes annotés
     const marque = (ax: string, pt: { x: number; z: number }, texte: string, couleur: string) => {
@@ -218,7 +223,7 @@ function figure(res: Resultats, ph: PhaseRes, b: ReturnType<typeof bornes>, enve
   // conventions de signe et légende des pressions dans la figure elle-même (donc dans le PNG exporté)
   annotations.push({ text: `${indexPhase === 0 ? 'État initial' : `Phase ${indexPhase}`} : ${ph.nom}. y > 0 vers la fouille ; M > 0 : face côté fouille tendue ; V = dM/dz ; valeurs extrêmes annotées avec leur cote.`,
     xref: 'paper', yref: 'paper', x: 0, y: -0.075, xanchor: 'left', yanchor: 'top', showarrow: false, font: { size: 10, color: c.doux } })
-  annotations.push({ text: `Pressions : <span style="color:${c.orange}">— amont mobilisée</span> ; <span style="color:${c.orange}">··· poussée limite</span> ; <span style="color:${c.vert}">— aval mobilisée</span> ; <span style="color:${c.vert}">- - butée limite</span> ; <span style="color:${c.accent}">-·- eau</span> (amont à gauche, aval à droite)`,
+  annotations.push({ text: `Pressions : <span style="color:${c.orange}">— amont mobilisée</span> ; <span style="color:${c.orange}">··· poussée limite</span> ; <span style="color:${c.vert}">— aval mobilisée</span> ; <span style="color:${c.vert}">- - butée limite</span> ; <span style="color:${c.accent}">-·- eau</span>${ph.anneau ? ` ; <span style="color:${COULEUR_ANNEAU}">— anneau (N_θ/R)</span>` : ''} (amont à gauche, aval à droite)`,
     xref: 'paper', yref: 'paper', x: 1, y: -0.075, xanchor: 'right', yanchor: 'top', showarrow: false, font: { size: 10, color: c.doux } })
 
   const axe = (k: number, range: [number, number]) => ({

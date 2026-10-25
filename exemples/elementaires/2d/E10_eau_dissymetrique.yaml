@@ -17,3 +17,4 @@ appuis:
 phases:
   - { nom: Pose du buton en tête, poser: B1 }
   - { nom: "Terrassement à -4,0 et pompage au fond", excaver: -4.0, eau: { aval: -4.0 } }
+verifications: [butee, equilibre_vertical, stabilite_generale, fond_de_fouille]
