@@ -83,7 +83,11 @@ export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d }:
         ) : <div className="vide-centre"><b>Maquette non disponible</b><span>Le serveur n'a pas renvoyé la géométrie de la maquette pour ce calcul.</span></div>
       case 'assemblages':
         return <Assemblages res={res} modele={modele} references={p.references} theme={a.theme}
-          onEnregistrer={(nom, bloc) => { p.actions.ajouterCle(['assemblages'], nom, bloc); a.setVue('script') }} />
+          onEnregistrer={(nom, bloc, remplacer) => {
+            if (remplacer) p.actions.fixer(['assemblages', nom], bloc); else p.actions.ajouterCle(['assemblages'], nom, bloc)
+            p.setEtat({ genre: 'modifie', texte: `Assemblage ${nom} enregistré dans le script : à recalculer` })
+          }}
+          onSupprimer={(nom) => { p.actions.supprimer(['assemblages', nom]); p.setEtat({ genre: 'modifie', texte: `Assemblage ${nom} retiré du script : à recalculer` }) }} />
       case 'script':
         return (
           <div className="vue-script">

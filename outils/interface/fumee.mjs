@@ -162,6 +162,12 @@ if (await evaluer(`(() => { const l = [...document.querySelectorAll('.ligne-phas
 // Outils
 for (const [nom, texte, oblig] of [['16_script', 'Script', true], ['17_assemblages', 'Assemblages', true], ['18_materiaux', 'Base matériaux', true], ['19_aide', 'Aide', false]]) {
   if (await aller(texte, { attente: 2000, obligatoire: oblig })) await capture(nom)
+  if (nom === '17_assemblages') {
+    // ouverture d'un assemblage déjà présent dans le script (A1 de l'exemple)
+    const ok = await evaluer(`(() => { const b = [...document.querySelectorAll('.noeud')].find((x) => x.querySelector('.libelle')?.textContent.trim() === 'A1'); if (b) { b.click(); return true } return false })()`)
+    await dormir(1500)
+    if (ok) await capture('17b_assemblage_existant'); else console.log('assemblage A1 introuvable (exemple sans assemblages ?)')
+  }
 }
 
 // Menu Fichier ouvert, puis boîte de dialogue de confirmation (suppression d'une surcharge, annulée par Échap)

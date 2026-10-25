@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MESSAGE_INJOIGNABLE, type Resultats, type Verif } from '../lib/api'
+import { api, messageErreur, type Resultats, type Verif } from '../lib/api'
 import type { ParamDef, Schema, TypeAssemblage } from '../lib/assemblages'
+import { confirmer } from '../lib/dialogue'
 import { nb, pourcent } from '../lib/format'
 import { lireNombre } from '../lib/saisie'
 import type { Modele } from '../lib/scriptDoc'
@@ -10,23 +11,6 @@ import { SchemaSvg } from './SchemaSvg'
 
 type Params = Record<string, number | string>
 const LIBELLE: Record<string, string> = { ok: 'Vérifié', attention: 'Vérifié', non_ok: 'Non vérifié', non_verifiable: 'Non vérifiable' }
-
-async function post<T>(url: string, corps: unknown): Promise<T> {
-  let r: Response
-  try {
-    r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
-  } catch {
-    throw new Error(MESSAGE_INJOIGNABLE)
-  }
-  if (!r.ok) {
-    const d = (await r.json().catch(() => null)) as { detail?: unknown; erreurs?: { message?: string }[] } | null
-    const detail = typeof d?.detail === 'string' ? d.detail
-      : Array.isArray(d?.detail) ? d.detail.map((x) => (typeof x === 'string' ? x : (x as { msg?: string }).msg ?? JSON.stringify(x))).join(' ; ')
-      : d?.erreurs?.[0]?.message
-    throw new Error(detail ?? `erreur ${r.status} du serveur`)
-  }
-  return r.json() as Promise<T>
-}
 
 /** Champ numérique validé à la sortie (Entrée ou perte de focus) : on peut taper « 0,5 » ou « -12 » sans que la
  *  valeur soit convertie à chaque frappe ; une saisie non numérique est annulée. */
@@ -61,12 +45,25 @@ function effortsAppui(res: Resultats | null, nom: string): Record<string, number
   return e
 }
 
-export function Assemblages({ res, modele, references, theme, onEnregistrer }: {
+/** Paramètres d'un type : valeurs par défaut, puis celles de l'appui choisi, puis celles d'un bloc existant du script. */
+function parametresPour(type: TypeAssemblage, app: Modele, references: Record<string, string[]>, bloc: Modele): Params {
+  const d: Params = Object.fromEntries(type.parametres.map((p) => [p.cle, p.defaut]))
+  d.lierne = bloc?.lierne ?? app?.lierne ?? (references.profiles?.[0] ?? '')
+  d.buton = bloc?.buton ?? app?.element ?? ''
+  d.acier = bloc?.acier ?? app?.acier ?? 'S355'
+  if (app && typeof app.angle === 'number' && 'angle' in d) d.angle = app.angle
+  if (bloc?.parametres && typeof bloc.parametres === 'object') Object.assign(d, bloc.parametres)
+  return d
+}
+
+export function Assemblages({ res, modele, references, theme, onEnregistrer, onSupprimer }: {
   res: Resultats | null
   modele: Modele
   references: Record<string, string[]>
   theme: Theme
-  onEnregistrer: (nom: string, bloc: Record<string, unknown>) => void
+  /** Écriture dans le script : ajout d'un bloc, ou remplacement d'un bloc existant (`remplacer`). */
+  onEnregistrer: (nom: string, bloc: Record<string, unknown>, remplacer: boolean) => void
+  onSupprimer: (nom: string) => void
 }) {
   const [types, setTypes] = useState<TypeAssemblage[]>([])
   const [vignettes, setVignettes] = useState<Record<string, Schema>>({})
@@ -81,33 +78,32 @@ export function Assemblages({ res, modele, references, theme, onEnregistrer }: {
   const [vueActive, setVueActive] = useState(0)
   const [erreur, setErreur] = useState<string | null>(null)
   const [nomSauvegarde, setNomSauvegarde] = useState('A1')
+  const [existant, setExistant] = useState<string | null>(null)   // bloc du script ouvert pour modification
+  const enAttente = useRef<Modele>(null)                          // bloc à appliquer au prochain changement de type
   const minuterie = useRef<number | undefined>(undefined)
   const type = types.find((t) => t.cle === cle)
+  const dansScript: Record<string, Modele> = modele?.assemblages && typeof modele.assemblages === 'object' ? modele.assemblages : {}
 
   useEffect(() => {
-    fetch('/api/assemblages/types').then((r) => { if (!r.ok) throw new Error(`erreur ${r.status}`); return r.json() }).then((ts: TypeAssemblage[]) => {
-      if (!Array.isArray(ts)) throw new Error('réponse inattendue')
+    api.assemblagesTypes().then((ts) => {
       setTypes(ts)
       // vignettes : schéma par défaut de chaque type
       ts.forEach((t) => {
         const defauts: Params = Object.fromEntries(t.parametres.map((p) => [p.cle, p.defaut]))
         defauts.lierne = 'HEB 300'; defauts.buton = 'modulaire_A'; defauts.acier = 'S355'
-        post<Schema>('/api/assemblages/schema', { type: t.cle, parametres: defauts, efforts: { N: 500, V: 20, M: 100, T: 500 } })
+        api.assemblagesSchema({ type: t.cle, parametres: defauts, efforts: { N: 500, V: 20, M: 100, T: 500 } })
           .then((s) => setVignettes((v) => ({ ...v, [t.cle]: s }))).catch(() => {})
       })
-    }).catch(() => setErreur('types d’assemblages indisponibles'))
+    }).catch((e) => setErreur(`Types d'assemblages indisponibles : ${messageErreur(e)}`))
   }, [])
 
-  // changement de type : paramètres par défaut, lierne / buton de l'appui choisi
+  // changement de type : paramètres par défaut, lierne / buton de l'appui choisi, bloc du script en attente
   useEffect(() => {
     if (!type) return
-    const d: Params = Object.fromEntries(type.parametres.map((p) => [p.cle, p.defaut]))
-    const app = appui ? modele?.appuis?.[appui] : null
-    d.lierne = app?.lierne ?? (references.profiles?.[0] ?? '')
-    d.buton = app?.element ?? ''
-    d.acier = app?.acier ?? 'S355'
-    if (app && typeof app.angle === 'number' && 'angle' in d) d.angle = app.angle
-    setParams(d)
+    const bloc = enAttente.current
+    enAttente.current = null
+    const app = (bloc?.appui ?? appui) ? modele?.appuis?.[bloc?.appui ?? appui] : null
+    setParams(parametresPour(type, app, references, bloc))
     setVueActive(0)
     setReperes(new Set())
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,14 +117,37 @@ export function Assemblages({ res, modele, references, theme, onEnregistrer }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appui, res])
 
+  /** Ouvre un assemblage du script pour le modifier. */
+  const ouvrir = (nom: string) => {
+    const bloc = dansScript[nom]
+    if (!bloc || typeof bloc !== 'object') return
+    setExistant(nom)
+    setNomSauvegarde(nom)
+    setAppui(typeof bloc.appui === 'string' ? bloc.appui : '')
+    if (bloc.efforts && typeof bloc.efforts === 'object') setEfforts({ N: 0, V: 0, M: 0, T: 0, ...bloc.efforts })
+    const t = types.find((x) => x.cle === bloc.type)
+    if (!t) { setErreur(`Type d'assemblage inconnu : ${bloc.type}`); return }
+    if (t.cle === cle) {
+      const app = bloc.appui ? modele?.appuis?.[bloc.appui] : null
+      setParams(parametresPour(t, app, references, bloc))
+    } else { enAttente.current = bloc; setCle(t.cle) }
+  }
+  const nouveau = (t: string) => {
+    setExistant(null)
+    let k = 1
+    while (`A${k}` in dansScript) k++
+    setNomSauvegarde(`A${k}`)
+    if (t !== cle) setCle(t)
+  }
+
   const fck = (res?.paroi as { beton?: { fck_MPa?: number } } | undefined)?.beton?.fck_MPa ?? null
   const recalculer = useCallback(() => {
     if (!type) return
     const e = { ...efforts, V: cle === 'eclisse_lierne' ? (efforts.V_lierne ?? efforts.V) : efforts.V }
     Promise.all([
-      post<Schema>('/api/assemblages/schema', { type: cle, parametres: params, efforts: e, fck }),
-      post<Verif[]>('/api/assemblages/verifier', { type: cle, parametres: params, efforts: e, fck }),
-    ]).then(([s, v]) => { setSchema(s); setVerifs(v); setErreur(null) }).catch((err) => setErreur(String(err.message ?? err)))
+      api.assemblagesSchema({ type: cle, parametres: params, efforts: e, fck }),
+      api.assemblagesVerifier({ type: cle, parametres: params, efforts: e, fck }),
+    ]).then(([s, v]) => { setSchema(s); setVerifs(v); setErreur(null) }).catch((err) => setErreur(messageErreur(err)))
   }, [type, cle, params, efforts, fck])
 
   useEffect(() => {
@@ -160,16 +179,42 @@ export function Assemblages({ res, modele, references, theme, onEnregistrer }: {
   const effortsDemandes = type?.efforts ?? ['N']
   const appuis = Object.keys(modele?.appuis ?? {})
 
+  const enregistrer = () => {
+    const { acier, lierne, buton, ...reste } = params
+    const base: Record<string, unknown> = existant && dansScript[existant] && typeof dansScript[existant] === 'object' ? { ...dansScript[existant] } : {}
+    const bloc: Record<string, unknown> = { ...base, type: cle }
+    if (appui) { bloc.appui = appui; delete bloc.efforts } else { bloc.efforts = Object.fromEntries(effortsDemandes.map((k) => [k, efforts[k] ?? 0])); delete bloc.appui }
+    if (acier) bloc.acier = acier; else delete bloc.acier
+    if (lierne) bloc.lierne = lierne; else delete bloc.lierne
+    if (buton) bloc.buton = buton; else delete bloc.buton
+    const defauts = Object.fromEntries((type?.parametres ?? []).map((p) => [p.cle, p.defaut]))
+    const parametres = Object.fromEntries(Object.entries(reste).filter(([k, v]) => v !== '' && v !== defauts[k]))
+    if (Object.keys(parametres).length) bloc.parametres = parametres; else delete bloc.parametres
+    const nom = nomSauvegarde.trim()
+    const remplacer = existant === nom
+    onEnregistrer(nom, bloc, remplacer)
+    setExistant(nom)
+  }
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '240px minmax(0, 1fr) 340px', height: '100%', minHeight: 0 }}>
-      {/* --- liste des types avec vignettes */}
+      {/* --- assemblages du script, puis types avec vignettes */}
       <div style={{ overflow: 'auto', borderRight: '1px solid var(--filet)' }}>
+        <div className="panneau-entete">Dans le script</div>
+        {Object.keys(dansScript).length === 0 && <div className="note" style={{ padding: '6px 10px' }}>Aucun assemblage enregistré. Choisissez un type ci-dessous, réglez-le, puis « Ajouter au script ».</div>}
+        {Object.entries(dansScript).map(([nom, b]) => (
+          <button key={nom} className={`noeud ${existant === nom ? 'actif' : ''}`} onClick={() => ouvrir(nom)} title={`Modifier l'assemblage ${nom}`}>
+            <span className="chevron" /><span className="libelle">{nom}</span>
+            <span className="meta">{types.find((t) => t.cle === b?.type)?.nom ?? b?.type}{b?.appui ? ` · ${b.appui}` : ''}</span>
+          </button>
+        ))}
+        <div className="panneau-entete">Nouveau : types</div>
         {familles.map(([fam, liste]) => (
           <div key={fam}>
-            <div className="panneau-entete">{fam}</div>
+            <div className="titre-groupe" style={{ padding: '6px 10px 2px', fontSize: 11, color: 'var(--texte-faible)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{fam}</div>
             {liste.map((t) => (
-              <button key={t.cle} className={`noeud ${t.cle === cle ? 'actif' : ''}`} style={{ height: 'auto', padding: '6px 8px', display: 'block', textAlign: 'left', whiteSpace: 'normal' }}
-                onClick={() => setCle(t.cle)} title={t.description}>
+              <button key={t.cle} className={`noeud ${t.cle === cle && !existant ? 'actif' : ''}`} style={{ height: 'auto', padding: '6px 8px', display: 'block', textAlign: 'left', whiteSpace: 'normal' }}
+                onClick={() => nouveau(t.cle)} title={t.description}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <div style={{ width: 84, height: 60, flexShrink: 0, border: '1px solid var(--filet)', background: 'var(--panneau)', overflow: 'hidden' }}>
                     {vignettes[t.cle] && <SchemaSvg schema={vignettes[t.cle]} vue={vignettes[t.cle].vues[0]} hauteur={60} compact />}
@@ -185,7 +230,7 @@ export function Assemblages({ res, modele, references, theme, onEnregistrer }: {
       {/* --- schéma */}
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
         <div className="barre-outils">
-          <b style={{ whiteSpace: 'nowrap' }}>{type?.nom}</b>
+          <b style={{ whiteSpace: 'nowrap' }}>{existant ? `${existant} : ` : ''}{type?.nom}</b>
           <span className="doux masquer-etroit" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{type?.description}</span>
           <span className="espace" />
           {schema?.vues.map((v, i) => <button key={i} className={`puce-choix ${i === vueActive ? 'actif' : ''}`} onClick={() => setVueActive(i)}>{v.nom}</button>)}
@@ -261,21 +306,16 @@ export function Assemblages({ res, modele, references, theme, onEnregistrer }: {
             <label key={p.cle} title={p.cle}>{p.libelle}{p.unite ? ` (${p.unite})` : ''}{champ(p)}</label>
           ))}
         </div>
-        <div className="panneau-entete">Enregistrer dans le script</div>
+        <div className="panneau-entete">{existant ? 'Enregistrer dans le script' : 'Ajouter au script'}</div>
         <div className="grille-form" style={{ gridTemplateColumns: '1fr' }}>
           <label>Nom de l'assemblage<input className="champ champ-bloc" value={nomSauvegarde} onChange={(e) => setNomSauvegarde(e.target.value)} /></label>
-          <button className="btn principal" disabled={!type || !nomSauvegarde.trim()} onClick={() => {
-            const { acier, lierne, buton, ...reste } = params
-            const bloc: Record<string, unknown> = { type: cle }
-            if (appui) bloc.appui = appui; else bloc.efforts = Object.fromEntries(effortsDemandes.map((k) => [k, efforts[k] ?? 0]))
-            if (acier) bloc.acier = acier
-            if (lierne) bloc.lierne = lierne
-            if (buton) bloc.buton = buton
-            const defauts = Object.fromEntries((type?.parametres ?? []).map((p) => [p.cle, p.defaut]))
-            bloc.parametres = Object.fromEntries(Object.entries(reste).filter(([k, v]) => v !== '' && v !== defauts[k]))
-            onEnregistrer(nomSauvegarde.trim(), bloc)
-          }}>Ajouter au script</button>
-          <p className="note">L'assemblage enregistré est revérifié à chaque calcul avec les efforts de l'appui, et apparaît dans l'onglet Vérifications.</p>
+          <button className="btn principal" disabled={!type || !nomSauvegarde.trim()} onClick={enregistrer}>
+            {existant === nomSauvegarde.trim() ? 'Enregistrer les modifications' : nomSauvegarde.trim() in dansScript ? `Remplacer ${nomSauvegarde.trim()}` : 'Ajouter au script'}
+          </button>
+          {existant && (
+            <button className="btn" onClick={() => void confirmer(`Supprimer l'assemblage « ${existant} » du script ?`, { ok: 'Supprimer' }).then((ok) => { if (ok) { onSupprimer(existant); setExistant(null) } })}>Supprimer du script</button>
+          )}
+          <p className="note">L'assemblage enregistré est revérifié à chaque calcul avec les efforts de l'appui, et apparaît dans la vue Vérifications.</p>
         </div>
       </div>
     </div>

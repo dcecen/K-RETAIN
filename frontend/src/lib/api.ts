@@ -1,5 +1,7 @@
 // Types des réponses du serveur de calcul et appels HTTP.
 
+import type { Schema as SchemaAssemblage, TypeAssemblage } from './assemblages'
+
 export interface ErreurScript {
   ligne: number | null
   chemin: string
@@ -374,6 +376,9 @@ export const api = {
       .then((r) => (r.ok ? r.json() : {}))
       .catch(() => ({})) as Promise<Record<string, string[]>>,
   rido: (texte: string, nom: string) => post<{ texte: string; rapport: string[] }>('/api/rido', { texte, nom }),
+  assemblagesTypes: () => fetch('/api/assemblages/types').then((r) => { if (!r.ok) throw new Error(`erreur ${r.status}`); return r.json() }).then((ts) => { if (!Array.isArray(ts)) throw new Error('réponse inattendue'); return ts as TypeAssemblage[] }),
+  assemblagesSchema: (corps: unknown) => post<SchemaAssemblage>('/api/assemblages/schema', corps),
+  assemblagesVerifier: (corps: unknown) => post<Verif[]>('/api/assemblages/verifier', corps),
   maquette: async (texte: string) => {
     let r: Response
     try {
