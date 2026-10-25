@@ -45,3 +45,18 @@ export function cheminVers(noeuds: NoeudPhase[], index: number): number[] {
   return out.reverse()
 }
 
+/** Résumé des actions d'une phase du script (icône et texte court), pour les listes de phases. */
+export function resumePhase(p: Modele): { type: string; texte: string }[] {
+  const a: { type: string; texte: string }[] = []
+  if (!p) return a
+  const l = (v: unknown) => (Array.isArray(v) ? v.join(', ') : v ? String(v) : '')
+  if (typeof p.excaver === 'number') a.push({ type: 'excavation', texte: `excaver à ${p.excaver} m` })
+  if (p.remblayer) a.push({ type: 'remblai', texte: 'remblai' })
+  if (p.poser) a.push({ type: 'pose', texte: `poser ${l(p.poser)}` })
+  if (p.deposer) a.push({ type: 'depose', texte: `déposer ${l(p.deposer)}` })
+  if (p.eau) a.push({ type: 'eau', texte: `nappe${p.eau.aval !== undefined ? ` aval ${p.eau.aval ?? 'aucune'}` : ''}${p.eau.amont !== undefined ? ` amont ${p.eau.amont ?? 'aucune'}` : ''}` })
+  if (p.ajouter_surcharges) a.push({ type: 'surcharge', texte: `ajouter ${l(p.ajouter_surcharges)}` })
+  if (p.retirer_surcharges) a.push({ type: 'surcharge', texte: `retirer ${l(p.retirer_surcharges)}` })
+  if (p.terrasser_risberme) a.push({ type: 'excavation', texte: `terrasser ${l(p.terrasser_risberme)}` })
+  return a
+}

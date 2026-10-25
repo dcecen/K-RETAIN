@@ -36,6 +36,7 @@ export function useAffichage() {
     setOrigine3d(false)
     setTiroirNav(false)
     setTiroirInsp(false)
+    setAideChamp(null)
   }, [])
 
   /** Ouverture d'une vue depuis la maquette 3D : lien de retour et filtre sur la sélection. */

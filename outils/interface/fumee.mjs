@@ -141,6 +141,11 @@ await capture('09_saisie_couche')
 for (const [nom, texte] of [['10_projet', 'Projet'], ['11_ecran', 'Écran'], ['12_eau', 'Eau'], ['13_surcharges', 'Surcharges'], ['14_appuis', 'Appuis'], ['15_phases', 'Phases']]) {
   if (await aller(texte)) await capture(nom)
 }
+// Formulaire de la deuxième phase (clic sur sa ligne)
+if (await evaluer(`(() => { const l = [...document.querySelectorAll('.ligne-phase')][2]; if (l) { l.click(); return true } return false })()`)) {
+  await dormir(800)
+  await capture('15b_phase_formulaire')
+} else journal.push('ligne de phase introuvable')
 // Outils
 for (const [nom, texte, oblig] of [['16_script', 'Script', true], ['17_assemblages', 'Assemblages', true], ['18_materiaux', 'Base matériaux', true], ['19_aide', 'Aide', false]]) {
   if (await aller(texte, { attente: 2000, obligatoire: oblig })) await capture(nom)

@@ -1,24 +1,12 @@
 import type { ReactNode } from 'react'
 import type { Resultats } from '../lib/api'
-import { IconeCorbeille, IconeDepose, IconeEau, IconeExcavation, IconeInitial, IconePlus, IconePose, IconeRadier, IconeRemblai } from '../lib/icones'
+import { IconeCorbeille, IconeDepose, IconeEau, IconeExcavation, IconeInitial, IconePlus, IconePose, IconeRadier, IconeRemblai, IconeSurcharge } from '../lib/icones'
 import type { Modele } from '../lib/scriptDoc'
-import { arbrePhases, cheminVers } from '../lib/phases'
+import { arbrePhases, cheminVers, resumePhase } from '../lib/phases'
 
 const ICONES: Record<string, ReactNode> = {
   initial: <IconeInitial />, excavation: <IconeExcavation />, pose: <IconePose />, depose: <IconeDepose />,
-  radier: <IconeRadier />, eau: <IconeEau />, remblai: <IconeRemblai />,
-}
-
-function resume(p: Modele): { type: string; texte: string }[] {
-  const a: { type: string; texte: string }[] = []
-  if (!p) return a
-  if (typeof p.excaver === 'number') a.push({ type: 'excavation', texte: `excaver à ${p.excaver} m` })
-  if (p.remblayer) a.push({ type: 'remblai', texte: 'remblai' })
-  const l = (v: unknown) => (Array.isArray(v) ? v.join(', ') : v ? String(v) : '')
-  if (p.poser) a.push({ type: 'pose', texte: `poser ${l(p.poser)}` })
-  if (p.deposer) a.push({ type: 'depose', texte: `déposer ${l(p.deposer)}` })
-  if (p.eau) a.push({ type: 'eau', texte: `nappe${p.eau.aval !== undefined ? ` aval ${p.eau.aval ?? 'aucune'}` : ''}${p.eau.amont !== undefined ? ` amont ${p.eau.amont ?? 'aucune'}` : ''}` })
-  return a
+  radier: <IconeRadier />, eau: <IconeEau />, remblai: <IconeRemblai />, surcharge: <IconeSurcharge />,
 }
 
 /** Explorateur de phases façon Plaxis : lignes de branchement, insertion, variantes. */
@@ -73,7 +61,7 @@ export function ArbrePhases({ phases, res, actif, selection, onChoisir, onInsere
               <span style={{ fontWeight: act || sel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{n.nom}</span>
               {n.index >= 0 && p?.depuis && <span className="mention" title={`branche depuis « ${p.depuis} »`}>variante</span>}
               <span className="doux" style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11.5, minWidth: 0 }}>
-                {(n.index < 0 ? [{ type: 'initial', texte: 'sol au repos' }] : resume(p)).map((a, k) => <span key={k} title={a.texte} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{ICONES[a.type]}<span className="masquer-etroit">{a.texte}</span></span>)}
+                {(n.index < 0 ? [{ type: 'initial', texte: 'sol au repos' }] : resumePhase(p)).map((a, k) => <span key={k} title={a.texte} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{ICONES[a.type]}<span className="masquer-etroit">{a.texte}</span></span>)}
               </span>
               {r && !r.ok && <span className="statut non_ok" title={r.message}>rupture</span>}
               <span style={{ display: 'flex', gap: 2 }} onClick={(e) => e.stopPropagation()}>
