@@ -144,6 +144,20 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
     e: list[tuple[tuple, str]] = []
     if s.paroi.tete <= s.paroi.pied:
         e.append((("paroi", "pied"), "le pied doit être sous la tête"))
+    # étanchéité de l'écran : « partielle » exige k_paroi, une épaisseur traversée et le régime differences_finies
+    from ..parois.etancheite import epaisseur_hydraulique_de, etancheite_de
+    et = etancheite_de(s.paroi)
+    if et == "partielle":
+        if s.paroi.k_paroi is None:
+            e.append((("paroi", "etancheite"), "étanchéité partielle : donnez paroi.k_paroi (m/s), perméabilité équivalente de l'écran"))
+        if epaisseur_hydraulique_de(s.paroi) is None:
+            e.append((("paroi", "etancheite"), "étanchéité partielle : épaisseur traversée inconnue, donnez paroi.epaisseur_hydraulique (m)"))
+        if (s.hydraulique.regime if s.hydraulique is not None else "hydrostatique") != "differences_finies":
+            e.append((("paroi", "etancheite"), "étanchéité partielle : seul le régime hydraulique differences_finies calcule le passage "
+                                               "de l'eau à travers l'écran (bloc hydraulique)"))
+    elif s.paroi.k_paroi is not None or s.paroi.epaisseur_hydraulique is not None:
+        e.append((("paroi", "k_paroi"), f"k_paroi / epaisseur_hydraulique sans effet : l'écran est « {et} » "
+                                        "(paroi.etancheite: partielle pour les prendre en compte)"))
     toits = [c.toit for c in s.sol]
     if len(set(toits)) != len(toits):
         e.append((("sol",), "deux couches ont le même toit"))
@@ -336,7 +350,8 @@ def _controles(s: Script) -> list[tuple[tuple, str]]:
                     e.append((chemin + (cle,), f"phase « {ref} » inconnue"))
                 if isinstance(ref, int) and not 1 <= ref <= len(s.phases):
                     e.append((chemin + (cle,), f"numéro de phase {ref} hors de la liste (1 à {len(s.phases)})"))
-    for nom, k in cotes.items():
+    # côtés du bloc plan (forme ancienne) ; ceux de geometrie.ouvrages sont contrôlés par _controles_geometrie
+    for nom, k in (s.plan.cotes.items() if s.plan else ()):
         if not 0 <= k < n_aretes:
             e.append((("plan", "cotes", nom), f"côté « {nom} » : numéro d'arête {k} hors du contour (0 à {n_aretes - 1})"))
     noms_coupes = set()

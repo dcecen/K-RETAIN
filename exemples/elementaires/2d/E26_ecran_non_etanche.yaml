@@ -1,0 +1,28 @@
+# VÉRIFICATION ÉLÉMENTAIRE E26 — enceinte fermée : écran non étanche, écoulement à travers l'écran
+# Enceinte 20 × 12 m (bloc geometrie, contour fermé : la largeur de fouille de 12 m est déduite du vis-à-vis), paroi
+# moulée de 0 à −12 m, nappe côté terre à −1 m, fouille à −5 m pompée au fond (Δh = 4 m), sable k = 1e-5 m/s,
+# réseau d'écoulement 2D. L'écran est déclaré non étanche (paroi.etancheite) : l'eau le traverse. Sous le fond de
+# fouille, la charge est la même des deux côtés de l'écran ; au-dessus du fond, l'écran suinte dans la fouille.
+# ATTENDU : sous le fond, u_amont = u_aval sur l'écran (écart < 1 % de γw·Δh = 40 kPa) ; au-dessus du fond,
+# u_amont = 0 ; débit de pompage (dont la part traversant l'écran) supérieur à celui du même écran étanche. Le test
+# recalcule le script avec etancheite: etanche : débit plus faible et pression différentielle sous le fond > 4 kPa.
+# SOURCE : loi de Darcy, résistances hydrauliques en série (Cedergren, Seepage, Drainage and Flow Nets, ch. 3) ;
+# hypothèses d'étanchéité par type de paroi : backend/sout/parois/etancheite.py (hypothèse de projet).
+projet: "E26 Enceinte fermée : écran non étanche, écoulement à travers l'écran"
+calcul: { kh: impose, pas: 0.25 }
+paroi: { type: paroi_moulee, EI: 1.0e6, tete: 0.0, pied: -12.0, etancheite: non_etanche }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 32, c: 0, kh: 20000, k_h: 1.0e-5, k_v: 1.0e-5 }
+eau:
+  service: { amont: -1.0, aval: -1.0 }
+hydraulique: { regime: differences_finies, pas: 0.5, largeur_amont: 30.0, substratum: -30.0 }
+geometrie:
+  ouvrages:
+    contour: [[0, 0], [20, 0], [20, 12], [0, 12]]
+    cotes: { sud: 0, est: 1, nord: 2, ouest: 3 }
+appuis:
+  B1: { type: buton, raideur: 100000, cote: -0.5, espacement: 1.0 }
+phases:
+  - { nom: Pose du buton en tête, poser: B1 }
+  - { nom: "Terrassement à -5,0 et pompage au fond", excaver: -5.0, eau: { aval: -5.0 } }
+verifications: [fond_de_fouille]

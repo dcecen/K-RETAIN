@@ -65,6 +65,10 @@ export interface Hydro {
   charge_base_bouchon: number | null
   gradient_bouchon: number | null
   avertissements: string[]
+  /** Étanchéité de l'écran prise en compte (etanche, non_etanche, partielle) et part du débit traversant l'écran. */
+  etancheite?: string
+  debit_paroi_m3_h_m?: number
+  aval_ferme?: boolean
   x?: number[]
   z?: number[]
   h?: (number | null)[][]

@@ -81,6 +81,14 @@ class Paroi(_Base):
                                 "ni moment ni torsion horizontaux")
     origine_panneaux: float = Field(
         0.0, ge=0, description="paroi moulée (pseudo-3D) : abscisse du premier joint le long de la paroi (m)")
+    etancheite: Literal["etanche", "non_etanche", "partielle"] | None = Field(
+        None, description="étanchéité hydraulique de l'écran : etanche (l'eau ne traverse pas l'écran), non_etanche (écran "
+                          "transparent pour l'eau : hors écoulement 2D, nappe côté terre ramenée au niveau côté fouille), partielle "
+                          "(résistance e_p/k_p en série avec le sol, écoulement 2D seulement) ; défaut selon le type, hypothèse de "
+                          "projet : paroi_moulee, pieux_secants, palplanche -> etanche ; pieux_disjoints, berlinoise -> non_etanche")
+    k_paroi: float | None = Field(None, gt=0, description="étanchéité partielle : perméabilité équivalente de l'écran (m/s)")
+    epaisseur_hydraulique: float | None = Field(
+        None, gt=0, description="étanchéité partielle : épaisseur d'écran traversée par l'eau (m) ; défaut : epaisseur ou diametre")
 
 
 class Couche(_Base):
@@ -121,7 +129,9 @@ class Hydraulique(_Base):
         "hydrostatique", description="régime de l'eau : hydrostatique, simplifié (cheminement) ou écoulement 2D en différences finies")
     substratum: float | None = Field(None, description="cote du toit du substratum imperméable (m) ; défaut : pied − 2 × hauteur")
     largeur_amont: float | None = Field(None, gt=0, le=2000, description="étendue du domaine amont (m) ; défaut : 4 × hauteur de paroi")
-    largeur_fouille: float | None = Field(None, gt=0, description="largeur de la fouille (m), fouille symétrique ; défaut : 2 × hauteur")
+    largeur_fouille: float | None = Field(None, gt=0, description="largeur de la fouille (m), fouille symétrique ; défaut : distance au vis-à-vis "
+                                                                "de la géométrie au point de la coupe (enceinte fermée), sinon 2 × hauteur ; "
+                                                                "paroi ouverte (geometrie.ouvrages.ferme: false) : pas de vis-à-vis, domaine étendu")
     pas: float = Field(0.5, gt=0.05, le=2.0, description="taille des cellules du maillage d'écoulement (m)")
     bouchon: BouchonScript | None = Field(None, description="bouchon de fond de fouille")
     sol_lane: str | None = Field(None, description="type de sol pour Lane (sinon celui de la couche du fond)")

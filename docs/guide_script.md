@@ -348,6 +348,9 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `enrobage_horizontal` | nombre |  |  | paroi moulée (pseudo-3D) : distance du parement à l'axe des armatures horizontales (m) ; défaut : enrobage (> 0) |
 | `longueur_panneau` | nombre |  |  | paroi moulée (pseudo-3D) : longueur des panneaux (m) ; un joint entre panneaux ne transmet ni moment ni torsion horizontaux (> 0) |
 | `origine_panneaux` | nombre |  | 0.0 | paroi moulée (pseudo-3D) : abscisse du premier joint le long de la paroi (m) (≥ 0) |
+| `etancheite` | etanche / non_etanche / partielle |  |  | étanchéité hydraulique de l'écran : etanche (l'eau ne traverse pas l'écran), non_etanche (écran transparent pour l'eau : hors écoulement 2D, nappe côté terre ramenée au niveau côté fouille), partielle (résistance e_p/k_p en série avec le sol, écoulement 2D seulement) ; défaut selon le type, hypothèse de projet : paroi_moulee, pieux_secants, palplanche -> etanche ; pieux_disjoints, berlinoise -> non_etanche |
+| `k_paroi` | nombre |  |  | étanchéité partielle : perméabilité équivalente de l'écran (m/s) (> 0) |
+| `epaisseur_hydraulique` | nombre |  |  | étanchéité partielle : épaisseur d'écran traversée par l'eau (m) ; défaut : epaisseur ou diametre (> 0) |
 
 ### sol (chaque élément)
 
@@ -510,7 +513,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `regime` | hydrostatique / simplifie / differences_finies |  | hydrostatique | régime de l'eau : hydrostatique, simplifié (cheminement) ou écoulement 2D en différences finies |
 | `substratum` | nombre |  |  | cote du toit du substratum imperméable (m) ; défaut : pied − 2 × hauteur |
 | `largeur_amont` | nombre |  |  | étendue du domaine amont (m) ; défaut : 4 × hauteur de paroi (> 0, ≤ 2000) |
-| `largeur_fouille` | nombre |  |  | largeur de la fouille (m), fouille symétrique ; défaut : 2 × hauteur (> 0) |
+| `largeur_fouille` | nombre |  |  | largeur de la fouille (m), fouille symétrique ; défaut : distance au vis-à-vis de la géométrie au point de la coupe (enceinte fermée), sinon 2 × hauteur ; paroi ouverte (geometrie.ouvrages.ferme: false) : pas de vis-à-vis, domaine étendu (> 0) |
 | `pas` | nombre |  | 0.5 | taille des cellules du maillage d'écoulement (m) (> 0.05, ≤ 2.0) |
 | `bouchon` | bloc |  |  | bouchon de fond de fouille |
 | `sol_lane` | texte |  |  | type de sol pour Lane (sinon celui de la couche du fond) |

@@ -169,6 +169,12 @@ def construire_ecran(p, catalogue=None, normes=None) -> Ecran:
         infos["EI_source"] = "calculé (base matériaux)"
     infos["EI"] = EI
     infos["rigidite_horizontale"] = rigidite_horizontale(p)
+    # étanchéité hydraulique (parois.etancheite) : état retenu et résistance e_p/k_p d'un écran partiellement étanche
+    from .etancheite import epaisseur_hydraulique_de, etancheite_de, resistance_paroi
+    infos["etancheite"] = etancheite_de(p)
+    infos["resistance_hydraulique"] = resistance_paroi(p)
+    if infos["etancheite"] == "partielle":
+        infos.update(k_paroi=getattr(p, "k_paroi", None), epaisseur_hydraulique=epaisseur_hydraulique_de(p))
     return Ecran(tete=p.tete, pied=p.pied, EI=EI, largeur_reaction=largeur, infos=infos)
 
 

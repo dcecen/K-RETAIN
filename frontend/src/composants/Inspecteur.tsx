@@ -73,7 +73,7 @@ function PhaseActive({ res, phase, onSelection }: { res: Resultats | null; phase
               <>
                 <dt>Gradient de sortie max</dt>
                 <dd style={{ color: couleurEtat(etatHydraulique(res, ph.nom)) }}>{nb(ph.hydro.gradient_sortie_max, 3)}{ph.hydro.bouchon ? ` (bouchon ${ph.hydro.bouchon.type} : i = ${nb(ph.hydro.gradient_bouchon, 2)})` : ''}</dd>
-                <dt>Débit de pompage</dt><dd>{nb(ph.hydro.debit_m3_h_m, 3)} m³/h/m ({ph.hydro.regime === 'differences_finies' ? 'écoulement 2D' : 'régime simplifié'})</dd>
+                <dt>Débit de pompage</dt><dd>{nb(ph.hydro.debit_m3_h_m, 3)} m³/h/m ({ph.hydro.regime === 'differences_finies' ? 'écoulement 2D' : 'régime simplifié'}){(ph.hydro.debit_paroi_m3_h_m ?? 0) > 0 ? `, dont ${nb(ph.hydro.debit_paroi_m3_h_m, 3)} à travers l’écran (${(ph.hydro.etancheite ?? '').replace('_', ' ')})` : ''}</dd>
               </>
             )}
           </dl>

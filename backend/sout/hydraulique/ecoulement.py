@@ -55,6 +55,9 @@ class ResultatEcoulement:
     charge_base_bouchon: float | None = None   # m, charge moyenne sous le bouchon
     gradient_bouchon: float | None = None      # -, gradient hydraulique à travers le bouchon
     avertissements: list[str] = field(default_factory=list)
+    etancheite: str = "etanche"                # état d'étanchéité de l'écran pris en compte (parois.etancheite)
+    debit_paroi: float = 0.0                   # m³/s par mètre d'écran traversant l'écran (compté dans `debit`)
+    aval_ferme: bool = True                    # enceinte fermée : flux nul au vis-à-vis (fouille symétrique)
 
     def pression(self, cote: str, z: np.ndarray) -> np.ndarray:
         f = self._u_amont if cote == "amont" else self._u_aval
@@ -78,7 +81,8 @@ class ResultatEcoulement:
              "bouchon": None if self.bouchon is None else {"type": self.bouchon.type, "toit": self.bouchon.toit, "base": self.bouchon.base,
                                                            "k": self.bouchon.k, "epaisseur": self.bouchon.epaisseur},
              "charge_base_bouchon": self.charge_base_bouchon, "gradient_bouchon": self.gradient_bouchon,
-             "avertissements": self.avertissements}
+             "avertissements": self.avertissements, "etancheite": self.etancheite,
+             "debit_paroi_m3_h_m": float(self.debit_paroi * 3600), "aval_ferme": self.aval_ferme}
         if self.h is not None:
             pas_x = max(1, int(np.ceil(len(self.xc) / n_max)))
             pas_z = max(1, int(np.ceil(len(self.zc) / n_max)))
@@ -167,14 +171,23 @@ class DifferencesFinies:
     def __init__(self, couches: list[Couche], z_terrain_amont: float, z_fond: float, z_pied: float, z_tete: float,
                  h_amont: float | None, h_aval: float | None, largeur_amont: float, largeur_aval: float,
                  z_substratum: float, pas: float, gamma_w: float, bouchon: Bouchon | None = None,
-                 nappe_aval_sol: float | None = None):
+                 nappe_aval_sol: float | None = None, etancheite: str = "etanche", resistance_paroi: float | None = None,
+                 aval_ferme: bool = True):
+        """etancheite : etanche (faces de l'écran coupées), non_etanche (écran transparent, face de suintement vers la
+        fouille au-dessus du fond) ou partielle (résistance R = e_p/k_p en série, loi de Darcy) ; aval_ferme : enceinte
+        fermée (flux nul au vis-à-vis, fouille symétrique), sinon paroi ouverte (charge côté fouille imposée au loin)."""
         self.couches = trier(couches)
         for c in self.couches:
             if c.k_h is None:
                 raise ErreurHydraulique(f"couche « {c.nom} » : perméabilité k_h (m/s) nécessaire au calcul d'écoulement")
+        if etancheite not in ("etanche", "non_etanche", "partielle"):
+            raise ErreurHydraulique(f"étanchéité de l'écran inconnue : {etancheite}")
+        if etancheite == "partielle" and not (resistance_paroi and resistance_paroi > 0):
+            raise ErreurHydraulique("étanchéité partielle : résistance hydraulique de l'écran e_p/k_p inconnue (paroi.k_paroi, paroi.epaisseur_hydraulique)")
         self.z_t, self.z_fond, self.z_pied, self.z_tete = z_terrain_amont, z_fond, z_pied, z_tete
         self.ha, self.hv, self.gw = h_amont, h_aval, gamma_w
         self.La, self.Lv, self.z_sub, self.pas, self.bouchon = largeur_amont, largeur_aval, z_substratum, pas, bouchon
+        self.etancheite, self.resistance_paroi, self.aval_ferme = etancheite, resistance_paroi, aval_ferme
 
     def resoudre(self) -> ResultatEcoulement:
         ha, hv, gw = self.ha, self.hv, self.gw
@@ -224,17 +237,52 @@ class DifferencesFinies:
                     face_sup[i] = np.nan  # face supérieure de la dernière cellule active : flux nul (bouchon étanche)
             else:
                 kx[dans] = b.k; kz[dans] = b.k
-        # écran : faces verticales étanches en x = 0 entre pied et tête
+        # paroi ouverte (pas de vis-à-vis) : charge côté fouille imposée sur la colonne la plus lointaine, plus de symétrie
+        if not self.aval_ferme:
+            fixe[nx - 1, actif[nx - 1]] = hv_eff
+        # écran en x = 0 entre pied et tête : étanche (faces coupées), partiellement étanche (résistance e_p/k_p en série
+        # avec le sol, loi de Darcy) ou non étanche (faces ordinaires). Écran perméable au-dessus du fond : l'eau suinte
+        # vers la fouille, charge imposée sur la face = max(z, eau dans la fouille), soit u = 0 à l'air libre.
         iface = int(np.argmin(np.abs(g.x)))
+        zone = (g.zc >= z_pied) & (g.zc <= self.z_tete)
         etanches = np.zeros((nx + 1, nz), bool)
-        etanches[iface, (g.zc >= z_pied) & (g.zc <= self.z_tete)] = True
-        h = resoudre_grille(g, kx, kz, fixe, actif, etanches, face_sup)
+        resistance = charge_face = None
+        if self.etancheite == "etanche":
+            etanches[iface, zone] = True
+        else:
+            if self.etancheite == "partielle":
+                resistance = np.zeros((nx + 1, nz))
+                resistance[iface, zone] = self.resistance_paroi
+            charge_face = np.full((nx + 1, nz), np.nan)
+            suinte = zone & (g.zc > z_fond) & actif[iface - 1] & ~actif[iface]
+            charge_face[iface, suinte] = np.maximum(g.zc[suinte], hv_eff)
+        h = resoudre_grille(g, kx, kz, fixe, actif, etanches, face_sup, resistance_x=resistance, charge_face_x=charge_face)
         r.xc, r.zc, r.h = g.xc, g.zc, h
+        r.etancheite, r.aval_ferme = self.etancheite, self.aval_ferme
 
-        # pressions sur l'écran : colonnes adjacentes de part et d'autre (interpolation en z)
+        # pressions sur l'écran : colonnes adjacentes de part et d'autre (interpolation en z). Écran perméable : charge
+        # ramenée à la face de l'écran (chute de charge dans la demi-cellule et à travers l'écran, flux v = Δh / ΣR) et
+        # débit traversant l'écran, compté dans le débit de pompage.
         ia, iv = iface - 1, iface
+        h_face = {ia: h[ia].copy(), iv: h[iv].copy()}
+        if self.etancheite != "etanche":
+            R = self.resistance_paroi if self.etancheite == "partielle" else 0.0
+            q_paroi = 0.0
+            for j in np.where(zone)[0]:
+                ra, rv = 0.5 * g.dx[ia] / kx[ia, j], 0.5 * g.dx[iv] / kx[iv, j]
+                if actif[ia, j] and actif[iv, j]:
+                    v = (h[ia, j] - h[iv, j]) / (ra + R + rv)
+                    h_face[ia][j] = h[ia, j] - v * ra
+                    h_face[iv][j] = h[iv, j] + v * rv
+                    q_paroi += v * g.dz[j]
+                elif actif[ia, j] and charge_face is not None and not np.isnan(charge_face[iface, j]):
+                    v = (h[ia, j] - charge_face[iface, j]) / (ra + R)
+                    h_face[ia][j] = charge_face[iface, j]
+                    q_paroi += max(v, 0.0) * g.dz[j]
+            r.debit_paroi = float(q_paroi)
+
         def profil(i, z_nappe):
-            zz, hh = g.zc[actif[i]], h[i, actif[i]]
+            zz, hh = g.zc[actif[i]], h_face[i][actif[i]]
             def u(zq):
                 zq = np.asarray(zq, float)
                 hq = np.interp(zq, zz, hh, left=hh[0] if len(hh) else 0.0, right=np.nan)
@@ -274,7 +322,7 @@ class DifferencesFinies:
         r.gradient_sortie = np.array(grads)
         r.gradient_sortie_max = float(np.max(grads)) if grads else 0.0
         r.gradient_sortie_moyen = float(np.mean(grads)) if grads else 0.0
-        r.debit = float(flux)
+        r.debit = float(flux) + r.debit_paroi
         # excès de charge moyen à la base du prisme de Terzaghi (largeur D/2, profondeur D sous le fond)
         D = z_fond - z_pied
         if D > 0:
@@ -303,16 +351,25 @@ def construire(modele, etat: dict, indice_phase: int, nom_phase: str):
         bb = b if isinstance(b, Bouchon) else Bouchon(**b)
         if bb.actif(indice_phase, nom_phase):
             bouchon = bb
+    # étanchéité de l'écran (parois.etancheite) : « partielle » n'a de sens qu'avec un réseau d'écoulement ;
+    # « non_etanche » hors écoulement 2D est traité par le moteur (nappe côté terre ramenée au niveau côté fouille)
+    infos = getattr(modele.ecran, "infos", None) or {}
+    etancheite = infos.get("etancheite", "etanche")
+    if etancheite == "partielle" and regime != "differences_finies":
+        raise ErreurHydraulique("étanchéité partielle de l'écran : seul le régime differences_finies calcule le passage de l'eau "
+                                "à travers l'écran (hydraulique.regime)")
     if regime == "hydrostatique":
         return Hydrostatique(z_fond, z_pied, ha, hv, modele.gamma_w).resoudre()
     H = modele.ecran.tete - z_pied
     if regime == "simplifie":
         return Simplifie(etat["terrain"][-1], z_fond, z_pied, ha, hv, modele.gamma_w, bouchon, cfg.get("largeur_fouille")).resoudre()
     if regime == "differences_finies":
+        aval_ferme = bool(cfg.get("aval_ferme", True))
         return DifferencesFinies(
             modele.couches, etat["terrain"][-1], z_fond, z_pied, modele.ecran.tete, ha, hv,
             largeur_amont=cfg.get("largeur_amont") or 4 * H,
-            largeur_aval=(cfg.get("largeur_fouille") or 2 * H) / 2,
+            largeur_aval=(cfg.get("largeur_fouille") or 2 * H) / 2 if aval_ferme else (cfg.get("largeur_amont") or 4 * H),
             z_substratum=cfg.get("substratum") if cfg.get("substratum") is not None else z_pied - 2 * H,
-            pas=cfg.get("pas") or 0.5, gamma_w=modele.gamma_w, bouchon=bouchon).resoudre()
+            pas=cfg.get("pas") or 0.5, gamma_w=modele.gamma_w, bouchon=bouchon,
+            etancheite=etancheite, resistance_paroi=infos.get("resistance_hydraulique"), aval_ferme=aval_ferme).resoudre()
     raise ErreurHydraulique(f"régime hydraulique inconnu : {regime}")

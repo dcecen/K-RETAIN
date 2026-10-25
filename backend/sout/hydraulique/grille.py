@@ -52,7 +52,8 @@ class Grille:
 
 def resoudre_grille(g: Grille, kx: np.ndarray, kz: np.ndarray, fixe: np.ndarray,
                     actif: np.ndarray | None = None, faces_etanches_x: np.ndarray | None = None,
-                    face_sup: np.ndarray | None = None) -> np.ndarray:
+                    face_sup: np.ndarray | None = None, resistance_x: np.ndarray | None = None,
+                    charge_face_x: np.ndarray | None = None) -> np.ndarray:
     """Charge h aux centres des cellules.
 
     fixe[i, j]  : charge imposée dans la cellule (NaN = inconnue). Une charge
@@ -64,6 +65,12 @@ def resoudre_grille(g: Grille, kx: np.ndarray, kz: np.ndarray, fixe: np.ndarray,
     face_sup[i] : charge imposée sur la face supérieure de la dernière cellule active
                   de la colonne i (NaN = flux nul) ; remplace `fixe` sur cette cellule
                   par une condition sur la face (demi-distance).
+    resistance_x[i, j] : résistance hydraulique supplémentaire R = e/k (s) de la face verticale i
+                  (écran partiellement étanche), en série avec les demi-cellules voisines :
+                  conductance = dz / (d/k_eq + R), loi de Darcy, résistances en série (0 ou NaN = aucune).
+    charge_face_x[i, j] : charge imposée sur la face verticale i (NaN = aucune) pour la cellule
+                  active qui la borde (demi-cellule, résistance de face en série) : face de
+                  suintement d'un écran perméable vers la fouille (h = z, soit u = 0).
     """
     nx, nz = g.forme
     actif = np.ones((nx, nz), bool) if actif is None else actif
@@ -111,13 +118,20 @@ def resoudre_grille(g: Grille, kx: np.ndarray, kz: np.ndarray, fixe: np.ndarray,
     for n, (i, j) in enumerate(libres):
         # voisins horizontaux
         for i2 in (i - 1, i + 1):
-            if 0 <= i2 < nx and actif[i2, j]:
-                face = i if i2 < i else i2
-                if faces_etanches_x is not None and faces_etanches_x[face, j]:
-                    continue
-                d = 0.5 * (g.dx[i] + g.dx[i2])
-                k = 2 * kx[i, j] * kx[i2, j] / (kx[i, j] + kx[i2, j])
-                lien(n, i2, j, k * g.dz[j] / d)
+            face = i if i2 < i else i + 1      # face verticale entre (i2, j) et (i, j) ; 0 et nx : bords du domaine
+            if faces_etanches_x is not None and faces_etanches_x[face, j]:
+                continue
+            R = 0.0 if resistance_x is None or np.isnan(resistance_x[face, j]) else float(resistance_x[face, j])
+            if charge_face_x is not None and not np.isnan(charge_face_x[face, j]):
+                # charge imposée sur la face (bord du domaine ou face de suintement) : demi-cellule et résistance en série
+                c = g.dz[j] / (0.5 * g.dx[i] / kx[i, j] + R)
+                diag[n] += c; b[n] += c * charge_face_x[face, j]
+                continue
+            if not (0 <= i2 < nx) or not actif[i2, j]:
+                continue
+            d = 0.5 * (g.dx[i] + g.dx[i2])
+            k = 2 * kx[i, j] * kx[i2, j] / (kx[i, j] + kx[i2, j])
+            lien(n, i2, j, k * g.dz[j] / d if R <= 0 else g.dz[j] / (d / k + R))
         # voisins verticaux
         for j2 in (j - 1, j + 1):
             if 0 <= j2 < nz and actif[i, j2]:

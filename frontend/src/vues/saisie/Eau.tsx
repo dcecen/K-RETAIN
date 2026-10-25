@@ -44,7 +44,7 @@ export function Eau({ ctx }: { ctx: Ctx }) {
           <label>Régime de l'eau<Choix ctx={ctx} chemin={['hydraulique', 'regime']} valeur={hy.regime ?? 'hydrostatique'} options={enumDe(ctx.schema, 'Hydraulique', 'regime')} libelles={LIBELLES_REGIME} bloc="Hydraulique" cle="regime" libelle="Régime de l'eau" /></label>
           <label>Toit du substratum imperméable ({unite})<Champ ctx={ctx} chemin={['hydraulique', 'substratum']} valeur={hy.substratum} placeholder="pied − 2H" bloc="Hydraulique" cle="substratum" large libelle="Substratum" /></label>
           <label>Étendue du domaine amont (m)<Champ ctx={ctx} chemin={['hydraulique', 'largeur_amont']} valeur={hy.largeur_amont} placeholder="4 × H" bloc="Hydraulique" cle="largeur_amont" large libelle="Domaine amont" /></label>
-          <label>Largeur de la fouille (m)<Champ ctx={ctx} chemin={['hydraulique', 'largeur_fouille']} valeur={hy.largeur_fouille} placeholder="2 × H" bloc="Hydraulique" cle="largeur_fouille" large libelle="Largeur de la fouille" /></label>
+          <label>Largeur de la fouille (m)<Champ ctx={ctx} chemin={['hydraulique', 'largeur_fouille']} valeur={hy.largeur_fouille} placeholder="vis-à-vis de la géométrie, sinon 2 × H" bloc="Hydraulique" cle="largeur_fouille" large libelle="Largeur de la fouille" /></label>
           <label>Maillage d'écoulement (m)<Champ ctx={ctx} chemin={['hydraulique', 'pas']} valeur={hy.pas} placeholder="0.5" bloc="Hydraulique" cle="pas" large libelle="Maillage d'écoulement" /></label>
           <label>Sol pour Lane (clé de la table)<Champ ctx={ctx} chemin={['hydraulique', 'sol_lane']} valeur={hy.sol_lane} type="text" placeholder="sable_moyen" bloc="Hydraulique" cle="sol_lane" large libelle="Sol pour Lane" /></label>
         </div>

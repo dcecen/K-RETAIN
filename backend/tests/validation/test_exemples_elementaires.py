@@ -404,6 +404,29 @@ def test_E25_variante_branche():
     assert var["appuis"][0]["effort_kN_m"] == pytest.approx(ref["appuis"][0]["effort_kN_m"], rel=1e-9)
 
 
+def test_E26_ecran_non_etanche():
+    """Écran non étanche en écoulement 2D : même charge des deux côtés sous le fond, suintement au-dessus, débit plus fort
+    que l'écran étanche ; largeur de fouille (12 m) déduite du vis-à-vis de la géométrie."""
+    texte = _texte("E26_ecran_non_etanche")
+    res = _calcul("E26_ecran_non_etanche")
+    ph = res["phases"][-1]
+    assert ph["ok"] and ph["hydro"]["etancheite"] == "non_etanche" and ph["hydro"]["debit_paroi_m3_h_m"] > 0
+    z = np.array(ph["pressions"]["amont"]["z"])
+    ua, uv = np.array(ph["eau"]["u_amont"]), np.array(ph["eau"]["u_aval"])
+    sous, dessus = (z < -5.3) & (z > -11.7), (z > -4.7) & (z < -1.3)
+    assert np.max(np.abs(ua[sous] - uv[sous])) < 0.01 * 40.0
+    assert np.max(np.abs(ua[dessus])) < 0.01 * 40.0
+    assert res["hydraulique"]["largeur_fouille"] == pytest.approx(12.0)
+    r = CLIENT.post("/api/calcul", json={"texte": texte.replace("etancheite: non_etanche", "etancheite: etanche")}).json()
+    assert r["ok"], r.get("erreurs")
+    phe = r["resultats"]["phases"][-1]
+    assert phe["hydro"]["etancheite"] == "etanche" and phe["hydro"]["debit_m3_h_m"] < ph["hydro"]["debit_m3_h_m"]
+    uae, uve = np.array(phe["eau"]["u_amont"]), np.array(phe["eau"]["u_aval"])
+    assert np.max(uae[sous] - uve[sous]) > 0.1 * 40.0
+    debit = next(v for v in res["verifications"] if v["nom"] == "Débit de pompage")
+    assert "à travers l'écran" in debit["detail"]
+
+
 def test_rapport_de_validation_servi():
     r = CLIENT.get("/api/validation/rapport")
     assert r.status_code == 200 and "Rafale d'exemples élémentaires" in r.text and "<svg" in r.text

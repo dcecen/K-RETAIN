@@ -6,6 +6,11 @@ import { CLES_AVANCEES_ECRAN } from './cles'
 const LIBELLES_TYPE: Record<string, string> = {
   palplanche: 'Palplanches', paroi_moulee: 'Paroi moulée', pieux_secants: 'Pieux sécants', pieux_disjoints: 'Pieux disjoints', berlinoise: 'Berlinoise',
 }
+const LIBELLES_ETANCHEITE: Record<string, string> = {
+  etanche: 'Étanche (l’eau ne traverse pas l’écran)', non_etanche: 'Non étanche (nappe drainée vers la fouille)', partielle: 'Partiellement étanche (k et épaisseur, écoulement 2D)',
+}
+/** Défaut par type de paroi, hypothèse de projet reprise du serveur (backend/sout/parois/etancheite.py). */
+const DEFAUT_ETANCHEITE: Record<string, string> = { paroi_moulee: 'étanche', pieux_secants: 'étanche', palplanche: 'étanche', pieux_disjoints: 'non étanche', berlinoise: 'non étanche' }
 
 export function Ecran({ ctx }: { ctx: Ctx }) {
   const p = ctx.modele.paroi ?? {}
@@ -28,6 +33,9 @@ export function Ecran({ ctx }: { ctx: Ctx }) {
         <div className="grille-form">
           <label>Type d'écran<Choix ctx={ctx} chemin={ch('type')} valeur={t} options={enumDe(ctx.schema, 'Paroi', 'type')} libelles={LIBELLES_TYPE} bloc="Paroi" cle="type" libelle="Type d'écran" /></label>
           {champ('tete', `Cote de tête (${unite})`)}{champ('pied', `Cote du pied (${unite})`)}
+          <label>Étanchéité hydraulique<Choix ctx={ctx} chemin={ch('etancheite')} valeur={p.etancheite ?? ''} options={['etanche', 'non_etanche', 'partielle']} vide={`défaut du type : ${DEFAUT_ETANCHEITE[t] ?? 'étanche'}`} libelles={LIBELLES_ETANCHEITE} bloc="Paroi" cle="etancheite" libelle="Étanchéité hydraulique" /></label>
+          {p.etancheite === 'partielle' && champ('k_paroi', 'Perméabilité équivalente de l’écran k_p (m/s)')}
+          {p.etancheite === 'partielle' && champ('epaisseur_hydraulique', 'Épaisseur traversée par l’eau (m)', 'number', 'épaisseur ou diamètre')}
           {(pieux || t === 'berlinoise') && champ('entraxe', 'Entraxe (m)')}
           {(t === 'pieux_disjoints' || t === 'berlinoise') && champ('largeur_reaction_fiche', 'Largeur de réaction sous le fond (m par élément)')}
         </div>

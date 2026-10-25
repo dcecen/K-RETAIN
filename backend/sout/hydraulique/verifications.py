@@ -144,11 +144,15 @@ def verifier(modele: Modele, res: ResultatCalcul, normes) -> list[Verif]:
 
     # ---- Débit (information)
     ph = pire(lambda p: p.ecoulement.debit)
-    q = ph.ecoulement.debit
-    sorties.append(resultat("Débit de pompage", "fouille", ph.nom, None, "", "réseau d'écoulement (par mètre d'écran, fouille symétrique)",
-                            detail_non_verifiable=f"Q = {q * 3600:.3f} m³/h par mètre d'écran ({q * 1000:.2f} l/s/m) ; "
-                            "à multiplier par le périmètre de la fouille — information, pas un critère"
-                            + ("" if ph.ecoulement.regime == "differences_finies" else " ; régime simplifié : débit non calculé")))
+    e = ph.ecoulement
+    q, qp = e.debit, getattr(e, "debit_paroi", 0.0)
+    et, ferme = getattr(e, "etancheite", "etanche"), getattr(e, "aval_ferme", True)
+    sorties.append(resultat("Débit de pompage", "fouille", ph.nom, None, "",
+                            "réseau d'écoulement (par mètre d'écran, " + ("fouille symétrique)" if ferme else "paroi ouverte sans vis-à-vis)"),
+                            detail_non_verifiable=f"Q = {q * 3600:.3f} m³/h par mètre d'écran ({q * 1000:.2f} l/s/m)"
+                            + (f", dont {qp * 3600:.3f} m³/h/m à travers l'écran ({et.replace('_', ' ')})" if et != "etanche" else "")
+                            + " ; à multiplier par le périmètre de la fouille — information, pas un critère"
+                            + ("" if e.regime == "differences_finies" else " ; régime simplifié : débit non calculé")))
 
     # ---- Stabilité du fond en argile molle (option)
     ph = min(cas, key=lambda p: p.terrain_aval)

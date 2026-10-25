@@ -209,6 +209,15 @@ class MoteurPhases:
             self.avertissements.append(
                 "Nappes amont et aval différentes : seul le régime hydrostatique est calculé. L'écoulement "
                 "autour de l'écran (qui réduit la butée côté fouille) n'est pas modélisé : butée possiblement surestimée.")
+        # écran non étanche (parois.etancheite) hors écoulement 2D : drainage à travers l'écran, voir eau_effective
+        infos = getattr(modele.ecran, "infos", None) or {}
+        self.ecran_draine = infos.get("etancheite") == "non_etanche" and regime != "differences_finies"
+        if self.ecran_draine and any(a is not None for a, _ in nappes):
+            self.avertissements.append(
+                f"Écran non étanche ({infos.get('type', 'écran')}) : au droit de l'écran, la nappe côté terre est ramenée au niveau "
+                "de l'eau côté fouille (ou au fond de fouille) à chaque phase, pression d'eau différentielle nulle (hypothèse de "
+                "drainage à travers l'écran). Rabattement et débit non calculés : régime differences_finies pour un calcul "
+                "d'écoulement ; paroi.etancheite: etanche pour un écran imperméable.")
 
     # ------------------------------------------------------------------
     def _sigma_v(self, cote: int, terrain: float, eau: float | None, surcharges: list[Surcharge],
@@ -240,9 +249,22 @@ class MoteurPhases:
             return None
         from ..hydraulique.ecoulement import ErreurHydraulique, construire
         try:
-            return construire(self.m, etat, indice_phase, nom_phase)
+            return construire(self.m, {**etat, "eau": self.eau_effective(etat)}, indice_phase, nom_phase)
         except ErreurHydraulique as e:
             raise ErreurModele(f"hydraulique : {e}") from None
+
+    def eau_effective(self, etat: dict) -> dict:
+        """Niveaux d'eau pris en compte au droit de l'écran. Écran non étanche hors écoulement 2D (parois.etancheite) :
+        la nappe côté terre est ramenée au niveau de l'eau côté fouille, ou au fond de fouille s'il est drainé
+        (hypothèse de drainage à travers l'écran : pression d'eau différentielle nulle)."""
+        eau = etat["eau"]
+        if not getattr(self, "ecran_draine", False):
+            return eau
+        ha, hv = eau[AMONT], eau[AVAL]
+        hv_eff = hv if hv is not None else etat["terrain"][AVAL]
+        if ha is None or ha <= hv_eff + 1e-9:
+            return eau
+        return {**eau, AMONT: hv_eff}
 
     # ------------------------------------------------------------------
     # Briques réutilisées par le calcul 2D et par le pseudo-3D
@@ -296,7 +318,7 @@ class MoteurPhases:
     def etat_sol(self, etat: dict, ecoulement=None, coupe: CoupeCalcul | None = None) -> dict:
         """Grandeurs par demi-maille (amont puis aval, longueur 2·nd) pour l'état de chantier.
         coupe : position en plan de la ligne calculée (surcharges localisées), défaut : celle du modèle."""
-        terrain, eau = etat["terrain"], etat["eau"]
+        terrain, eau = etat["terrain"], self.eau_effective(etat)
         liste_s = list(etat["surcharges"].values())
         sv_am, _ = self._sigma_v(AMONT, terrain[AMONT], eau[AMONT], liste_s, ecoulement, coupe)
         sv_av, _ = self._sigma_v(AVAL, terrain[AVAL], eau[AVAL], liste_s, ecoulement, coupe)
@@ -317,7 +339,7 @@ class MoteurPhases:
 
     def pressions_eau(self, etat: dict, ecoulement=None) -> tuple[np.ndarray, np.ndarray]:
         """(u amont, u aval) au milieu des demi-mailles (kPa)."""
-        gw, eau = self.m.gamma_w, etat["eau"]
+        gw, eau = self.m.gamma_w, self.eau_effective(etat)
         if ecoulement is not None and ecoulement.regime != "hydrostatique":
             u_am = np.where(self.d_zm < etat["terrain"][AMONT], ecoulement.pression("amont", self.d_zm), 0.0)
             u_av = np.where(self.d_zm < etat["terrain"][AVAL], ecoulement.pression("aval", self.d_zm), 0.0)

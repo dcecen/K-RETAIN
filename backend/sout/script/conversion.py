@@ -14,6 +14,7 @@ from ..appuis.construction import ErreurAppui, construire_appui
 from ..geometrie import derivation, normaliser
 from ..noyau.modele import Modele, Phase
 from ..parois import ErreurParoi, construire_ecran
+from ..plan.geometrie import vis_a_vis
 from ..sol.couches import Couche
 from ..sol.surcharges import Surcharge
 from ..sol.terrain import CoupeCalcul, ErreurTerrain, ObjetTerrain, SurchargePlan, bandes_equivalentes, profil_gradins, profil_risberme
@@ -80,6 +81,30 @@ def _hydraulique(s: Script) -> dict | None:
         if b["phase"] not in noms:
             raise ErreurConversion(f"bouchon : phase « {b['phase']} » inconnue")
         b["phase"] = noms.index(b["phase"]) + 1
+    return h
+
+
+def _hydraulique_geometrie(s: Script, geo, cc) -> dict | None:
+    """Bloc hydraulique complété par la géométrie en plan : paroi ouverte (geometrie.ouvrages.ferme: false) -> pas de
+    vis-à-vis, domaine côté fouille étendu (aval_ferme = False) ; enceinte fermée sans largeur_fouille -> distance au
+    vis-à-vis au point de la coupe (plan.geometrie.vis_a_vis), hypothèse de fouille symétrique du réseau d'écoulement."""
+    h = _hydraulique(s)
+    if h is None or geo is None or not geo.contour or len(geo.contour) < 2:
+        return h
+    if not geo.ferme:
+        h.setdefault("aval_ferme", False)
+        return h
+    if h.get("largeur_fouille") is None:
+        ars = geo.aretes()
+        if cc is not None:
+            k, sl, ou = cc.k, cc.s, "au point de la coupe"
+        else:   # coupe unique sans position : milieu du côté le plus long (même convention que la coupe unique)
+            k = max(range(len(ars)), key=lambda i: ars[i]["L"])
+            sl, ou = ars[k]["L"] / 2, "au milieu du côté le plus long"
+        vav = vis_a_vis(ars, k, sl)
+        if vav is not None and vav[3] > 0:
+            h["largeur_fouille"] = float(vav[3])
+            h["largeur_fouille_origine"] = f"géométrie : distance au vis-à-vis {ou}"
     return h
 
 
@@ -265,7 +290,7 @@ def vers_modele(s: Script, catalogue=None, normes=None, jeu: str | None = None) 
         eau_amont=eau0.amont if eau0 else None, eau_aval=eau0.aval if eau0 else None,
         surcharges=surcharges, gamma_w=s.calcul.gamma_w, coefficients=s.calcul.coefficients,
         pas=s.calcul.pas,
-        hydraulique=_hydraulique(s),
+        hydraulique=_hydraulique_geometrie(s, geo, cc),
         coupe=s.coupe_calcul.model_dump() if s.coupe_calcul is not None else None,
         beta_amont=beta, terrain_objets=tous_objets, geometrie=geo,
         excaver_zones=[ph.excaver for ph in s.phases],

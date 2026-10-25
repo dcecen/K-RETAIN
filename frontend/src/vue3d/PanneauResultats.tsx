@@ -177,7 +177,7 @@ export function PanneauResultats({ res, projet, coupeActive, phase, selection, m
               <dt>Régime</dt><dd>{hy.regime}</dd>
               <dt>Gradient de sortie max</dt><dd>{nb(hy.gradient_sortie_max, 3)}</dd>
               {hy.bouchon && <><dt>Bouchon</dt><dd>{hy.bouchon.type} · {nb(hy.bouchon.epaisseur, 1)} m</dd><dt>Gradient dans le bouchon</dt><dd>{nb(hy.gradient_bouchon, 2)}</dd></>}
-              <dt>Débit</dt><dd>{nb(hy.debit_m3_h_m, 3)} m³/h/m</dd>
+              <dt>Débit</dt><dd>{nb(hy.debit_m3_h_m, 3)} m³/h/m{(hy.debit_paroi_m3_h_m ?? 0) > 0 ? ` (dont ${nb(hy.debit_paroi_m3_h_m, 3)} à travers l’écran)` : ''}</dd>
             </dl>
           )}
         </div>
