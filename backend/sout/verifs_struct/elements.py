@@ -20,7 +20,7 @@ import re
 
 import numpy as np
 
-from ..verifs import Lecteur, Verif, resultat
+from ..verifs import Lecteur, Verif, donnee, resultat
 from . import ec2, ec3
 
 G = 9.81  # m/s²
@@ -107,14 +107,25 @@ def classe_compression(sec: dict, lect: Lecteur) -> str | None:
     return None
 
 
+PRINCIPE_BARRE = ("Buton ou bracon comprimé. Effort de calcul N_Ed = γ_effets·(N_k + ΔN_T), ΔN_T étant l'effort de bridage "
+                  "thermique α_T·ΔT·E·A × coefficient de bridage. Flambement de la barre bi-articulée autour de son axe faible "
+                  "(EN 1993-1-1 § 6.3.1) : N_cr = π²·E·I/L², λ̄ = √(A·fy/N_cr), χ par la courbe de flambement (imperfection α), "
+                  "N_b,Rd = χ·A·fy/γM1. Flexion sous poids propre M_Ed = γ_effets·q·L²/8, amplifiée par 1/(1 − N_Ed/N_cr) ; "
+                  "M_c,Rd = W·fy/γM0 (§ 6.2.5). Interaction linéaire N_Ed/N_b,Rd + M_Ed/M_c,Rd (simplification du § 6.3.3 : les "
+                  "formules 6.61-6.62 avec k_yy ne sont pas implémentées, à confirmer).")
+
+
 def _barre(sec: dict, N_k: float, L: float, angle: float, normes, cle: str) -> tuple[float | None, str, Lecteur]:
     """Buton ou bracon : flambement + flexion sous poids propre + température (EC3).
 
     N_b,Rd avec γM1 (EN 1993-1-1 § 6.3.1.1), M_c,Rd = W·fy/γM0 (§ 6.2.5) ; interaction linéaire
     N_Ed/N_b,Rd + M_Ed/M_c,Rd simplifiée (les formules 6.61-6.62 du § 6.3.3 avec k_yy de l'annexe B
     ne sont pas implémentées : TODO-NORME). Flambement autour de l'axe faible (I = min(Iy, Iz),
-    barre bi-articulée), flexion du poids propre autour de l'axe fort (âme verticale)."""
+    barre bi-articulée), flexion du poids propre autour de l'axe fort (âme verticale).
+    Renvoie (taux, détail, lecteur) ; `lecteur.fiche` porte principe, données, étapes et schéma."""
+    fiche: dict = {"famille": "appuis", "principe": PRINCIPE_BARRE}
     lect = Lecteur(normes)
+    lect.fiche = fiche
     g = lect.v("nf_p94_282", f"combinaisons.{cle}.gamma_effets")
     gM0 = lect.v("ec3", "gamma_M0")
     gM1 = lect.v("ec3", "gamma_M1")
@@ -130,13 +141,34 @@ def _barre(sec: dict, N_k: float, L: float, angle: float, normes, cle: str) -> t
     if classe4:
         lect.manquants.append(classe4)
     detail_k = f"N caractéristique = {N_k:.0f} kN, L = {L:.2f} m, élément {sec['ref']}"
+    fiche["donnees"] = [donnee("N_k", "effort normal caractéristique (effort d'appui × espacement / cos α)", N_k, "kN"),
+                        donnee("L", "longueur de flambement (barre bi-articulée)", L, "m", "script"),
+                        donnee("A", "section de l'élément", sec.get("A_cm2"), "cm²", "base matériaux"),
+                        donnee("I", "inertie de flambement (axe faible)", sec.get("I_cm4"), "cm⁴", "base matériaux"),
+                        donnee("fy", "limite élastique", sec.get("fy"), "MPa", "base matériaux"),
+                        donnee("E", "module d'Young", sec.get("E"), "MPa", "base matériaux")]
     if lect.manquants:
         return None, detail_k, lect
     dN_T = cb * aT * dT * sec["E"] * 1e3 * sec["A_cm2"] * 1e-4
     N_Ed = g * (N_k + dN_T)
     fl = ec3.flambement(sec["A_cm2"], sec["I_cm4"], sec["fy"], sec["E"], L, alpha, lam0, gM1)
     q = sec["masse_kg_m"] * G / 1000 * math.cos(math.radians(angle))
+    fiche["donnees"] += [donnee("ΔN_T", "effort de bridage thermique = coefficient_bridage·α_T·ΔT·E·A", dN_T, "kN"),
+                         donnee("N_Ed", "effort normal de calcul = γ_effets·(N_k + ΔN_T)", N_Ed, "kN"),
+                         donnee("N_cr", "charge critique d'Euler = π²·E·I/L²", fl["N_cr"], "kN"),
+                         donnee("N_pl", "résistance plastique A·fy", fl["N_pl"], "kN"),
+                         donnee("λ̄", "élancement réduit √(N_pl/N_cr)", fl["lambda"]),
+                         donnee("χ", "coefficient de réduction au flambement (courbe α)", fl["chi"]),
+                         donnee("N_b,Rd", "résistance au flambement χ·N_pl/γM1", fl["N_b_Rd"], "kN"),
+                         donnee("q", "poids propre projeté (flexion)", q, "kN/m", "base matériaux")]
+    fiche["schema"] = {"type": "barre", "L": L, "angle": angle, "N_Ed": N_Ed, "N_cr": fl["N_cr"], "N_b_Rd": fl["N_b_Rd"],
+                       "lambda": fl["lambda"], "chi": fl["chi"], "ref": sec["ref"]}
+    fiche["etapes"] = [f"ΔN_T = {cb:g} × {aT:g} × {dT:g} × {sec['E']:g} × 1e3 × {sec['A_cm2']:g} × 1e-4 = {dN_T:.1f} kN",
+                       f"N_Ed = γ_effets·(N_k + ΔN_T) = {g:g} × ({N_k:.1f} + {dN_T:.1f}) = {N_Ed:.1f} kN",
+                       f"N_cr = π²·E·I/L² = {fl['N_cr']:.0f} kN ; N_pl = A·fy = {fl['N_pl']:.0f} kN ; λ̄ = √(N_pl/N_cr) = {fl['lambda']:.3f}",
+                       f"χ (courbe {courbe}, α = {alpha:g}, λ̄0 = {lam0:g}) = {fl['chi']:.3f} ; N_b,Rd = χ·N_pl/γM1 = {fl['N_b_Rd']:.0f} kN"]
     if N_Ed >= fl["N_cr"]:
+        fiche["etapes"].append(f"N_Ed = {N_Ed:.0f} kN ≥ N_cr = {fl['N_cr']:.0f} kN : flambement (instabilité)")
         return math.inf, detail_k + f" — N_Ed = {N_Ed:.0f} kN ≥ N_cr = {fl['N_cr']:.0f} kN : flambement (instabilité)", lect
     M_Ed = g * q * L**2 / 8 * ec3.amplification(N_Ed, fl["N_cr"])
     W = sec.get("W_cm3") or 0
@@ -145,6 +177,11 @@ def _barre(sec: dict, N_k: float, L: float, angle: float, normes, cle: str) -> t
     detail = (f"N_Ed = {N_Ed:.0f} kN (dont température {g * dN_T:.0f}), λ̄ = {fl['lambda']:.2f}, χ = {fl['chi']:.2f}, "
               f"N_b,Rd = {fl['N_b_Rd']:.0f} kN ; M poids propre = {M_Ed:.1f} kN·m ; {sec['ref']}"
               + (" (DEMO)" if sec.get("demo") else ""))
+    fiche["donnees"] += [donnee("M_Ed", "moment de poids propre amplifié = γ_effets·q·L²/8 / (1 − N_Ed/N_cr)", M_Ed, "kN·m"),
+                         donnee("M_c,Rd", "moment résistant W·fy/γM0", None if M_Rd == math.inf else M_Rd, "kN·m")]
+    fiche["etapes"] += [f"M_Ed = γ_effets·q·L²/8 × 1/(1 − N_Ed/N_cr) = {M_Ed:.2f} kN·m ; M_c,Rd = W·fy/γM0 = "
+                        + ("∞ (W inconnu)" if M_Rd == math.inf else f"{M_Rd:.1f} kN·m"),
+                        f"taux = N_Ed/N_b,Rd + M_Ed/M_c,Rd = {N_Ed / fl['N_b_Rd']:.3f} + {(M_Ed / M_Rd) if M_Rd != math.inf else 0:.3f} = {taux:.3f}"]
     return taux, detail, lect
 
 
@@ -220,7 +257,7 @@ def verifier_appuis(s, m, r, catalogue, normes, cle: str, suffixe: str, efforts:
                     continue
                 taux, detail, lect = _barre(sec, N, a.longueur, a.angle, normes, cle)
                 sorties.append(resultat(f"{a.type.capitalize()} — flambement et flexion", nom, phase, taux, detail,
-                                        SRC_EC3 + " ; interaction linéaire simplifiée", lect, "structure"))
+                                        SRC_EC3 + " ; interaction linéaire simplifiée", lect, "structure", **getattr(lect, "fiche", {})))
                 if sec.get("N_Rd_kN"):
                     l2 = Lecteur(normes)
                     g = l2.v("nf_p94_282", f"combinaisons.{cle}.gamma_effets")
@@ -262,12 +299,25 @@ def _tirant(nom, a, N, phase, catalogue, normes, cle) -> list[Verif]:
     n = a.nombre or 1
     detail = f"T_k = {N:.0f} kN ; {n} × {a.element}"
     taux = None
+    donnees = [donnee("T_k", "effort axial caractéristique du tirant (maximum des phases)", N, "kN"),
+               donnee("n", "nombre de torons ou de barres", n, "", "script"),
+               donnee("A", "section d'un élément d'armature", el.get("A_cm2"), "cm²", "base matériaux"),
+               donnee("f", "limite élastique de l'armature (fp0,1k, sinon fyk)", f, "MPa", "base matériaux")]
+    etapes = [f"T_k = effort d'appui × espacement / cos α = {N:.1f} kN (phase retenue)"]
     if not lect.manquants:
         R = n * el["A_cm2"] * 1e-4 * f * 1e3 / ga
         taux = g * N / R
         detail += f", résistance de calcul {R:.0f} kN" + (" (DEMO)" if el.get("demo") else "")
+        donnees.append(donnee("R", "résistance de calcul de l'armature n·A·f/γ_armature", R, "kN"))
+        etapes += [f"R = n·A·f/γ_armature = {n} × {el['A_cm2']:g} × 1e-4 × {f:g} × 1e3 / {ga:g} = {R:.1f} kN",
+                   f"taux = γ_effets·T_k/R = {g:g} × {N:.1f} / {R:.1f} = {taux:.3f}"]
+    else:
+        etapes.append("valeurs manquantes : résistance et taux non calculables")
     return [resultat(titre, nom, phase, taux, detail, "NF P 94-282 — armature de tirant (γ : docs/normes)", lect,
-                     "structure")]
+                     "structure", famille="appuis", donnees=donnees, etapes=etapes,
+                     principe=("Résistance de l'armature du tirant (torons ou barres) : R = n·A·f/γ_armature avec f la limite "
+                               "élastique conventionnelle fp0,1k (acier de précontrainte, EN 1992-1-1 § 3.3) ou fyk. L'effort de "
+                               "calcul est γ_effets·T_k, T_k étant l'effort axial maximal du tirant sur les phases."))]
 
 
 def _dalle(nom, a, H, phase, catalogue, normes, cle) -> list[Verif]:
@@ -328,8 +378,31 @@ def _lierne(nom, a, H, phase, catalogue, normes, cle, efforts_3d: tuple | None =
         t_cis = V / VR if VR else math.inf
         detail += (f" ; My = {My:.0f}, Mz = {Mz:.1f} kN·m (M,Rd {MyR:.0f} / {MzR:.0f}) ; "
                    f"V = {V:.0f} kN (Vpl,Rd {VR:.0f})")
+        pseudo = efforts_3d is not None
+        donnees = [donnee("q", "réaction de la paroi sur la lierne (effort d'appui par mètre)", q, "kN/m"),
+                   donnee("e", "espacement des appuis (portée des travées)", e, "m", "script"),
+                   donnee("q_v", "charge verticale : composante des appuis inclinés + poids propre", qv, "kN/m"),
+                   donnee("My", "moment de calcul dans le plan horizontal" + (" (plaque pseudo-3D)" if pseudo else " = γ_effets·q·e²/8"), My, "kN·m"),
+                   donnee("Mz", "moment de calcul vertical = γ_effets·q_v·e²/8", Mz, "kN·m"),
+                   donnee("V", "effort tranchant de calcul" + (" (plaque pseudo-3D)" if pseudo else " = γ_effets·0,625·q·e"), V, "kN"),
+                   donnee("My,Rd", "moment résistant Wpl,y·fy/γM0", MyR, "kN·m"), donnee("Mz,Rd", "moment résistant Wpl,z·fy/γM0", MzR, "kN·m"),
+                   donnee("Vpl,Rd", "effort tranchant résistant Av·fy/(√3·γM0)", VR, "kN"),
+                   donnee("fy", "limite élastique de la lierne", fy, "MPa", "base matériaux")]
+        etapes = ([f"Poutre continue sur deux travées de {e:.2f} m : My = γ_effets·q·e²/8 = {g:g} × {q:.1f} × {e:.2f}²/8 = {My:.1f} kN·m, "
+                   f"V = γ_effets·0,625·q·e = {V:.1f} kN"] if not pseudo else
+                  [f"Moments et tranchants de la lierne modélisée en poutre continue dans la plaque pseudo-3D : My = {My:.1f} kN·m, V = {V:.1f} kN (× γ_effets)"])
+        etapes += [f"Mz = γ_effets·q_v·e²/8 = {Mz:.2f} kN·m",
+                   f"My,Rd = {MyR:.0f} kN·m, Mz,Rd = {MzR:.0f} kN·m, Vpl,Rd = {VR:.0f} kN",
+                   f"taux = max(My/My,Rd + Mz/Mz,Rd ; V/Vpl,Rd) = max({t_flex:.3f} ; {t_cis:.3f}) = {max(t_flex, t_cis):.3f}"]
+        schema = {"type": "poutre_continue", "e": e, "q": q, "My": My, "V": V, "profil": a.lierne, "pseudo3d": pseudo}
         sorties.append(resultat(titre, f"{nom} ({a.lierne})", phase, max(t_flex, t_cis), detail,
-                                source_lierne, lect, "structure"))
+                                source_lierne, lect, "structure", famille="liernes", donnees=donnees, etapes=etapes, schema=schema,
+                                principe=("Lierne horizontale reprenant la réaction de la paroi q (effort d'appui par mètre) : "
+                                          "poutre continue sur deux travées égales, cas défavorable (M sur appui = q·e²/8, réaction "
+                                          "d'appui central 1,25·q·e soit V = 0,625·q·e) ; en pseudo-3D, moments et tranchants lus "
+                                          "dans la plaque. Flexion bi-axiale (My plan horizontal, Mz vertical sous les appuis "
+                                          "inclinés et le poids propre) vérifiée par My/My,Rd + Mz/Mz,Rd ≤ 1 (EN 1993-1-1 § 6.2.5 et "
+                                          "§ 6.2.9, interaction linéaire) et cisaillement V ≤ Vpl,Rd (§ 6.2.6).")))
     sorties.append(resultat("Lierne — raidisseurs", f"{nom} ({a.lierne})", phase, None, "", "EN 1993-1-5 § 6",
                             categorie="structure",
                             detail_non_verifiable=f"effort concentré au droit de chaque appui ≈ {q * e:.0f} kN (caractéristique) : "
@@ -401,20 +474,47 @@ def verifier_paroi(s, m, r, catalogue, normes, cle: str, suffixe: str, efforts: 
         W = (sec["Wpl_cm3_m"] if plastique else sec["Wel_cm3_m"]) * reduc
         detail = f"M_k = {Mk:.0f} kN·m/m, V_k = {Vk:.0f} kN/m ; {p.profil}" + (" (DEMO)" if inf.get("demo") else "")
         taux = None
+        donnees = [donnee("M_k", "moment caractéristique maximal (toutes phases)", Mk, "kN·m/m"),
+                   donnee("V_k", "effort tranchant caractéristique maximal", Vk, "kN/m"),
+                   donnee("W", f"module de flexion {'plastique' if plastique else 'élastique'} par mètre" + (" (réduit par la corrosion)" if reduc < 1 else ""), W, "cm³/m", "base matériaux"),
+                   donnee("fy", "limite élastique de l'acier", fy, "MPa", "base matériaux"),
+                   donnee("classe", "classe de section", classe, "", "script" if p.classe_section else "base matériaux"),
+                   donnee("β_B", "réduction du module (profils en U)", beta_B),
+                   donnee("réduction", "rapport (t − perte)/t de la corrosion", reduc, "", "script")]
+        etapes = [f"M_k = {Mk:.1f} kN·m/m et V_k = {Vk:.1f} kN/m : enveloppes du calcul sur toutes les phases"]
+        schema = None
         if not lect.manquants:
             M_Ed, V_Ed = g * Mk, g * Vk
             Av = (sec.get("s_mm") or 0) * ((sec.get("h_mm") or 0) - (sec.get("t_mm") or 0)) / 100 / ((sec.get("largeur_mm") or 1000) / 1000) * reduc
             VR = ec3.v_pl_rd(Av, fy, gM0) if Av else math.inf
             MR = beta_B * ec3.m_rd(W, fy, gM0)
+            etapes += [f"M_Ed = γ_effets·M_k = {g:g} × {Mk:.1f} = {M_Ed:.1f} kN·m/m ; V_Ed = {g:g} × {Vk:.1f} = {V_Ed:.1f} kN/m",
+                       f"M_c,Rd = β_B·W·fy/γM0 = {beta_B:g} × {W:.0f} × {fy:g} / 1000 / {gM0:g} = {MR:.1f} kN·m/m",
+                       f"Vpl,Rd = Av·fy/(√3·γM0) avec Av = une âme par largeur = {Av:.1f} cm²/m : " + ("∞ (âme inconnue)" if VR == math.inf else f"{VR:.1f} kN/m")]
             if V_Ed > seuil * VR:
                 rho = (2 * V_Ed / VR - 1) ** 2
                 MR *= (1 - rho)
+                etapes.append(f"V_Ed > {seuil:g}·Vpl,Rd : moment résistant réduit par (1 − ρ), ρ = (2·V_Ed/Vpl,Rd − 1)² = {rho:.3f} : M_c,Rd = {MR:.1f} kN·m/m")
             taux = max(M_Ed / MR, V_Ed / VR)
             detail += (f" ; M_Ed = {M_Ed:.0f} pour M_c,Rd = {MR:.0f} kN·m/m (W {'pl' if plastique else 'él'}"
                        f"{', corrosion' if reduc < 1 else ''}) ; V_Ed = {V_Ed:.0f} pour Vpl,Rd = {VR:.0f} kN/m")
+            donnees += [donnee("M_Ed", "moment de calcul γ_effets·M_k", M_Ed, "kN·m/m"), donnee("M_c,Rd", "moment résistant β_B·W·fy/γM0", MR, "kN·m/m"),
+                        donnee("V_Ed", "effort tranchant de calcul", V_Ed, "kN/m"), donnee("Vpl,Rd", "effort tranchant résistant", None if VR == math.inf else VR, "kN/m")]
+            etapes.append(f"taux = max(M_Ed/M_c,Rd ; V_Ed/Vpl,Rd) = max({M_Ed / MR:.3f} ; {(V_Ed / VR) if VR != math.inf else 0:.3f}) = {taux:.3f}")
+            schema = {"type": "section_acier", "profil": p.profil, "M_Ed": M_Ed, "M_Rd": MR, "V_Ed": V_Ed, "V_Rd": None if VR == math.inf else VR,
+                      "W": W, "fy": fy, "phase": ph_M}
+        else:
+            etapes.append("valeurs manquantes (classe de section, coefficients) : résistances et taux non calculables")
         sorties.append(resultat("Palplanches — flexion et cisaillement", p.profil, ph_M and ph_M + suffixe, taux,
                                 detail, SRC_EC35 + " ; Av = une âme par largeur de palplanche (hypothèse, EN 1993-5 § 5.2.2 à confirmer)",
-                                lect, "structure"))
+                                lect, "structure", famille="ecran", donnees=donnees, etapes=etapes, schema=schema,
+                                principe=("Palplanches en flexion et cisaillement (EN 1993-5 § 5.2.2 et EN 1993-1-1 § 6.2) : moment "
+                                          "résistant M_c,Rd = β_B·W·fy/γM0 avec le module plastique pour une section de classe 1 ou 2 "
+                                          "(élastique sinon), β_B réduisant le module des profils en U selon la liaison des serrures, "
+                                          "module réduit au prorata de l'épaisseur perdue par corrosion ; effort tranchant résistant "
+                                          "Vpl,Rd = Av·fy/(√3·γM0) avec Av = une âme par largeur de palplanche (hypothèse) ; si V_Ed "
+                                          "dépasse la part admise de Vpl,Rd, le moment résistant est réduit (interaction V-M, § 6.2.8). "
+                                          "Efforts de calcul = γ_effets × enveloppes caractéristiques.")))
     elif p.type == "berlinoise" and inf.get("section"):
         sec, fy, e = inf["section"], inf["acier"]["fy_MPa"], inf["entraxe"]
         gM0 = lect.v("ec3", "gamma_M0")
@@ -526,21 +626,48 @@ def _beton(p, inf, r, Mp, Mn, Vk, php, phn, phv, normes, cle, suffixe) -> list[V
             detail = f"M_k = {Mk:.0f} kN·m/m ({face})"
             taux = None
             det_nv = detail
+            donnees = [donnee("M_k", f"moment caractéristique maximal tendant la {face}", Mk, "kN·m/m"),
+                       donnee("e", "épaisseur de la paroi", e, "m", "script"),
+                       donnee("enrobage", "distance du parement à l'axe des armatures", p.enrobage, "m", "script"),
+                       donnee("fck", "résistance caractéristique du béton", fck, "MPa", "base matériaux"),
+                       donnee("As fourni", f"armatures de la {face}", prov, "cm²/m", "script")]
+            etapes = [f"M_k = {Mk:.1f} kN·m/m ({face}, phase « {ph}»)"]
+            schema = None
             if not lect.manquants:
                 d = e - p.enrobage
                 f = ec2.flexion_rectangulaire(g * Mk, 1.0, d, mat)
                 detail += f" ; As requis = {f['As_cm2']:.1f} cm²/m, μ = {f['mu']:.3f} (μ lim {f['mu_lim']:.3f})"
                 det_nv = detail
+                donnees += [donnee("M_Ed", "moment de calcul γ_effets·M_k", g * Mk, "kN·m/m"), donnee("d", "hauteur utile e − enrobage", d, "m"),
+                            donnee("μ", "moment réduit M_Ed/(b·d²·fcd)", f["mu"]), donnee("μ_lim", "moment réduit limite (pivot B)", f["mu_lim"]),
+                            donnee("x/d", "hauteur relative de l'axe neutre", f.get("x_sur_d")),
+                            donnee("As requis", "section d'acier requise par M_Ed", f["As_cm2"], "cm²/m")]
+                etapes += [f"M_Ed = γ_effets·M_k = {g:g} × {Mk:.1f} = {g * Mk:.1f} kN·m/m ; d = e − enrobage = {d:.3f} m",
+                           f"μ = M_Ed/(b·d²·fcd) = {f['mu']:.4f} (μ_lim = {f['mu_lim']:.3f}) ; As requis = {f['As_cm2']:.2f} cm²/m (diagramme rectangulaire λ, η)"]
+                schema = {"type": "section_beton", "h": e, "d": d, "As": prov, "As_requis": f["As_cm2"], "M_Ed": g * Mk, "face": face, "phase": ph}
                 if prov:
                     MR = ec2.m_rd_rectangulaire(prov, 1.0, d, mat)
                     taux = g * abs(Mk) / MR
                     detail += f" ; As fourni {prov} cm²/m, M_Rd = {MR:.0f} kN·m/m"
+                    donnees.append(donnee("M_Rd", "moment résistant avec les armatures fournies", MR, "kN·m/m"))
+                    etapes += [f"M_Rd (As fourni {prov:g} cm²/m) = As·fyd·(d − λx/2) = {MR:.1f} kN·m/m",
+                               f"taux = M_Ed/M_Rd = {g * abs(Mk):.1f} / {MR:.1f} = {taux:.3f}"]
+                    schema["M_Rd"] = MR
                 else:
                     det_nv += " — ferraillage fourni absent (armatures_fouille / armatures_terre)"
+                    etapes.append("armatures fournies absentes : M_Rd non calculable" + (" ; μ > μ_lim : béton insuffisant quel que soit l'acier" if f["mu"] > f["mu_lim"] else ""))
                     if f["mu"] > f["mu_lim"]:
                         taux = f["mu"] / f["mu_lim"]  # béton insuffisant quel que soit l'acier
+            else:
+                etapes.append("valeurs manquantes (béton, enrobage, coefficients) : calcul non possible")
             sorties.append(resultat(f"Paroi moulée — flexion ({face})", "paroi", ph and ph + suffixe, taux, detail,
-                                    SRC_EC2, lect, "structure", detail_non_verifiable=det_nv))
+                                    SRC_EC2, lect, "structure", detail_non_verifiable=det_nv, famille="ecran",
+                                    donnees=donnees, etapes=etapes, schema=schema,
+                                    principe=("Flexion simple d'une tranche de 1 m de paroi moulée (EN 1992-1-1 § 6.1), diagramme "
+                                              "rectangulaire des contraintes du béton (§ 3.1.7 : λ, η, fcd = αcc·fck/γc), acier fyd = fyk/γs. "
+                                              "Le moment réduit μ = M_Ed/(b·d²·fcd) donne la section d'acier requise (et signale un béton "
+                                              "insuffisant si μ > μ_lim, pivot B) ; avec les armatures fournies, M_Rd = As·fyd·(d − λx/2) et "
+                                              "taux = M_Ed/M_Rd. Efforts de calcul = γ_effets × enveloppes caractéristiques.")))
         l2 = Lecteur(normes)
         g2 = l2.v("nf_p94_282", f"combinaisons.{cle}.gamma_effets")
         crdc = l2.v("ec2", "tranchant.C_Rd_c")

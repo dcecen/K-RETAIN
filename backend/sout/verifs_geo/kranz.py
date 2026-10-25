@@ -30,10 +30,16 @@ from ..noyau.modele import Modele
 from ..noyau.phasage import ResultatCalcul
 from ..sol import coefficients as coef
 from ..sol.couches import indice_couche, trier
-from ..verifs import Lecteur, Verif, resultat
+from ..verifs import Lecteur, Verif, donnee, resultat
 from .surcharges_stabilite import mention, q_uniforme_amont
 
 SOURCE = "Kranz (1953), NF P 94-282 — stabilité du massif d'ancrage"
+PRINCIPE = ("Méthode de Kranz : on isole le massif de sol limité par l'écran jusqu'au point B (premier effort tranchant "
+            "nul sous le fond de fouille), la droite BA et un écran fictif vertical passant par A, milieu du scellement. Le "
+            "massif est soumis à son poids W, à l'action de l'écran au-dessus de B (Fh, Fv), à la poussée P1 sur l'écran "
+            "fictif, à la réaction R du sol sur BA (inclinée de φ' sur la normale) et à l'effort d'ancrage T. L'équilibre "
+            "des forces donne l'effort d'ancrage maximal T_max ; la NF P 94-282 impose γ_effet·T ≤ T_max/γ_R. Chaque lit "
+            "de tirants est étudié séparément ; les surcharges autres qu'uniformes sont listées et non comptées.")
 
 
 def point_B(ph) -> float:
@@ -111,7 +117,7 @@ def t_max(couches, z_t: float, z_nappe: float | None, z_B: float, x_A: float, z_
     autres = np.array([-Fh_ecran + P1, -W + Fv_ecran])
     Mtx = np.column_stack([u_T, u_R])
     T, r = np.linalg.solve(Mtx, -autres)
-    return float(T), {"W": W, "P1": P1, "r": float(r), "z_B": z_B}
+    return float(T), {"W": W, "P1": P1, "r": float(r), "z_B": z_B, "phi": math.degrees(phi)}
 
 
 def verifier(modele: Modele, res: ResultatCalcul, normes) -> list[Verif]:
@@ -151,13 +157,42 @@ def verifier(modele: Modele, res: ResultatCalcul, normes) -> list[Verif]:
             Tm, info = t_max(modele.couches, ph.terrain_amont, ph.eau_amont, zB, x_A, z_A, ang, Fh, Fv, q)
             rapport = T / Tm if Tm > 0 else float("inf")
             if pire_cas is None or rapport > pire_cas[0]:
-                pire_cas = (rapport, ph.nom, T, Tm, info)
+                pire_cas = (rapport, ph.nom, T, Tm, info, ph, Fh, Fv)
         if pire_cas is None:
             continue
-        rapport, nom, T, Tm, info = pire_cas
+        rapport, nom, T, Tm, info, ph, Fh, Fv = pire_cas
         detail = (f"T = {T:.0f} kN/m, T_max = {Tm:.0f} kN/m (B à z = {info['z_B']:.2f} m, "
                   f"poids du massif {info['W']:.0f} kN/m), T/T_max = {rapport:.2f} (caractéristique)"
                   + mention(ignorees))
         taux = None if lect.manquants else ge * gR * rapport
-        sorties.append(resultat("Stabilité du massif d'ancrage (Kranz)", d.nom, nom, taux, detail, SOURCE, lect))
+        donnees = [donnee("T", "effort du tirant par mètre d'écran, selon son axe (phase retenue)", T, "kN/m"),
+                   donnee("T_max", "effort d'ancrage maximal du massif", Tm, "kN/m"),
+                   donnee("T/T_max", "rapport caractéristique", rapport),
+                   donnee("z_B", "point B : premier effort tranchant nul sous le fond (sinon le pied)", info["z_B"], "m"),
+                   donnee("x_A", "point A (milieu du scellement) : abscisse depuis l'écran", x_A, "m"),
+                   donnee("z_A", "point A : cote", z_A, "m"),
+                   donnee("W", "poids du massif O-B-A-A' (déjaugé sous la nappe)", info["W"], "kN/m"),
+                   donnee("P1", "poussée active sur l'écran fictif passant par A (δ = 0)", info["P1"], "kN/m"),
+                   donnee("Fh", "poussée horizontale du sol sur l'écran au-dessus de B", Fh, "kN/m"),
+                   donnee("Fv", "composante verticale (frottement) sur l'écran au-dessus de B", Fv, "kN/m"),
+                   donnee("R", "réaction du sol sur BA (inclinée de φ' sur la normale)", info["r"], "kN/m"),
+                   donnee("φ'", "angle de frottement le plus faible traversé par BA", info["phi"], "°"),
+                   donnee("α", "inclinaison du tirant sur l'horizontale", ang, "°", "script"),
+                   donnee("L_libre + L_scellée/2", "distance de l'écran au milieu du scellement", Lc, "m", "script")]
+        etapes = [f"Point A au milieu du scellement : x_A = −(L_libre + L_scellée/2)·cos α = {x_A:.2f} m, z_A = cote − (L_libre + L_scellée/2)·sin α = {z_A:.2f} m",
+                  f"Point B sur l'écran : z_B = {info['z_B']:.2f} m (premier effort tranchant nul sous le fond, phase « {nom} »)",
+                  f"Massif O-B-A-A' : poids W = {info['W']:.1f} kN/m ; écran fictif en A : poussée P1 = {info['P1']:.1f} kN/m ; "
+                  f"action de l'écran au-dessus de B : Fh = {Fh:.1f} kN/m, Fv = {Fv:.1f} kN/m",
+                  f"Équilibre des forces du massif, réaction R inclinée de φ' = {info['phi']:.1f}° sur la normale à BA : "
+                  f"T_max = {Tm:.1f} kN/m (R = {info['r']:.1f} kN/m)",
+                  f"T = effort du tirant / cos α = {T:.1f} kN/m ; T/T_max = {rapport:.3f}"]
+        etapes.append("coefficients partiels manquants : taux non calculable" if taux is None
+                      else f"taux = γ_effet·γ_R·T/T_max = {ge:g} × {gR:g} × {rapport:.3f} = {taux:.3f}")
+        schema = {"type": "kranz", "phase": nom, "tete": modele.ecran.tete, "pied": modele.ecran.pied,
+                  "terrain_amont": ph.terrain_amont, "fond": ph.terrain_aval, "nappe_amont": ph.eau_amont,
+                  "cote_tirant": d.cote, "angle": ang, "B": [0.0, info["z_B"]], "A": [x_A, z_A],
+                  "longueur_libre": Ll, "longueur_scellee": Ls,
+                  "forces": {"W": info["W"], "P1": info["P1"], "T": T, "T_max": Tm, "R": info["r"], "Fh": Fh, "Fv": Fv}}
+        sorties.append(resultat("Stabilité du massif d'ancrage (Kranz)", d.nom, nom, taux, detail, SOURCE, lect,
+                                famille="massif_ancrage", principe=PRINCIPE, donnees=donnees, etapes=etapes, schema=schema))
     return sorties

@@ -4,7 +4,8 @@
 import type { EntreeNorme, Resultats, Verif } from './api'
 import { nb, pourcent, uniteCote } from './format'
 import type { Modele } from './scriptDoc'
-import { sourceCourte, valeurs } from './verifs'
+import { libelleFamille, sourceCourte, valeurs } from './verifs'
+import { schemaSvg, valeurFiche } from '../vues/verifs/coupeSvg'
 
 const h = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 const n = (v: number | null | undefined, d = 1) => nb(v, d)
@@ -167,6 +168,20 @@ ${tableau(['Nom', 'Type', 'q', 'Distance (m)', 'Largeur (m)', 'Face'], surcharge
       return [h(v.nom), h(v.element), h(v.phase ?? '—'), h(calc), h(lim) || (v.manquants.length ? `<span class="src">valeur de norme manquante : ${h(v.manquants.join(', '))}</span>` : ''),
         v.taux === null ? '—' : pourcent(v.taux), `<span class="${v.etat === 'non_ok' ? 'ko' : ''}">${ETATS[v.etat]}</span>`, `<span class="src" title="${h(v.source)}">${h(sourceCourte(v.source))}</span>`]
     }), ['', '', '', '', '', 'n', '', ''])}`).join('') : '<p>Aucune vérification demandée dans le script.</p>'
+  // fiches détaillées (principe, données, étapes, schéma) des vérifications qui en portent une
+  const fiches = verifs.filter((v) => v.principe).map((v) => {
+    const donnees = v.donnees.filter((d) => !d.origine.startsWith('norme:'))
+    const normes = v.donnees.filter((d) => d.origine.startsWith('norme:'))
+    const svg = schemaSvg(v.schema)
+    return `<div class="fiche"><h4>${h(v.nom)} — ${h(v.element)}${v.phase ? ` (${h(v.phase)})` : ''} : ${ETATS[v.etat]}${v.taux === null ? '' : `, taux ${pourcent(v.taux)}`}</h4>
+<p>${h(v.principe)}</p>
+${donnees.length ? tableau(['Symbole', 'Donnée', 'Valeur', 'Unité', 'Origine'], donnees.map((d) => [h(d.symbole), h(d.libelle), h(valeurFiche(d.valeur)), h(d.unite), h(d.origine)]), ['', '', 'n', '', '']) : ''}
+${normes.length ? `<p class="src">Valeurs normatives : ${normes.map((d) => `${h(d.symbole)} = ${h(valeurFiche(d.valeur))} (${h(d.origine.replace('norme:', 'docs/normes/').replace(':', '.yaml : '))})`).join(' ; ')}</p>` : ''}
+${v.etapes.length ? `<ol>${v.etapes.map((e) => `<li>${h(e)}</li>`).join('')}</ol>` : ''}
+${svg ?? ''}
+<p class="src">Référence : ${h(v.source)}</p></div>`
+  }).join('')
+  const fichesParFamille = fiches ? `<h3>7.4 Fiches détaillées</h3><p>Pour chaque vérification : principe de la méthode, données utilisées et leur origine, étapes du calcul et schéma. Les vérifications sont regroupées par famille (${[...new Set(verifs.filter((v) => v.principe).map((v) => libelleFamille(v.famille)))].map(h).join(', ')}).</p>${fiches}` : ''
 
   // ---- 8. conclusion
   const conclusion = `<ul>
@@ -192,6 +207,8 @@ ${tableau(['Nom', 'Type', 'q', 'Distance (m)', 'Largeur (m)', 'Face'], surcharge
   th { background: #eef1f5; font-weight: 600; } td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   tr { page-break-inside: avoid; } .src { color: #5a6475; font-size: 8pt; } .ko { color: #a32018; font-weight: 600; }
   .cartouche table { font-size: 9pt; } .cartouche th { background: #e8eef5; }
+  .fiche { page-break-inside: avoid; margin: 3mm 0 5mm; padding: 2mm 3mm; border: 1px solid #dde2e9; }
+  .fiche h4 { font-size: 10pt; margin: 0 0 1.5mm; } .fiche ol { padding-left: 6mm; } .fiche svg { display: block; max-width: 125mm; height: auto; margin: 2mm 0; }
   .pied { margin-top: 8mm; font-size: 8pt; color: #5a6475; border-top: 1px solid #b8c0cc; padding-top: 1mm; }
   @page { size: A4; margin: 12mm; } @media print { body { margin: 0; } }
 </style></head><body>
@@ -214,6 +231,7 @@ ${complement ? `<p>${complement}</p>` : ''}
 <h2>7. Vérifications aux ELU et aux ELS</h2>
 <p>Taux de travail = valeur de calcul / valeur limite. Vérifié si taux ≤ 100 %. Non vérifiable : valeur de norme manquante dans docs/normes (la valeur caractéristique est donnée).</p>
 ${verifications}
+${fichesParFamille}
 <h2>8. Conclusion</h2>${conclusion}
 <div class="pied">RetainWall ${h(version)}, note éditée le ${h(new Date().toLocaleDateString('fr-FR'))}. Conventions : y positif vers la fouille ; M positif quand la face côté fouille est tendue ; efforts d'appui positifs quand l'appui retient l'écran.</div>
 </body></html>`

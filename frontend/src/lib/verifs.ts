@@ -35,10 +35,37 @@ export function valeurs(v: Verif): [string, string] {
   return [premier, '']
 }
 
-/** Référence courte de la source (premier article cité) ; le texte complet reste au survol. */
+/** Référence courte : la source de la méthode (dernier segment, après les sources des coefficients lus) ;
+ *  le texte complet reste au survol. */
 export function sourceCourte(s: string): string {
-  const premier = s.split(/\s*;\s*/)[0] ?? s
-  return premier.replace(/\s*—\s*de mémoire, à confirmer/i, '').replace(/\s*\(coefficients\s*:.*\)$/i, '').trim()
+  const segments = s.split(/\s*;\s*/).map((x) => x.trim()).filter(Boolean)
+  const methode = segments.find((x) => !/de mémoire|docs\/normes\/\w+\.yaml/i.test(x)) ?? segments[segments.length - 1] ?? s
+  return methode.replace(/\s*—\s*de mémoire, à confirmer/i, '').replace(/\s*\(coefficients\s*:.*\)$/i, '').trim()
+}
+
+/** Libellé des statuts (ok et attention s'affichent « Vérifié » ; l'attention reste listée dans les points d'attention). */
+export const LIBELLE_ETAT: Record<Verif['etat'], string> = { ok: 'Vérifié', attention: 'Vérifié', non_ok: 'Non vérifié', non_verifiable: 'Non vérifiable' }
+
+/** Familles de vérifications (sous-onglets), dans l'ordre d'affichage ; `famille` est donnée par le serveur. */
+export const FAMILLES: { cle: string; libelle: string }[] = [
+  { cle: 'butee', libelle: 'Butée' }, { cle: 'equilibre_vertical', libelle: 'Équilibre vertical' },
+  { cle: 'massif_ancrage', libelle: "Massif d'ancrage" }, { cle: 'fond_de_fouille', libelle: 'Fond de fouille' },
+  { cle: 'hydraulique', libelle: 'Hydraulique' }, { cle: 'stabilite_generale', libelle: 'Stabilité générale' },
+  { cle: 'deplacements', libelle: 'Déplacements (ELS)' }, { cle: 'ecran', libelle: 'Écran' }, { cle: 'anneau', libelle: 'Anneau' },
+  { cle: 'appuis', libelle: 'Appuis' }, { cle: 'liernes', libelle: 'Liernes' }, { cle: 'assemblages', libelle: 'Assemblages' },
+  { cle: 'calcul', libelle: 'Calcul' }, { cle: 'geotechnique', libelle: 'Géotechnique' }, { cle: 'structure', libelle: 'Structure' },
+]
+
+export function libelleFamille(cle: string): string {
+  return FAMILLES.find((f) => f.cle === cle)?.libelle ?? cle
+}
+
+/** Familles présentes dans une liste de vérifications, dans l'ordre des sous-onglets. */
+export function famillesPresentes(vs: Verif[]): string[] {
+  const presentes = new Set(vs.map((v) => v.famille || 'structure'))
+  const ordre = FAMILLES.map((f) => f.cle).filter((c) => presentes.has(c))
+  for (const p of presentes) if (!ordre.includes(p)) ordre.push(p)
+  return ordre
 }
 
 /** Seuil d'attention (taux de travail à partir duquel une vérification est signalée) : même valeur que

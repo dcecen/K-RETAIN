@@ -25,9 +25,15 @@ import numpy as np
 from ..noyau.modele import Modele
 from ..noyau.phasage import ResultatCalcul
 from ..sol.couches import indice_couche, trier
-from ..verifs import Lecteur, Verif, resultat
+from ..verifs import Lecteur, Verif, donnee, resultat
 
 SOURCE = "Bishop (1955), méthode simplifiée — NF P 94-282 stabilité générale"
+PRINCIPE = ("Stabilité d'ensemble par cercles de glissement (Bishop simplifié, 1955) : pour un cercle, le massif est "
+            "découpé en tranches verticales ; F = Σ[c'·b + (W − u·b)·tan φ']/m_α / Σ W·sin α avec m_α = cos α + sin α·tan φ'/F "
+            "(itératif). Seuls les cercles passant sous le pied de l'écran et ressortant dans la fouille sont étudiés "
+            "(glissement vers la fouille) ; le cercle critique est celui de F minimal (grille large puis affinage). "
+            "Tirants et écran sont négligés (côté de la sécurité) ; nappes hydrostatiques ; surcharges uniformes comptées en "
+            "poids. Avec les paramètres pondérés (tan φ'/γ_φ, c'/γ_c, surcharges × γ_Q), le critère est F_d ≥ γ_R,d.")
 
 
 @dataclass
@@ -202,9 +208,35 @@ def verifier(modele: Modele, res: ResultatCalcul, normes, largeur: float | None 
                 + mention(ignorees))
     taux = None
     detail = detail_k
+    cercle_d, Fd = None, None
     if not lect.manquants:
         Fd, cercle_d = recherche(p, modele.ecran.tete, modele.ecran.pied, gphi, gc, gQ)
         taux = gR / Fd
         detail = f"F de calcul = {Fd:.2f} (paramètres pondérés) ; {detail_k}"
+    xc, zc, R = cercle_k
+    donnees = [donnee("F_k", "coefficient de sécurité du cercle critique (paramètres caractéristiques)", Fk),
+               donnee("x_c", "centre du cercle critique : abscisse depuis l'écran (amont < 0)", xc, "m"),
+               donnee("z_c", "centre du cercle critique : cote", zc, "m"),
+               donnee("R", "rayon du cercle critique", R, "m"),
+               donnee("z_amont", "terrain côté terre", p.z_amont, "m"), donnee("z_aval", "fond de fouille", p.z_aval, "m"),
+               donnee("largeur", "largeur de la fouille du profil", p.largeur, "m", "script" if largeur else "calcul")]
+    etapes = [f"Profil de la phase « {ph.nom} » : terrain amont {p.z_amont:.2f} m, fond {p.z_aval:.2f} m, largeur de fouille {p.largeur:.1f} m"
+              + (f", nappe amont {p.h_amont:.2f} m" if p.h_amont is not None else "") + (f", nappe aval {p.h_aval:.2f} m" if p.h_aval is not None else ""),
+              "F = Σ[c'·b + (W − u·b)·tan φ']/m_α / Σ W·sin α, m_α = cos α + sin α·tan φ'/F, résolu par itérations pour chaque cercle",
+              f"Cercle critique (F minimal, paramètres caractéristiques) : centre ({xc:.2f} ; {zc:.2f}), R = {R:.2f} m, F_k = {Fk:.3f}"]
+    if cercle_d is not None:
+        donnees += [donnee("F_d", "coefficient de sécurité du cercle critique (paramètres pondérés)", Fd),
+                    donnee("x_c,d", "centre du cercle critique pondéré : abscisse", cercle_d[0], "m"),
+                    donnee("z_c,d", "centre du cercle critique pondéré : cote", cercle_d[1], "m"),
+                    donnee("R_d", "rayon du cercle critique pondéré", cercle_d[2], "m")]
+        etapes += [f"Paramètres pondérés (tan φ'/{gphi:g}, c'/{gc:g}, surcharges × {gQ:g}) : cercle critique "
+                   f"({cercle_d[0]:.2f} ; {cercle_d[1]:.2f}), R = {cercle_d[2]:.2f} m, F_d = {Fd:.3f}",
+                   f"taux = γ_R,d / F_d = {gR:g} / {Fd:.3f} = {taux:.3f}"]
+    else:
+        etapes.append("coefficients partiels manquants : F de calcul et taux non calculables")
+    schema = {"type": "cercle", "phase": ph.nom, "xc": xc, "zc": zc, "R": R, "z_amont": p.z_amont, "z_aval": p.z_aval,
+              "largeur": p.largeur, "tete": modele.ecran.tete, "pied": modele.ecran.pied, "nappe_amont": p.h_amont,
+              "nappe_aval": p.h_aval, "F": Fk, "cercle_calcul": list(cercle_d) if cercle_d is not None else None}
     return [resultat("Stabilité générale (Bishop)", "massif", ph.nom, taux, detail, SOURCE, lect,
-                     detail_non_verifiable=detail_k)]
+                     detail_non_verifiable=detail_k, famille="stabilite_generale", principe=PRINCIPE,
+                     donnees=donnees, etapes=etapes, schema=schema)]

@@ -22,6 +22,7 @@ export function useAffichage() {
   const [ligneCible, setLigneCible] = useState<{ ligne: number; n: number } | null>(null)
   const [sectionAide, setSectionAide] = useState<SectionAide | null>(null)
   const [aideChamp, setAideChamp] = useState<AideChampInfo | null>(null)   // champ de saisie focalisé (panneau droit)
+  const [ongletVerifs, setOngletVerifs] = useState<string | null>(null)    // famille ouverte dans la vue Vérifications
   const [etat3d, setEtat3dBrut] = useState<EtatVue3D>(ETAT_3D_INITIAL)      // maquette 3D : plan de coupe, panneau, courbes en un point
   const setEtat3d = useCallback((e: Partial<EtatVue3D>) => setEtat3dBrut((s) => ({ ...s, ...e })), [])
   const compteurCible = useRef(0)
@@ -75,6 +76,7 @@ export function useAffichage() {
     selection3d, selectionner3d, prereglage, setPrereglage, theme, basculerTheme,
     navRepliee, setNavRepliee, tiroirNav, setTiroirNav, tiroirInsp, setTiroirInsp,
     ligneCible, viserLigne, sectionAide, ouvrirAide, aideChamp, setAideChamp, etat3d, setEtat3d,
+    ongletVerifs, setOngletVerifs,
   }
 }
 

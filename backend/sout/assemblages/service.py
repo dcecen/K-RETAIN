@@ -107,6 +107,7 @@ def verifier(cle: str, params: dict, efforts: dict, catalogue=None, normes=None,
                     v.source, list(dict.fromkeys(ctx.replis + v.manquants)), v.reperes) for v in vs]
     for v in vs:
         v.categorie = "structure"
+        v.famille = "assemblages"
         if element:
             v.element = f"{element} ({t.nom}) · {v.element}"
     return vs

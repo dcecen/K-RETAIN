@@ -255,6 +255,38 @@ def test_E16_convergence_maillage():
     assert np.all(e05 < 0.02) and np.all(e01 < 0.002) and np.all(e01 < e05)     # mesuré : 1,3 % puis 0,1 %
 
 
+def test_E17_kranz_massif_ancrage():
+    """Les grandeurs exposées par la fiche (W, P1, Fh, Fv, R, φ', A, B) sont contrôlées : poids = γ × aire du polygone
+    (formule des lacets), P1 = Ka·γ·h²/2 (Rankine, δ = 0, sable sec), puis T_max par la résolution indépendante de
+    l'équilibre des forces du massif (deux inconnues : T selon l'axe du tirant, R inclinée de φ' sur la normale à BA)."""
+    res = _calcul("E17_kranz_massif_ancrage")
+    v = {x["nom"]: x for x in res["verifications"]}["Stabilité du massif d'ancrage (Kranz)"]
+    d = {x["symbole"]: x["valeur"] for x in v["donnees"]}
+    s = v["schema"]
+    assert v["famille"] == "massif_ancrage" and s["type"] == "kranz" and v["principe"] and len(v["etapes"]) >= 5
+    (xB, zB), (xA, zA), zt = s["B"], s["A"], s["terrain_amont"]
+    assert xA == pytest.approx(-11.0) and zA == pytest.approx(-1.5) and xB == 0.0 and zB < s["fond"]
+    # poids du massif O-B-A-A' : aire par la formule des lacets, sable sec γ = 20
+    poly = [(0.0, zt), (0.0, zB), (xA, zA), (xA, zt)]
+    aire = 0.5 * abs(sum(x0 * z1 - x1 * z0 for (x0, z0), (x1, z1) in zip(poly, poly[1:] + poly[:1])))
+    assert d["W"] == pytest.approx(20 * aire, rel=1e-3)
+    # poussée sur l'écran fictif passant par A (Rankine, δ = 0)
+    ka = math.tan(math.radians(45 - 15)) ** 2
+    assert d["P1"] == pytest.approx(ka * 20 * (zt - zA) ** 2 / 2, rel=1e-3)
+    # équilibre des forces du massif, recalculé : T·u_T + R·u_R + (−Fh + P1, −W + Fv) = 0
+    phi = math.radians(d["φ'"])
+    t = np.array([xA - xB, zA - zB]); t /= np.linalg.norm(t)
+    n = np.array([-t[1], t[0]])
+    if n[1] < 0:
+        n = -n
+    uR = n * math.cos(phi) + t * math.sin(phi)
+    uT = np.array([1.0, 0.0])
+    T, R = np.linalg.solve(np.column_stack([uT, uR]), -np.array([-d["Fh"] + d["P1"], -d["W"] + d["Fv"]]))
+    assert d["Fv"] == pytest.approx(0.0, abs=1e-9) and d["φ'"] == pytest.approx(30.0)
+    assert T == pytest.approx(d["T_max"], rel=1e-6) and R == pytest.approx(d["R"], rel=1e-6)
+    assert d["T/T_max"] == pytest.approx(d["T"] / d["T_max"], rel=1e-9)
+
+
 def test_E18_fond_de_fouille():
     vs = {v["nom"]: v for v in _calcul("E18_fond_de_fouille")["verifications"]}
     dh_av = 5 * 9 / 23

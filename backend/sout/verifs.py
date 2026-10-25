@@ -30,33 +30,74 @@ class Verif:
     source: str
     manquants: list[str] = field(default_factory=list)
     reperes: list[int] = field(default_factory=list)   # composants concernés (assemblages : surlignage du schéma)
+    # Fiche détaillée (sous-onglet de la famille dans l'interface, note de calcul), remplie module par module :
+    famille: str = ""                                   # butee, equilibre_vertical, massif_ancrage, fond_de_fouille, stabilite_generale,
+                                                        # deplacements, hydraulique, ecran, appuis, liernes, assemblages, anneau, calcul
+    principe: str = ""                                  # la méthode en français, avec l'article de norme
+    donnees: list[dict] = field(default_factory=list)   # {symbole, libelle, valeur, unite, origine} ; origine : calcul | script | norme:<fichier>:<clé>
+    etapes: list[str] = field(default_factory=list)     # étapes du calcul : formule puis valeurs numériques
+    schema: dict | None = None                          # données du schéma dessiné par l'interface ({"type": ..., ...})
 
     def vers_dict(self) -> dict:
         return asdict(self)
 
 
 class Lecteur:
-    """Lit les valeurs de norme en collectant celles qui manquent."""
+    """Lit les valeurs de norme en collectant celles qui manquent (et toutes celles lues, pour la fiche)."""
 
     def __init__(self, normes: Normes | None):
         self.normes = normes
         self.manquants: list[str] = []
         self.sources: list[str] = []
+        self.lus: list[tuple[str, str, float | None]] = []   # (fichier, clé, valeur) de chaque lecture
 
     def v(self, fichier: str, cle: str) -> float | None:
         if self.normes is None:
             self.manquants.append(f"{fichier}.yaml:{cle}")
+            self.lus.append((fichier, cle, None))
             return None
         try:
             val = self.normes.valeur(fichier, cle)
         except ValeurNormeManquante as e:
             if e.reference not in self.manquants:
                 self.manquants.append(e.reference)
+            self.lus.append((fichier, cle, None))
             return None
         s = self.normes.source(fichier, cle)
         if s and s not in self.sources:
             self.sources.append(s)
+        self.lus.append((fichier, cle, val))
         return val
+
+
+def donnee(symbole: str, libelle: str, valeur, unite: str = "", origine: str = "calcul") -> dict:
+    """Une donnée de la fiche détaillée : symbole, libellé en français, valeur (nombre ou texte), unité, origine."""
+    try:
+        v = None if valeur is None else float(valeur)
+    except (TypeError, ValueError):
+        v = valeur
+    return {"symbole": symbole, "libelle": libelle, "valeur": v, "unite": unite, "origine": origine}
+
+
+# Famille d'une vérification d'après le début de son nom (sous-onglets de l'interface, regroupement de la note) ;
+# les modules qui remplissent une fiche la donnent explicitement, les autres passent par ce repli.
+_FAMILLES = (
+    ("Mobilisation de la butée", "butee"), ("Équilibre vertical", "equilibre_vertical"), ("Stabilité du massif", "massif_ancrage"),
+    ("Fond de fouille", "fond_de_fouille"), ("Stabilité générale", "stabilite_generale"), ("Déplacement", "deplacements"),
+    ("Scellement du tirant", "appuis"), ("Boulance", "hydraulique"), ("Renard", "hydraulique"), ("Soulèvement du bouchon", "hydraulique"),
+    ("Gradient à travers", "hydraulique"), ("Débit de pompage", "hydraulique"), ("Stabilité du fond en argile", "hydraulique"),
+    ("Calcul", "calcul"), ("Buton", "appuis"), ("Bracon", "appuis"), ("Tirant", "appuis"), ("Dalle", "appuis"), ("Lierne", "liernes"),
+    ("Palplanches", "ecran"), ("Profilés de berlinoise", "ecran"), ("Blindage", "ecran"), ("Paroi moulée", "ecran"), ("Pieux", "ecran"),
+    ("Flexion horizontale", "ecran"), ("Anneau", "anneau"), ("Assemblage", "assemblages"),
+)
+
+
+def famille_de(nom: str, categorie: str) -> str:
+    """Famille d'une vérification (butee, ecran, appuis…) d'après son nom ; repli sur la catégorie."""
+    for prefixe, fam in _FAMILLES:
+        if nom.startswith(prefixe):
+            return fam
+    return "geotechnique" if categorie == "geotechnique" else "structure"
 
 
 def etat_de(taux: float) -> str:
@@ -69,19 +110,31 @@ def etat_de(taux: float) -> str:
 
 def resultat(nom: str, element: str, phase: str | None, taux: float | None, detail: str, source: str,
              lecteur: Lecteur | None = None, categorie: str = "geotechnique",
-             detail_non_verifiable: str | None = None, reperes: list[int] | None = None) -> Verif:
-    """Construit le résultat ; « non vérifiable » si une valeur de norme manque."""
+             detail_non_verifiable: str | None = None, reperes: list[int] | None = None,
+             famille: str = "", principe: str = "", donnees: list[dict] | None = None, etapes: list[str] | None = None,
+             schema: dict | None = None) -> Verif:
+    """Construit le résultat ; « non vérifiable » si une valeur de norme manque. Les valeurs normatives lues par le
+    lecteur sont ajoutées aux données de la fiche (origine norme:<fichier>:<clé>)."""
     manquants = list(lecteur.manquants) if lecteur else []
     sources = (" ; ".join(lecteur.sources) + " ; " if lecteur and lecteur.sources else "") + source
+    liste = list(donnees or [])
+    if lecteur:
+        vus: set[tuple[str, str]] = set()
+        for fichier, cle, val in lecteur.lus:
+            if (fichier, cle) in vus:
+                continue
+            vus.add((fichier, cle))
+            liste.append(donnee(cle.split(".")[-1], f"valeur normative docs/normes/{fichier}.yaml : {cle}", val, "", f"norme:{fichier}:{cle}"))
+    fiche = dict(famille=famille or famille_de(nom, categorie), principe=principe, donnees=liste, etapes=list(etapes or []), schema=schema)
     if manquants or taux is None:
         return Verif(nom, categorie, element, phase, "non_verifiable", None,
-                     detail_non_verifiable or detail, sources, manquants, list(reperes or []))
+                     detail_non_verifiable or detail, sources, manquants, list(reperes or []), **fiche)
     import math
     if math.isnan(taux) or math.isinf(taux):
         # résistance nulle ou critère de stabilité dépassé (ex. N ≥ N_cr) : taux borné pour l'affichage et le JSON
         return Verif(nom, categorie, element, phase, "non_ok", 99.0,
-                     detail + " — résistance nulle ou instabilité (taux non défini, affiché 9 900 %)", sources, [], list(reperes or []))
-    return Verif(nom, categorie, element, phase, etat_de(taux), float(taux), detail, sources, [], list(reperes or []))
+                     detail + " — résistance nulle ou instabilité (taux non défini, affiché 9 900 %)", sources, [], list(reperes or []), **fiche)
+    return Verif(nom, categorie, element, phase, etat_de(taux), float(taux), detail, sources, [], list(reperes or []), **fiche)
 
 
 # Score de défaveur d'un résultat sans taux : un « non_ok » sans taux (section insuffisante, instabilité)

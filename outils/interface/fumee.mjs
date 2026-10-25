@@ -63,12 +63,14 @@ const capture = async (nom) => {
   writeFileSync(join(dossier, `${prefixe}_${nom}.png`), Buffer.from(r.result.data, 'base64'))
   console.log('capture', nom)
 }
-/** Clic sur le premier élément (onglet, nœud de navigation ou bouton) dont le texte commence par `texte`. */
+/** Clic sur l'élément (onglet, nœud de navigation ou bouton) dont le texte est exactement `texte`, sinon sur le
+ *  premier dont le texte commence par `texte` (« Vérifications » désigne la vue de résultats, pas l'étape de
+ *  saisie « Vérifications demandées »). */
 const aller = async (texte, { attente = 1200, obligatoire = true } = {}) => {
   const ok = await evaluer(`(() => {
     const lib = (x) => (x.querySelector('.libelle') ?? x).textContent.trim()
     const cands = [...document.querySelectorAll('.noeud'), ...document.querySelectorAll('.onglet'), ...document.querySelectorAll('button')]
-    const b = cands.find((x) => lib(x).startsWith(${JSON.stringify(texte)}))
+    const b = cands.find((x) => lib(x) === ${JSON.stringify(texte)}) ?? cands.find((x) => lib(x).startsWith(${JSON.stringify(texte)}))
     if (b) { b.click(); return true } return false })()`)
   if (!ok) { console.log('vue introuvable :', texte); if (obligatoire) manquantes.push(texte) }
   await dormir(attente)
@@ -106,6 +108,19 @@ for (const [nom, texte, oblig] of [
   ['04_efforts', 'Efforts', true], ['05_verifications', 'Vérifications', true], ['06_hypotheses', 'Hypothèses', true],
 ]) {
   if (await aller(texte, { obligatoire: oblig })) await capture(nom)
+}
+// Vérifications : sous-onglets par famille et fiches détaillées avec schéma (clic sur le premier onglet : butée)
+if (await aller('Vérifications', { obligatoire: false })) {
+  const n = await evaluer(`document.querySelectorAll('.onglets-verifs .onglet-verif').length`)
+  if (!n) journal.push('vérifications : aucun sous-onglet de famille')
+  await evaluer(`(() => { const b = document.querySelector('.onglets-verifs .onglet-verif'); if (b) b.click() })()`)
+  await dormir(600)
+  if (!(await evaluer(`!!document.querySelector('.fiche-verif')`))) journal.push('vérifications : aucune fiche détaillée affichée')
+  if (!(await evaluer(`!!document.querySelector('.fiche-verif svg')`))) journal.push('vérifications : aucun schéma SVG dans la fiche de butée')
+  // clic sur une ligne de la synthèse : la fiche correspondante défile en vue
+  await evaluer(`(() => { const l = document.querySelector('.synthese-verifs tr.cliquable'); if (l) l.click() })()`)
+  await dormir(600)
+  await capture('05b_verifications_fiche')
 }
 // Maquette 3D : panneau Résultats (R), puis Échap
 if (await aller('Maquette 3D', { attente: 4000 })) {

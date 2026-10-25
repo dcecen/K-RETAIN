@@ -111,6 +111,10 @@ export interface PhaseRes {
   }
 }
 
+/** Donnée d'une fiche de vérification : symbole, libellé, valeur (nombre ou texte), unité, origine
+ *  (calcul | script | base matériaux | norme:<fichier>:<clé>). */
+export interface DonneeVerif { symbole: string; libelle: string; valeur: number | string | null; unite: string; origine: string }
+
 export interface Verif {
   nom: string
   categorie: 'geotechnique' | 'structure'
@@ -122,6 +126,12 @@ export interface Verif {
   source: string
   manquants: string[]
   reperes: number[]
+  /** Fiche détaillée (sout/verifs.py) : famille (sous-onglet), principe, données, étapes du calcul, schéma. */
+  famille: string
+  principe: string
+  donnees: DonneeVerif[]
+  etapes: string[]
+  schema: ({ type: string } & Record<string, unknown>) | null
 }
 
 export interface Dimensionnant {

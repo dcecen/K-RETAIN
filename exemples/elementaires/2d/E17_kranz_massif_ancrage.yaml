@@ -1,0 +1,20 @@
+# VÉRIFICATION ÉLÉMENTAIRE E17 — stabilité du massif d'ancrage (Kranz)
+# Écran de 0 à −12 m dans un sable sec homogène φ = 30° (δ = 0 : Ka = 1/3), tirant horizontal à −1,5 m, longueur
+# libre 8 m et scellement 6 m : le point A (milieu du scellement) est à 11 m derrière l'écran, à −1,5 m. Le massif
+# O-B-A-A' est limité par l'écran jusqu'au point B (premier effort tranchant nul sous le fond), la droite BA et un
+# écran fictif vertical passant par A. La fiche de la vérification expose W, P1, Fh, Fv, R, φ', A et B.
+# ATTENDU (fiche « Stabilité du massif d'ancrage ») : W = γ × aire du polygone O-B-A-A' (1e-3), P1 = Ka·γ·h_A²/2 sur
+# l'écran fictif (1e-3), T_max retrouvé par l'équilibre des forces du massif recalculé indépendamment (1e-6).
+# SOURCE : Kranz E. (1953), Über die Verankerung von Spundwänden ; NF P 94-282 (massif d'ancrage) ; Rankine pour Ka.
+projet: "E17 Kranz — massif d'ancrage : W = γ·aire, P1 = Ka·γ·h²/2, T_max par l'équilibre des forces"
+calcul: { kh: impose, pas: 0.1 }
+paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }
+sol:
+  - { nom: Sable, toit: 0.0, gamma: 20, gamma_dejauge: 10, phi: 30, c: 0, kh: 20000 }
+appuis:
+  T1: { type: tirant, raideur: 20000, cote: -1.5, espacement: 2.0, angle: 0, precharge: 200, longueur_libre: 8.0, longueur_scellee: 6.0 }
+phases:
+  - { nom: "Terrassement à -2,0", excaver: -2.0 }
+  - { nom: Pose et mise en tension du tirant, poser: T1 }
+  - { nom: "Terrassement final à -6,0", excaver: -6.0 }
+verifications: [kranz]

@@ -24,10 +24,19 @@ import numpy as np
 from ..noyau.modele import Modele
 from ..noyau.phasage import ResultatCalcul
 from ..sol.couches import indice_couche, trier
-from ..verifs import Lecteur, Verif, resultat
+from ..verifs import Lecteur, Verif, donnee, resultat
 
 G = 9.81  # m/s², accélération de la pesanteur
 SOURCE = "NF P 94-282 — équilibre vertical (méthode simplifiée RetainWall, à confronter à la norme)"
+PRINCIPE_DELTA = ("Bilan des efforts verticaux sur l'écran, par mètre : poids propre déjaugé sous la nappe, frottement "
+                  "sol-écran Σ L·p·tan δ (vers le bas où le sol se décomprime : poussée ; vers le haut où il est comprimé : "
+                  "butée, contre-butée), composante verticale des tirants (vers le bas) et des bracons (vers le haut). Si "
+                  "les efforts montants dépassent les efforts descendants, l'obliquité δp admise en butée n'est pas "
+                  "mobilisable : la vérification échoue (réduire δp/φ' ou justifier la reprise). Contrôlée à chaque phase.")
+PRINCIPE_PORTANCE = ("Si la résultante est descendante, elle doit être reprise par la pointe et le frottement latéral de la "
+                     "fiche : γ_effet·F ≤ (Qb/γ_b + Qs/γ_s)/γ_R,d avec Qb = k_p·pl·A_pointe et Qs = coefficient_qs·pl·périmètre·fiche "
+                     "(pl de la couche au pied). Méthode simplifiée RetainWall (pl brut et non ple*, qs proportionnel à pl, "
+                     "frottement Qs cumulé aux composantes p·tan δ) : à confronter à la NF P 94-282.")
 
 
 def _geometrie(modele: Modele, lect: Lecteur) -> tuple[float | None, float, float]:
@@ -105,8 +114,18 @@ def verifier(modele: Modele, res: ResultatCalcul, normes) -> list[Verif]:
     detail = (f"efforts montants (butée, contre-butée, bracons) {monte:.0f} kN/m pour des efforts descendants "
               f"(poids déjaugé, poussée, tirants) {descend:.0f} kN/m"
               + (" : résultante montante, réduire δp/φ' ou justifier la reprise" if rapport > 1 else ""))
+    donnees_delta = [donnee("F_montants", "efforts montants : butée, contre-butée, bracons", monte, "kN/m"),
+                     donnee("F_descendants", "efforts descendants : poids déjaugé, frottement en poussée, tirants", descend, "kN/m"),
+                     donnee("W", "poids propre de l'écran (hors déjaugeage)", W, "kN/m"),
+                     donnee("H", "hauteur de l'écran", H, "m", "script")]
+    donnees_delta += [donnee(f"montants/descendants ({p.nom})", "rapport de la phase", m / max(d_, 1e-9)) for p, d_, m in cas if p.nom != ph.nom]
+    etapes_delta = [f"Phase retenue « {ph.nom} » (rapport le plus élevé) : efforts montants Σ L·p·tan δ (sol comprimé) + bracons = {monte:.1f} kN/m",
+                    f"Efforts descendants = poids déjaugé + Σ L·p·tan δ (sol décomprimé) + tirants = {descend:.1f} kN/m",
+                    f"rapport montants/descendants = {rapport:.3f}" + (" > 1 : résultante montante, δp non mobilisable" if rapport > 1 else " ≤ 1 : résultante descendante")]
     sorties.append(resultat("Équilibre vertical (mobilisation de δp)", "écran", ph.nom, rapport, detail, SOURCE,
-                            lect_poids, detail_non_verifiable=detail + " — poids de l'écran incomplet"))
+                            lect_poids, detail_non_verifiable=detail + " — poids de l'écran incomplet",
+                            famille="equilibre_vertical", principe=PRINCIPE_DELTA, donnees=donnees_delta, etapes=etapes_delta,
+                            schema={"type": "forces_verticales", "phase": ph.nom, "montants": monte, "descendants": descend, "W": W}))
 
     # 2. Portance : phase de plus forte résultante descendante
     descendants = [(p, d - m) for p, d, m in cas if d - m > 0]
@@ -130,11 +149,28 @@ def verifier(modele: Modele, res: ResultatCalcul, normes) -> list[Verif]:
                 "qs proportionnel à pl, frottement Qs cumulé aux composantes p·tan δ (double comptage possible, "
                 "à confirmer avec la NF P 94-282)")
     taux = None
+    donnees = [donnee("F", "résultante verticale descendante (phase retenue)", F, "kN/m"),
+               donnee("A_pointe", "section de pointe par mètre d'écran", A_b, "m²/m"),
+               donnee("périmètre", "périmètre frottant par mètre d'écran", perim, "m/m"),
+               donnee("fiche", "longueur de fiche sous le fond de fouille", fiche, "m"),
+               donnee("pl", "pression limite pressiométrique de la couche au pied", pl, "kPa", "script")]
+    etapes = [f"Phase retenue « {ph.nom} » : résultante descendante F = descendants − montants = {F:.1f} kN/m"]
     if not lect.manquants:
         Qb = kp * pl * A_b
         Qs = cqs * pl * perim * fiche
         R = (Qb / gb + Qs / gs) / grd
         taux = ge * F / R if R > 0 else float("inf")
         detail_k = f"Qb = {Qb:.0f}, Qs = {Qs:.0f} kN/m ; " + detail_k
-    sorties.append(resultat("Équilibre vertical (portance)", "écran", ph.nom, taux, detail_k, SOURCE, lect))
+        donnees += [donnee("Qb", "résistance de pointe = k_p·pl·A_pointe", Qb, "kN/m"),
+                    donnee("Qs", "frottement latéral = coefficient_qs·pl·périmètre·fiche", Qs, "kN/m"),
+                    donnee("R", "résistance de calcul (Qb/γ_b + Qs/γ_s)/γ_R,d", R, "kN/m")]
+        etapes += [f"Qb = k_p·pl·A_pointe = {kp:g} × {pl:g} × {A_b:.4f} = {Qb:.1f} kN/m",
+                   f"Qs = coefficient_qs·pl·périmètre·fiche = {cqs:g} × {pl:g} × {perim:.2f} × {fiche:.2f} = {Qs:.1f} kN/m",
+                   f"R = (Qb/γ_b + Qs/γ_s)/γ_R,d = ({Qb:.1f}/{gb:g} + {Qs:.1f}/{gs:g})/{grd:g} = {R:.1f} kN/m",
+                   f"taux = γ_effet·F/R = {ge:g} × {F:.1f} / {R:.1f} = {taux:.3f}"]
+    else:
+        etapes.append("valeurs manquantes (coefficients ou pl) : résistance et taux non calculables")
+    sorties.append(resultat("Équilibre vertical (portance)", "écran", ph.nom, taux, detail_k, SOURCE, lect,
+                            famille="equilibre_vertical", principe=PRINCIPE_PORTANCE, donnees=donnees, etapes=etapes,
+                            schema={"type": "forces_verticales", "phase": ph.nom, "montants": 0.0, "descendants": F, "W": W}))
     return sorties
