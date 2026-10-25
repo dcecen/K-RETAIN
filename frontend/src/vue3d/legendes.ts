@@ -75,7 +75,7 @@ export function legendes(res: Resultats, c: EtatCalquesScene, phase: number, ani
   }
   if (vis('resultats.efforts')) {
     const mode = modeCalque(c, 'resultats.efforts', 'service') as ModeEffort
-    out.push({ type: 'continue', id: 'efforts', titre: `Efforts dans les appuis (${mode === 'elu' ? 'ELU, × γ' : 'service'})`, unite: 'kN/m', min: 0, max: maxEfforts(res, mode),
+    out.push({ type: 'continue', id: 'efforts', titre: `Efforts d'appui (${mode === 'elu' ? 'ELU, × γ' : 'service'})`, unite: 'kN/m', min: 0, max: maxEfforts(res, mode),
       degrade: degradeCss('sequentielle'), phase: 'toutes phases' })
   }
   if (vis('resultats.fleches')) {

@@ -1,4 +1,4 @@
-// Outil « Couper ici » : plan vertical local que l'utilisateur place sur la paroi (clic, glissement
+// Outil « Courbes en un point » (coupe locale) : plan vertical local que l'utilisateur place sur la paroi (clic, glissement
 // ou abscisse saisie). Le panneau latéral lit les courbes par la source de résultats abstraite.
 import * as THREE from 'three'
 import { nb } from '../lib/format'
@@ -44,7 +44,7 @@ function specCoupeLocale(ctx: Contexte): Spec[] {
         const pos = k.scene.coupeLocale
         if (!pos) return
         const a = geo.aretes[pos.k]
-        o.push({ id: 'coupe.locale', pos: versThree(a.A[0] + a.t[0] * pos.sl, a.A[1] + a.t[1] * pos.sl, p.tete + 1.2), texte: `Couper ici · côté ${pos.k} · s = ${nb(pos.sl, 1)} m`, calque: 'coupes.locale', classe: 'coupe', selection: 'coupe_locale' })
+        o.push({ id: 'coupe.locale', pos: versThree(a.A[0] + a.t[0] * pos.sl, a.A[1] + a.t[1] * pos.sl, p.tete + 1.2), texte: `Courbes en un point · côté ${pos.k} · s = ${nb(pos.sl, 1)} m`, calque: 'coupes.locale', classe: 'coupe', selection: 'coupe_locale' })
       }
       return el
     },

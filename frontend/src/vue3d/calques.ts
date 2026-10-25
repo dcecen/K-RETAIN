@@ -49,8 +49,8 @@ export const ARBRE_CALQUES: DefCalque[] = [
     { id: 'environnement.voirie', nom: 'Voirie et réseaux' },
     { id: 'environnement.engins', nom: 'Grues et engins' },
   ] },
-  { id: 'paroi', nom: 'Paroi', enfants: [
-    { id: 'paroi.elements', nom: 'Paroi (panneaux, palplanches, pieux, profilés)' },
+  { id: 'paroi', nom: 'Écran', enfants: [
+    { id: 'paroi.elements', nom: 'Écran (panneaux, palplanches, pieux, profilés)' },
   ] },
   { id: 'appuis', nom: 'Appuis', enfants: [
     { id: 'appuis.butons', nom: 'Butons et bracons' },
@@ -60,14 +60,14 @@ export const ARBRE_CALQUES: DefCalque[] = [
     { id: 'appuis.assemblages', nom: 'Assemblages' },
   ] },
   { id: 'resultats', nom: 'Résultats', enfants: [
-    { id: 'resultats.deformee', nom: 'Déformée de la paroi', visible: false },
+    { id: 'resultats.deformee', nom: 'Déformée de l\'écran', visible: false },
     { id: 'resultats.deplacement', nom: 'Déplacement (couleur)', visible: false, exclusif: 'couleur-paroi',
       modes: [{ id: 'absolu', nom: '|y|' }, { id: 'signe', nom: 'y signé' }] },
     { id: 'resultats.moment', nom: 'Moment fléchissant', visible: false, exclusif: 'couleur-paroi', modes: MODES_COULEUR_AILETTES },
     { id: 'resultats.tranchant', nom: 'Effort tranchant', visible: false, exclusif: 'couleur-paroi', modes: [{ id: 'ailettes', nom: 'Ailettes' }, { id: 'couleur', nom: 'Couleur' }] },
     { id: 'resultats.pressions', nom: 'Pressions des terres et de l\'eau', visible: false,
       modes: [{ id: 'deux', nom: 'Deux faces' }, { id: 'terre', nom: 'Face terre' }, { id: 'fouille', nom: 'Face fouille' }] },
-    { id: 'resultats.efforts', nom: 'Efforts dans les appuis', visible: false, modes: [{ id: 'service', nom: 'Service' }, { id: 'elu', nom: 'ELU' }] },
+    { id: 'resultats.efforts', nom: 'Efforts d\'appui', visible: false, modes: [{ id: 'service', nom: 'Service' }, { id: 'elu', nom: 'ELU' }] },
     { id: 'resultats.fleches', nom: 'Flèche des butons et des liernes', visible: false,
       modes: [{ id: 'compression', nom: 'Avec compression' }, { id: 'poids_propre', nom: 'Poids propre seul' }] },
     { id: 'resultats.taux', nom: 'Taux de travail', visible: false, exclusif: 'couleur-paroi' },
@@ -81,7 +81,7 @@ export const ARBRE_CALQUES: DefCalque[] = [
     { id: 'coupes.zones', nom: 'Zones d\'application', visible: false },
     { id: 'coupes.diagrammes', nom: 'Diagrammes dans le plan de coupe', visible: false,
       modes: [{ id: 'deplacement', nom: 'Déplacement' }, { id: 'moment', nom: 'Moment' }, { id: 'pressions', nom: 'Pressions' }] },
-    { id: 'coupes.locale', nom: 'Coupe locale (« Couper ici »)' },
+    { id: 'coupes.locale', nom: 'Courbes en un point (coupe locale)' },
   ] },
   { id: 'annotations', nom: 'Annotations', enfants: [
     { id: 'annotations.noms', nom: 'Noms des appuis et objets' },
@@ -304,21 +304,21 @@ const LIVRES: Record<string, { nom: string; description: string; etat: () => Eta
     etat: () => seulement(['terrain', 'fouille', 'eau.amont', 'eau.aval', 'surcharges.volumes', 'environnement', 'paroi', 'appuis', 'annotations', 'outils.grille', 'outils.axes', 'outils.plan_coupe', 'resultats.alertes', 'coupes.plans', 'coupes.locale']),
   },
   structure: {
-    nom: 'Structure', description: 'Paroi, appuis et assemblages, sans terrain',
+    nom: 'Structure', description: 'Écran, appuis et assemblages, sans terrain',
     etat: () => seulement(['paroi', 'appuis', 'annotations.noms', 'outils.axes', 'resultats.alertes']),
   },
   resultats_paroi: {
-    nom: 'Résultats paroi', description: 'Paroi déformée colorée, enveloppes, étiquettes d\'extrêmes',
+    nom: 'Résultats de l\'écran', description: 'Écran déformé coloré, enveloppes, étiquettes d\'extrêmes',
     etat: () => seulement(['paroi', 'resultats.deformee', 'resultats.deplacement', 'resultats.enveloppes', 'resultats.extremes', 'fouille.fond', 'outils.axes', 'annotations.cotes'],
       (e) => { e.feuilles['paroi.elements'].opacite = 0.15 }),
   },
   resultats_appuis: {
-    nom: 'Résultats appuis', description: 'Appuis colorés par effort, flèche des butons, étiquettes',
+    nom: 'Résultats des appuis', description: 'Appuis colorés par effort, flèche des butons, étiquettes',
     etat: () => seulement(['paroi', 'appuis', 'resultats.efforts', 'resultats.fleches', 'resultats.alertes', 'annotations.noms', 'outils.axes'],
       (e) => { e.feuilles['paroi.elements'].opacite = 0.25 }),
   },
   coupes: {
-    nom: 'Coupes', description: 'Paroi en fantôme, plans de coupe nommés avec leurs diagrammes, zones d\'application',
+    nom: 'Coupes de calcul', description: 'Écran en fantôme, plans de coupe nommés avec leurs diagrammes, zones d\'application',
     etat: () => seulement(['paroi', 'coupes', 'fouille.fond', 'outils.axes', 'annotations.cotes'],
       (e) => { e.feuilles['paroi.elements'].opacite = 0.2 }),
   },

@@ -20,6 +20,17 @@ ligne ; un clic sur l'erreur place le curseur sur la ligne. Un **mot-clé inconn
 frappe, clé d'une autre version) n'empêche pas le calcul : il est ignoré et signalé en orange.
 Le bloc `projet` peut être un simple texte ou un bloc (`nom`, `affaire`, `client`…).
 
+### L'interface en bref
+
+La colonne de gauche est la seule navigation : **Données** (huit étapes numérotées : projet,
+sols, écran, eau, surcharges, appuis, phases, vérifications demandées), **Résultats** (synthèse,
+diagrammes, efforts d'appui, vérifications, maquette 3D, hypothèses et référentiel, pseudo-3D
+s'il existe) et **Outils** (script YAML, assemblages, base matériaux, aide). Chaque formulaire
+met à jour la ligne correspondante du script, et inversement ; les options rarement utiles sont
+repliées sous « Options avancées » ; le panneau de droite décrit le champ sélectionné (unité,
+bornes, clé du script). Menu Fichier : nouveau projet (gabarit minimal), exemples, ouvrir,
+enregistrer, import RIDO. Menu Aide : premiers pas, ce guide, raccourcis clavier, conventions.
+
 ### Unités (fixes, jamais implicites)
 
 | Grandeur | Unité |
@@ -214,7 +225,7 @@ qu'à essayer l'application : ses valeurs sont signalées « DEMO » dans les r�
 
 Le bloc `plan` décrit la fouille en plan (`contour`, polygone en m) et, facultativement,
 la position de chaque appui (`appuis`: `appui`, `de`, `a`). Sans positions, les appuis sont
-répartis à leur espacement. L'onglet « Maquette 3D » produit un fichier HTML autonome
+répartis à leur espacement. La vue « Maquette 3D » (menu Exporter) produit un fichier HTML autonome
 qui s'ouvre sans installation.
 
 Le mode `calcul: { mode: pseudo3d }` avec le bloc `pseudo3d` calcule la paroi comme une
@@ -224,7 +235,7 @@ milieu). Donnez `rigidite_horizontale` pour une paroi peu rigide horizontalement
 
 ## 11. Assemblages
 
-L'onglet **Assemblages** propose 14 types de la pratique française des parois butonnées et
+La vue **Assemblages** propose 14 types de la pratique française des parois butonnées et
 tirantées : platine d'about, platine boulonnée, chaise d'appui, appui biais de buton d'angle
 (dé de calage), raboutage, boîte de vérinage, buton d'angle en coin de fouille, raidisseurs
 de lierne, console de lierne chevillée sur la paroi, éclissage de lierne, tête de tirant sur

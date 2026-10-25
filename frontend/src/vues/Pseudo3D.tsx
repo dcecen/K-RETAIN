@@ -6,7 +6,7 @@ import { Graphique } from './Graphique'
 const transposer = (g: number[][]) => g[0].map((_, j) => g.map((ligne) => ligne[j]))
 
 /** Champs pseudo-3D de la phase : déplacement et moment vertical le long de la paroi développée. */
-export function Pseudo3D({ res, phase }: { res: Resultats; phase: number }) {
+export function Pseudo3D({ res, phase, theme }: { res: Resultats; phase: number; theme?: string }) {
   const p3d = res.pseudo3d!
   const ph = p3d.phases[Math.min(phase, p3d.phases.length - 1)]
   const { data, layout } = useMemo(() => {
@@ -62,7 +62,7 @@ export function Pseudo3D({ res, phase }: { res: Resultats; phase: number }) {
           <tr><td>{p3d.fermee ? 'Butons entre parois' : 'Appuis ponctuels'}</td><td className="num">{ph.appuis?.length ?? 0}</td><td /><td>effort max {nb((ph.appuis ?? []).reduce((m, a) => Math.max(m, a.effort), 0), 0)} kN{p3d.fermee ? ', angles à w = 0' : ''}</td></tr>
         </tbody>
       </table>
-      <Graphique data={data} layout={layout} hauteur={ph.Ms || ph.V ? 900 : 560} nom={`pseudo3d_${ph.nom}`} />
+      <Graphique data={data} layout={layout} hauteur={ph.Ms || ph.V ? 900 : 560} nom={`pseudo3d_${ph.nom}`} theme={theme} />
     </div>
   )
 }

@@ -70,7 +70,7 @@ export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d }:
       case 'efforts': return <Efforts res={res!} phase={a.phase} onPhase={a.setPhase} onAppui={(n) => { a.selectionner({ type: 'appui', nom: n }); a.setTiroirInsp(true) }} />
       case 'verifications': return <Verifications res={res!} projet={p.projet} filtre={a.origine3d ? a.selection3d : null} onRetour={() => a.setVue('3d')} />
       case 'hypotheses': return <Hypotheses res={res!} modele={modele} phase={a.phase} version={p.serveur} />
-      case 'pseudo3d': return <Pseudo3D res={res!} phase={a.phase} />
+      case 'pseudo3d': return <Pseudo3D res={res!} phase={a.phase} theme={a.theme} />
       case '3d':
         return res!.maquette ? (
           <Onglet3D res={res!} texte={p.texteCalcule()} phase={a.phase} theme={a.theme} projet={p.projet} coupeActive={p.coupeActive} cotes={p.cotesPlan}

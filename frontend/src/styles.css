@@ -132,7 +132,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn:hover { background: var(--survol); }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn.principal { background: var(--accent); border-color: var(--accent); color: var(--accent-texte); font-weight: 500; }
-.btn.principal:hover { background: #2a5d8d; }
+.btn.principal:hover { background: color-mix(in srgb, var(--accent) 88%, black); }
 .btn.icone { width: 28px; padding: 0; justify-content: center; }
 .btn.discret { border-color: transparent; background: transparent; }
 .btn.discret:hover { background: var(--survol); }
@@ -231,20 +231,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .puce-sol { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; border: 1px solid rgba(0, 0, 0, 0.15); }
 .noeud .erreur-puce { width: 6px; height: 6px; border-radius: 50%; background: var(--rouge); }
 
-/* onglets */
-.onglets {
-  display: flex; align-items: stretch; height: 36px; flex-shrink: 0;
-  border-bottom: 1px solid var(--filet); background: var(--panneau-2); overflow-x: auto; scrollbar-width: none;
-}
-.onglet {
-  display: flex; align-items: center; gap: 6px; padding: 0 14px; border: none; background: none;
-  border-right: 1px solid var(--filet); color: var(--texte-doux); cursor: pointer; white-space: nowrap;
-}
-.onglet:hover { color: var(--texte); background: var(--survol); }
-.onglet.actif { color: var(--texte); background: var(--panneau); box-shadow: inset 0 2px 0 var(--accent); font-weight: 500; }
-.onglet .compteur { font-size: 11.5px; color: var(--texte-doux); }
-.onglet .compteur.rouge { color: var(--rouge); }
-.contenu-onglet { flex: 1; min-height: 0; overflow: auto; position: relative; }
 .barre-outils {
   display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; flex-shrink: 0;
   border-bottom: 1px solid var(--filet); background: var(--panneau);
@@ -335,7 +321,6 @@ select.champ { padding: 0 2px; }
 .panneau-survol table { border-collapse: collapse; width: 100%; }
 .panneau-survol td { padding: 1px 0; }
 .panneau-survol td:last-child { text-align: right; font-family: var(--mono); padding-left: 12px; }
-.cadre-3d { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
 
 /* formulaires de saisie */
 .saisie { padding: 14px 18px 30px; max-width: 1200px; }
@@ -351,10 +336,6 @@ select.champ { padding: 0 2px; }
 .puces-choix { display: flex; flex-wrap: wrap; gap: 4px; }
 .puce-choix { padding: 1px 8px; border: 1px solid var(--filet-fort); border-radius: 2px; background: var(--panneau); cursor: pointer; font-size: 12px; }
 .puce-choix.actif { background: var(--accent); border-color: var(--accent); color: var(--accent-texte); }
-.carte-phase { display: grid; grid-template-columns: 34px minmax(180px, 2fr) repeat(4, minmax(110px, 1fr)) auto; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--filet); }
-.carte-phase:last-child { border-bottom: none; }
-.carte-phase.actif { background: var(--selection); }
-.carte-phase .lib { font-size: 11px; color: var(--texte-doux); }
 
 /* script */
 .vue-script { display: flex; flex-direction: column; height: 100%; }

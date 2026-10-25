@@ -32,7 +32,7 @@ export function Efforts({ res, phase, onPhase, onAppui }: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="barre-outils">
-        <span className="doux">Efforts dans les appuis</span>
+        <span className="doux">Effort par phase et par appui ; maximum en pied de tableau</span>
         <span className="espace" />
         <div className="puces-choix" role="radiogroup" aria-label="Unité">
           <button className={`puce-choix ${unite === 'kN/m' ? 'actif' : ''}`} onClick={() => setUnite('kN/m')}>kN par mètre d'écran</button>

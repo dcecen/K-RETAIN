@@ -613,3 +613,83 @@ Captures avant / après : `docs/captures/aspect_2026-10-25/`.
 `lancer_tests.ps1` : pytest 334 réussis, 6 ignorés ; ruff 0 ; tsc 0 ; eslint 0 ; vitest 78 (13 fichiers).
 Interface reconstruite et parcourue par Chrome sans affichage (calcul, coupe, efforts, vérifications, saisie,
 maquette 3D, script, hypothèses, note) : aucune erreur console.
+
+## Refonte ergonomique de l'interface (25 octobre 2026)
+
+Demande : auditer le logiciel pour simplifier l'interface et son usage, puis appliquer les améliorations, refonte
+complète autorisée, moteur de calcul intact. Trois audits en lecture seule (cartographie, parcours utilisateur et
+API, inventaire de complexité) plus une revue d'architecte ; plan validé ; neuf lots, un commit par lot, chacun
+validé par `lancer_tests.ps1` et par le test de fumée Chrome. Captures avant / après :
+`docs/captures/refonte_2026-10-25/`.
+
+### Constats de l'audit (avant)
+Deux navigations concurrentes (arbre + 10 onglets, libellés différents) ; mêmes résultats affichés à 3 à 11 endroits ;
+commandes en double (coupe, enregistrement, export, comparaison) ; raccourcis et outils cachés ; pas de « Nouveau
+projet » ni de page d'accueil ; options avancées mêlées aux options de base (15 colonnes par couche, 17 commandes
+sur la barre 3D, 5 boîtes `prompt` pour une risberme) ; vocabulaire flottant (« Écran » / « Paroi », « coupe » pour
+5 notions) ; phases numérotées différemment en saisie et en résultats ; 16 boîtes natives ; aucun test de
+composant, scripts Chrome non versionnés.
+
+### Fait
+- **Lot 0** : test de fumée Chrome versionné (`outils/interface/fumee.mjs`, `captures.ps1`) : parcours de toutes les
+  vues, erreurs console, vérifications (saisie d'un champ = une seule ligne du script modifiée, panneaux 3D,
+  touches L / C / Échap, dialogues), captures PNG.
+- **Lot 1** : navigation unique en trois groupes (Données 1 à 8, Résultats, Outils), plus de barre d'onglets ;
+  en-tête de vue (titre, sous-titre, sélecteur de coupe de calcul, « Voir dans le script », retour vers la maquette) ;
+  `App.tsx` ramené à 120 lignes autour de `lib/useProjet.ts` (script, validation, calcul) et `lib/useAffichage.ts`
+  (vue, phase, sélections, thème) ; table des vues `lib/vues.ts` testée ; vue **Synthèse** d'atterrissage ; page
+  « Premiers pas » ; premier script ouvert : `fouille_exemple`.
+- **Lot 2** : menu Fichier (Nouveau projet depuis `exemples/modeles/nouveau_projet.yaml`, groupe « Modèles » de
+  `/api/exemples`, test : il se calcule ; exemples avec titres lisibles ; confirmation avant de remplacer un script
+  modifié) ; menu Aide (premiers pas, guide du script rendu dans l'application par `marked` depuis `GET /api/guide`,
+  raccourcis, conventions, rapport de validation, à propos) ; dialogues intégrés (`lib/dialogue.ts`,
+  `composants/Dialogue.tsx`) à la place de `confirm` / `prompt` / `alert` ; risberme et surcharge tracées en 3D : une
+  seule boîte de saisie.
+- **Lot 3** : état initial numéroté 0, phases du script 1..n partout (frise, panneau de phase, efforts, hypothèses,
+  maquette, note) ; seuil d'attention unique `SEUIL_ATTENTION` dans `lib/verifs.ts` (valeur 0,9 inchangée, même
+  que `sout/verifs.py`).
+- **Lot 4** : formulaires scindés (`vues/saisie/`), partie essentielle et « Options avancées » repliées (compteur
+  de valeurs renseignées, ouvert d'office en cas d'erreur) ; Sols : terrain initial, colonnes avancées ; Écran :
+  EI imposé, armatures, options pseudo-3D ; Eau : écoulement et bouchon en avancé ; Surcharges : colonnes selon le
+  type, charges en plan et phases éditables ; Appuis : E, A, raideur, symétrique, lierne, unilatéral, longueur
+  élastique en avancé ; Projet : cartouche toujours éditable ; critères ELS avec les vérifications ; panneau droit
+  « Aide du champ » (description, bornes, clé du script, erreurs du bloc). Test vitest : aucune clé éditable avant
+  la refonte n'a disparu.
+- **Lot 5** : liste simple des phases (ordre, insertion, déplacement, suppression) tant qu'il n'y a pas de variante,
+  explorateur à branches sur demande ; appuis et surcharges à cocher.
+- **Lot 6** : maquette 3D : barre en menus (Affichage = préréglages de calques, Plan de coupe, Comparer, Outils,
+  Exporter), un seul panneau latéral à la fois, état conservé au changement de vue (`vue3d/etat3d.ts`), « Courbes
+  en un point » (ex-« Couper ici »), info-bulles lisibles, note réduite ; le panneau de résultats renvoie vers la
+  Synthèse ; unité des cotes transmise aux courbes.
+- **Lot 7** : assemblages du script ouverts, modifiés et supprimés depuis la vue ; appels serveur par `api.ts`.
+- **Lot 8** : vocabulaire (« Écran », « Efforts d'appui », « Courbes en un point », amont = côté terre / aval = côté
+  fouille expliqué une fois), CSS mort retiré, graphique pseudo-3D redessiné au changement de thème, captures
+  « après », guide (§ « L'interface en bref »).
+
+### Décisions prises par défaut (à contester au besoin)
+1. Barre d'onglets supprimée au profit de la navigation gauche seule (l'ETAT du 25/10 notait « onglets conservés »).
+2. Numérotation des phases 0..n partout, note comprise (test de libellé `navigation.test.ts` mis à jour : « phase 8 »
+   -> « phase 7 », aucune valeur de calcul concernée).
+3. Dépendance npm `marked` (MIT) pour afficher le guide dans l'application.
+4. Export de la maquette HTML sur le texte du dernier calcul (menu Exporter et vue 3D).
+5. Premier lancement sur `fouille_exemple` et la page « Premiers pas ».
+6. Dans la maquette, la lecture animée reste un réglage du menu Affichage (case « animation entre les phases »).
+
+### Non-régression
+`tests/unitaires/test_non_regression_aspect.py` (tolérance 1e-6), jeux figés `test_vue3d_donnees.py`, cas E01-E08 :
+inchangés et verts à chaque lot. Aucun fichier de `backend/sout` modifié hormis `api.py` (groupe « Modèles » de
+`/api/exemples`, route `GET /api/guide`). Côté client, les calculs listés par l'audit (efforts d'assemblage,
+`sourceResultats.ts`, `resultats.ts`, extrêmes, note) sont inchangés.
+
+### Testé
+`lancer_tests.ps1` après chaque lot : pytest 336 réussis, 6 ignorés ; ruff 0 ; tsc 0 ; eslint 0 ; vitest 88
+(15 fichiers). Fumée Chrome (`outils/interface/captures.ps1`) : 28 captures, aucune erreur console, saisie de φ' =
+une seule ligne du script modifiée, un seul panneau 3D à la fois, dialogues fermés par Échap.
+
+### Reste à faire / non traité
+- Vue 3D démontée au changement de vue (les panneaux, le plan de coupe et la position des courbes sont conservés
+  par `etat3d`, pas la caméra).
+- Calques : l'arbre complet (56 lignes) reste tel quel derrière le bouton « Calques » ; seuls les préréglages sont
+  dans le menu Affichage.
+- Surcharges `lineaire` (tracé) et `convoi` : toujours dans le script seulement.
+- Menus sans navigation au clavier (flèches) ; pas de test de composant React (jsdom), la fumée Chrome en tient lieu.

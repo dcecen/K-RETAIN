@@ -68,7 +68,7 @@ export function filAriane(sel: SelectionAnalysee | null, projet: ProjetCoupes | 
   if (coupe) out.push({ libelle: coupe.nom.split(' — ')[0], selection: `coupe:${coupe.nom}` })
   if (!sel) return out
   switch (sel.type) {
-    case 'paroi': out.push({ libelle: 'Paroi', selection: `paroi:${sel.k ?? 0}` }); break
+    case 'paroi': out.push({ libelle: 'Écran', selection: `paroi:${sel.k ?? 0}` }); break
     case 'appui': out.push({ libelle: 'Appuis', selection: null }, { libelle: sel.nom, selection: `appui:${sel.nom}` }); break
     case 'lierne': out.push({ libelle: 'Appuis', selection: null }, { libelle: sel.nom, selection: `appui:${sel.nom}` }, { libelle: 'lierne', selection: `lierne:${sel.nom}` }); break
     case 'assemblage': {
@@ -79,7 +79,7 @@ export function filAriane(sel: SelectionAnalysee | null, projet: ProjetCoupes | 
       break
     }
     case 'coupe': if (!coupe || coupe.nom !== sel.nom) out.push({ libelle: sel.nom.split(' — ')[0], selection: `coupe:${sel.nom}` }); break
-    case 'coupe_locale': out.push({ libelle: 'Couper ici', selection: 'coupe_locale' }); break
+    case 'coupe_locale': out.push({ libelle: 'Courbes en un point', selection: 'coupe_locale' }); break
     case 'fond': out.push({ libelle: 'Fond de fouille', selection: 'fond' }); break
     case 'bouchon': out.push({ libelle: 'Fond de fouille', selection: 'fond' }, { libelle: 'Bouchon', selection: 'bouchon' }); break
     case 'couche': out.push({ libelle: 'Sol', selection: null }, { libelle: `Couche ${(sel.index ?? 0) + 1}`, selection: `couche:${sel.index ?? 0}` }); break
@@ -91,8 +91,8 @@ export function filAriane(sel: SelectionAnalysee | null, projet: ProjetCoupes | 
 
 /** En-tête du panneau : « B2 · coupe C1 · phase 8 ». */
 export function titreFiltre(sel: SelectionAnalysee | null, coupeNom: string | null, phase: number): string {
-  const objet = !sel ? 'Projet' : sel.type === 'paroi' ? `Paroi (côté ${sel.k ?? 0})` : sel.type === 'couche' ? `Couche ${(sel.index ?? 0) + 1}`
-    : sel.type === 'coupe' ? sel.nom.split(' — ')[0] : sel.type === 'coupe_locale' ? 'Couper ici' : sel.type === 'fond' ? 'Fond de fouille' : sel.type === 'bouchon' ? 'Bouchon'
+  const objet = !sel ? 'Projet' : sel.type === 'paroi' ? `Écran (côté ${sel.k ?? 0})` : sel.type === 'couche' ? `Couche ${(sel.index ?? 0) + 1}`
+    : sel.type === 'coupe' ? sel.nom.split(' — ')[0] : sel.type === 'coupe_locale' ? 'Courbes en un point' : sel.type === 'fond' ? 'Fond de fouille' : sel.type === 'bouchon' ? 'Bouchon'
     : sel.type === 'lierne' ? `Lierne de ${sel.nom}` : sel.type === 'surcharge' ? `Surcharge ${(sel.index ?? 0) + 1}` : sel.nom
   return [objet, coupeNom ? `coupe ${coupeNom.split(' — ')[0]}` : null, phase === 0 ? 'état initial' : `phase ${phase}`].filter(Boolean).join(' · ')
 }
