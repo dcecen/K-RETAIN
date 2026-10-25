@@ -6,7 +6,8 @@ import { nomProjet } from './lib/format'
 import type { Chemin } from './lib/scriptDoc'
 import { useAffichage, useAncre } from './lib/useAffichage'
 import { useProjet } from './lib/useProjet'
-import { avecFrise, avecInspecteur, defVue, VUE_APRES_CALCUL } from './lib/vues'
+import { avecFrise, avecInspecteur, defVue, estSaisie, VUE_APRES_CALCUL } from './lib/vues'
+import { AideChamp } from './composants/AideChamp'
 import { BarreTitre } from './composants/BarreTitre'
 import { Dialogue } from './composants/Dialogue'
 import { Disposition } from './composants/Disposition'
@@ -108,7 +109,8 @@ export default function App() {
             nNonOk={nNonOk} nErreurs={p.erreurs.length} onVue={a.setVue} onReplier={() => a.setNavRepliee(true)} />
         }
         centre={<VueCentrale p={p} a={a} onCalculer={() => void calculer()} changerCoupe={changerCoupe} ajouterDepuis3d={ajouterDepuis3d} />}
-        insp={avecInspecteur(a.vue) || a.tiroirInsp ? <Inspecteur res={res} phase={a.phase} selection={a.selection} modele={p.modele} onSelection={a.selectionner} /> : null}
+        insp={avecInspecteur(a.vue) || a.tiroirInsp ? <Inspecteur res={res} phase={a.phase} selection={a.selection} modele={p.modele} onSelection={a.selectionner} />
+          : estSaisie(a.vue) ? <AideChamp champ={a.aideChamp} schema={p.schema} erreurs={p.erreurs} prefixe={defVue(a.vue).bloc} onLigne={(l) => { a.setVue('script'); a.viserLigne(l) }} /> : null}
         frise={avecFrise(a.vue) && res ? <FrisePhases res={res} phase={a.phase} onPhase={changerPhase} /> : null}
       />
       <Dialogue />

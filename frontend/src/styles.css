@@ -535,6 +535,23 @@ select.champ { padding: 0 2px; }
 .etiquette-3d.alerte.orange { background: var(--orange-doux); color: var(--orange); border-color: var(--orange); }
 .barre-retour { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--filet); background: var(--accent-doux); font-size: 12.5px; }
 
+/* ---------------------------------------------------------------- formulaires : options avancées, cases, aide du champ */
+.avance { border: 1px solid var(--filet); border-radius: 2px; margin-bottom: 16px; background: var(--panneau); }
+.avance > summary { cursor: pointer; padding: 7px 10px; font-weight: 500; list-style: none; display: flex; align-items: center; gap: 8px; user-select: none; }
+.avance > summary::-webkit-details-marker { display: none; }
+.avance > summary::before { content: ''; width: 6px; height: 6px; border-right: 1.5px solid var(--texte-doux); border-bottom: 1.5px solid var(--texte-doux); transform: rotate(-45deg); margin: 0 4px 0 2px; transition: transform 0.1s; }
+.avance[open] > summary { border-bottom: 1px solid var(--filet); background: var(--panneau-2); }
+.avance[open] > summary::before { transform: rotate(45deg); }
+.avance-corps { overflow: auto; }
+.avance-corps .bloc-titre { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--filet); background: var(--panneau-2); font-weight: 500; }
+.cases-choix { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.case-choix { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 5px; border: 1px solid var(--filet-fort); border-radius: 2px; background: var(--panneau); cursor: pointer; font-size: 12px; color: var(--texte); }
+.case-choix.actif { background: var(--selection); border-color: var(--accent); }
+.case-choix.inconnu { border-style: dashed; color: var(--orange); }
+.case-choix input { margin: 0; }
+.aide-champ p { margin: 4px 0; }
+.aide-champ .bornes { margin: 4px 0 0; padding-left: 18px; color: var(--texte-doux); font-size: 12px; }
+
 /* ---------------------------------------------------------------- dialogues de l'application */
 .dialogue-voile { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgba(20, 28, 40, 0.35); }
 .dialogue { width: min(460px, calc(100vw - 32px)); background: var(--panneau); border: 1px solid var(--filet-fort); border-radius: 2px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22); padding: 14px 16px 12px; }

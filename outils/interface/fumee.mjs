@@ -120,6 +120,24 @@ if (await aller('Maquette 3D', { attente: 4000 })) {
 await evaluer(`(() => { const b = [...document.querySelectorAll('.noeud.enfant')][0]; b?.click() })()`)
 await dormir(1200)
 await capture('09_saisie_couche')
+// Saisie de phi' sur la première couche : l'aide du champ s'affiche, une seule ligne du script change
+{
+  const avant = await evaluer(`localStorage.getItem('retainwall.brouillon') ?? ''`)
+  const ok = await evaluer(`(() => {
+    const i = [...document.querySelectorAll('.saisie table tbody tr:first-child input.champ.num')][4]
+    if (!i) return false
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+    i.focus(); setter.call(i, String(Number(i.value) + 1)); i.dispatchEvent(new Event('input', { bubbles: true })); i.blur(); return true })()`)
+  await dormir(900)
+  if (ok) {
+    await capture('09b_aide_champ')
+    const apres = await evaluer(`localStorage.getItem('retainwall.brouillon') ?? ''`)
+    const a = avant.split(/\r?\n/), b = apres.split(/\r?\n/)
+    const diff = a.length !== b.length ? -1 : a.filter((l, k) => l !== b[k]).length
+    if (diff !== 1) journal.push(`saisie de phi : ${diff} ligne(s) du script modifiée(s) au lieu de 1`)
+    else console.log('saisie de phi : une seule ligne du script modifiée')
+  } else journal.push('champ phi introuvable dans la vue Sols')
+}
 for (const [nom, texte] of [['10_projet', 'Projet'], ['11_ecran', 'Écran'], ['12_eau', 'Eau'], ['13_surcharges', 'Surcharges'], ['14_appuis', 'Appuis'], ['15_phases', 'Phases']]) {
   if (await aller(texte)) await capture(nom)
 }

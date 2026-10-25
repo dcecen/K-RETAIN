@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ProjetCoupes, Resultats } from './api'
 import type { Selection, Vue } from './etat'
 import type { SectionAide } from '../vues/Aide'
+import type { AideChampInfo } from '../vues/saisie'
 import { appliquerTheme, choisirTheme, themeInitial, type Theme } from './theme'
 import { decoderAncre, encoderAncre } from '../vue3d/navigation'
 
@@ -19,6 +20,7 @@ export function useAffichage() {
   const [tiroirInsp, setTiroirInsp] = useState(false)
   const [ligneCible, setLigneCible] = useState<{ ligne: number; n: number } | null>(null)
   const [sectionAide, setSectionAide] = useState<SectionAide | null>(null)
+  const [aideChamp, setAideChamp] = useState<AideChampInfo | null>(null)   // champ de saisie focalisé (panneau droit)
   const compteurCible = useRef(0)
 
   useEffect(() => { appliquerTheme(theme) }, [theme])
@@ -68,7 +70,7 @@ export function useAffichage() {
     vue, setVue, ouvrirDepuis3d, origine3d, phase, setPhase, selection, selectionner, setSelection,
     selection3d, selectionner3d, prereglage, setPrereglage, theme, basculerTheme,
     navRepliee, setNavRepliee, tiroirNav, setTiroirNav, tiroirInsp, setTiroirInsp,
-    ligneCible, viserLigne, sectionAide, ouvrirAide,
+    ligneCible, viserLigne, sectionAide, ouvrirAide, aideChamp, setAideChamp,
   }
 }
 

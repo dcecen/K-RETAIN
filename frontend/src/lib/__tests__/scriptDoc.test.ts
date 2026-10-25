@@ -72,6 +72,13 @@ describe('fixer : remplacement en place', () => {
   })
 })
 
+describe('fixer : bloc projet', () => {
+  it('convertit « projet: texte » en bloc avec nom quand un champ de cartouche est renseigné', () => {
+    const t = fixer('projet: Fouille A\nsol: []\n', ['projet'], { nom: 'Fouille A', affaire: 'A-12' })
+    expect(lire(t).modele).toEqual({ projet: { nom: 'Fouille A', affaire: 'A-12' }, sol: [] })
+  })
+})
+
 describe('renommerAppui', () => {
   it('met à jour les phases, les assemblages et le plan', () => {
     const t = renommerAppui(SCRIPT, 'B1', 'BUT1')

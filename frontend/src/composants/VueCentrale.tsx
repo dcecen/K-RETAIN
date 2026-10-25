@@ -11,7 +11,7 @@ import { Efforts } from '../vues/Efforts'
 import { Hypotheses } from '../vues/Hypotheses'
 import { Materiaux } from '../vues/Materiaux'
 import { Pseudo3D } from '../vues/Pseudo3D'
-import { Saisie } from '../vues/Saisie'
+import { Saisie } from '../vues/saisie'
 import { Synthese } from '../vues/Synthese'
 import { Verifications } from '../vues/Verifications'
 import { Aide } from '../vues/Aide'
@@ -59,7 +59,7 @@ export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d }:
   const contenu = (): ReactNode => {
     if (estSaisie(vue)) {
       return (
-        <Saisie modele={modele} erreurs={p.erreurs} schema={p.schema} references={p.references} actions={p.actions}
+        <Saisie modele={modele} erreurs={p.erreurs} schema={p.schema} references={p.references} actions={p.actions} onAide={a.setAideChamp}
           section={vue} selection={a.selection} onSelection={a.setSelection} phaseActive={a.phase} onPhaseActive={a.setPhase} res={res} />
       )
     }
