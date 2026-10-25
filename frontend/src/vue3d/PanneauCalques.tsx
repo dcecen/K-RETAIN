@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { IconeChevronB, IconeChevronD, IconeCiseaux, IconeFermer, IconeIsoler, IconeLoupe, IconeOeil, IconeOeilBarre, IconeVerrou, IconeVerrouOuvert } from '../lib/icones'
 import { telechargerTexte } from '../lib/exporter'
+import { confirmer, informer, saisir } from '../lib/dialogue'
 import {
   ARBRE_CALQUES, basculerIsolation, definirCoupe, definirMode, definirOpacite, definirReglage, definirVerrou, definirVisible, enregistrerPrereglage,
   etatPrereglage, exporterJson, importerJson, PREREGLAGES_LIVRES, rechercher, REGLAGES, visibiliteGroupe,
@@ -27,15 +28,15 @@ export function PanneauCalques({ etat, perso, onEtat, onPerso, onFermer, disponi
   const basculerRepli = (id: string) => setReplies((r) => { const n = new Set(r); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   const enregistrer = () => {
-    const nom = window.prompt('Nom du préréglage :')
-    if (nom?.trim()) onPerso(enregistrerPrereglage(perso, nom.trim(), etat))
+    void saisir({ titre: 'Enregistrer un préréglage de calques', champs: [{ cle: 'nom', libelle: 'Nom du préréglage', type: 'text' }], ok: 'Enregistrer' })
+      .then((v) => { const nom = v ? String(v.nom).trim() : ''; if (nom) onPerso(enregistrerPrereglage(perso, nom, etat)) })
   }
   const importer = async (f: File) => {
     try {
       const r = importerJson(await f.text())
       onEtat(r.etat)
       if (r.prereglages.length) onPerso([...perso.filter((p) => !r.prereglages.some((q) => q.id === p.id)), ...r.prereglages])
-    } catch (e) { alert(`Fichier de calques illisible : ${e instanceof Error ? e.message : String(e)}`) }
+    } catch (e) { void informer(`Fichier de calques illisible : ${e instanceof Error ? e.message : String(e)}`) }
   }
 
   const reglage = (id: string, r: DefReglage, v: number | string | boolean | undefined) => {
@@ -129,7 +130,7 @@ export function PanneauCalques({ etat, perso, onEtat, onPerso, onFermer, disponi
         <button className="btn" onClick={() => telechargerTexte(exporterJson(etat, perso), 'calques_retainwall.json', 'application/json')}>Exporter JSON</button>
         <button className="btn" onClick={() => fichier.current?.click()}>Importer</button>
         <input ref={fichier} type="file" accept=".json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importer(f); e.target.value = '' }} />
-        {perso.length > 0 && <button className="btn discret" onClick={() => { if (confirm('Supprimer vos préréglages enregistrés ?')) onPerso([]) }}>Supprimer les miens</button>}
+        {perso.length > 0 && <button className="btn discret" onClick={() => void confirmer('Supprimer vos préréglages de calques enregistrés ?', { ok: 'Supprimer' }).then((ok) => { if (ok) onPerso([]) })}>Supprimer les miens</button>}
       </div>
     </aside>
   )

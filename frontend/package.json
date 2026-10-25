@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
+    "marked": "^18.1.1",
     "monaco-editor": "^0.52.0",
     "plotly.js-dist-min": "^2.35.2",
     "react": "^19.1.0",

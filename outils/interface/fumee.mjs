@@ -67,7 +67,8 @@ const capture = async (nom) => {
 const aller = async (texte, { attente = 1200, obligatoire = true } = {}) => {
   const ok = await evaluer(`(() => {
     const lib = (x) => (x.querySelector('.libelle') ?? x).textContent.trim()
-    const b = [...document.querySelectorAll('.onglet, .noeud, button')].find((x) => lib(x).startsWith(${JSON.stringify(texte)}))
+    const cands = [...document.querySelectorAll('.noeud'), ...document.querySelectorAll('.onglet'), ...document.querySelectorAll('button')]
+    const b = cands.find((x) => lib(x).startsWith(${JSON.stringify(texte)}))
     if (b) { b.click(); return true } return false })()`)
   if (!ok) { console.log('vue introuvable :', texte); if (obligatoire) manquantes.push(texte) }
   await dormir(attente)
@@ -125,6 +126,16 @@ for (const [nom, texte] of [['10_projet', 'Projet'], ['11_ecran', 'Écran'], ['1
 // Outils
 for (const [nom, texte, oblig] of [['16_script', 'Script', true], ['17_assemblages', 'Assemblages', true], ['18_materiaux', 'Base matériaux', true], ['19_aide', 'Aide', false]]) {
   if (await aller(texte, { attente: 2000, obligatoire: oblig })) await capture(nom)
+}
+
+// Menu Fichier ouvert, puis boîte de dialogue de confirmation (suppression d'une surcharge, annulée par Échap)
+if (await aller('Fichier', { attente: 600, obligatoire: false })) { await capture('20_menu_fichier'); await touche('Escape', 'Escape', 27); await dormir(300) }
+if (await aller('Surcharges')) {
+  const ok = await evaluer(`(() => { const b = document.querySelector('.saisie button[title="Supprimer"]'); if (b) { b.click(); return true } return false })()`)
+  await dormir(600)
+  if (ok) { await capture('21_dialogue'); await touche('Escape', 'Escape', 27); await dormir(300) }
+  const reste = await evaluer(`!!document.querySelector('.dialogue')`)
+  if (reste) journal.push('dialogue encore ouvert après Échap')
 }
 
 console.log(`--- journal : ${journal.length} entrée(s) ; vues manquantes : ${manquantes.length}`)

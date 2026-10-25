@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ProjetCoupes, Resultats } from './api'
 import type { Selection, Vue } from './etat'
+import type { SectionAide } from '../vues/Aide'
 import { appliquerTheme, choisirTheme, themeInitial, type Theme } from './theme'
 import { decoderAncre, encoderAncre } from '../vue3d/navigation'
 
@@ -17,6 +18,7 @@ export function useAffichage() {
   const [tiroirNav, setTiroirNav] = useState(false)
   const [tiroirInsp, setTiroirInsp] = useState(false)
   const [ligneCible, setLigneCible] = useState<{ ligne: number; n: number } | null>(null)
+  const [sectionAide, setSectionAide] = useState<SectionAide | null>(null)
   const compteurCible = useRef(0)
 
   useEffect(() => { appliquerTheme(theme) }, [theme])
@@ -39,6 +41,9 @@ export function useAffichage() {
     setVueBrute(v)
     setOrigine3d(true)
   }, [])
+
+  /** Ouvre la vue Aide sur une section (menu Aide). */
+  const ouvrirAide = useCallback((s: SectionAide) => { setVue('aide'); setSectionAide(s) }, [setVue])
 
   /** Place le curseur de l'éditeur sur une ligne (chaque demande est distincte : recliquer la même erreur agit). */
   const viserLigne = useCallback((l: number | null | undefined) => {
@@ -63,7 +68,7 @@ export function useAffichage() {
     vue, setVue, ouvrirDepuis3d, origine3d, phase, setPhase, selection, selectionner, setSelection,
     selection3d, selectionner3d, prereglage, setPrereglage, theme, basculerTheme,
     navRepliee, setNavRepliee, tiroirNav, setTiroirNav, tiroirInsp, setTiroirInsp,
-    ligneCible, viserLigne,
+    ligneCible, viserLigne, sectionAide, ouvrirAide,
   }
 }
 

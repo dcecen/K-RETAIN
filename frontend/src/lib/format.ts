@@ -45,6 +45,21 @@ export function nomProjet(v: unknown): string {
   return ''
 }
 
+/** Titre lisible d'un script : la valeur de `projet:` (texte, bloc avec `nom`, ou forme en accolades),
+ *  à défaut le repli donné (nom de fichier). */
+export function titreScript(texte: string, repli: string): string {
+  const nettoyer = (t: string) => t.trim().replace(/^["']|["']$/g, '').trim()
+  const ligne = texte.match(/^projet:[ \t]*([^\s#].*)$/m)
+  if (ligne) {
+    const v = ligne[1]
+    if (v.trimStart().startsWith('{')) { const n = v.match(/nom:\s*([^,}]+)/); return n ? nettoyer(n[1]) : repli }
+    return nettoyer(v) || repli
+  }
+  const bloc = texte.match(/^projet:[ \t]*\n((?:[ \t]+.*(?:\n|$))*)/m)
+  if (bloc) { const n = bloc[1].match(/^[ \t]+nom:[ \t]*(.+)$/m); if (n) return nettoyer(n[1]) || repli }
+  return repli
+}
+
 /** Unité des cotes affichée dans les en-têtes : « m NGF » par défaut, ou « m <système> » si le bloc
  *  `projet:` du script précise `systeme_cotes` (ex. « projet », « IGN69 »). */
 export function uniteCote(modele: unknown): string {

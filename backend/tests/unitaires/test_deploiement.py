@@ -55,6 +55,24 @@ def test_guide_a_jour_avec_le_schema():
         "référence du guide périmée : lancez python -m sout.script.documentation"
 
 
+def test_gabarit_nouveau_projet_calculable():
+    """Le gabarit « Nouveau projet » (exemples/modeles) est servi dans le groupe Modèles et se calcule."""
+    c = TestClient(app)
+    modeles = [e for e in c.get("/api/exemples").json() if e["groupe"] == "Modèles"]
+    assert [e["nom"] for e in modeles] == ["nouveau_projet"]
+    r = c.post("/api/calcul", json={"texte": modeles[0]["texte"]}).json()
+    assert r["ok"], r["erreurs"]
+    assert r["resultats"]["complet"]
+    assert r["resultats"]["projet"] == "Nouveau projet"
+
+
+def test_api_guide():
+    r = TestClient(app).get("/api/guide")
+    assert r.status_code == 200
+    assert r.text.startswith("# Guide du langage de script")
+    assert "text/markdown" in r.headers["content-type"]
+
+
 def test_toutes_les_routes_api_restent_accessibles():
     """Le montage de l'interface sur « / » doit rester déclaré en dernier (sinon il masque les routes)."""
     c = TestClient(app)

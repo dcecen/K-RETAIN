@@ -42,7 +42,7 @@ export function useProjet() {
   const [rapportRido, setRapportRido] = useState<string[] | null>(null)
   const minuterie = useRef<number | undefined>(undefined)
   const texteCalcule = useRef<string>('')
-  const texteCharge = useRef<string | null>(null)   // texte au dernier chargement ou enregistrement (état « modifié »)
+  const texteCharge = useRef<string | null>(lireBrouillon())   // texte au dernier chargement ou enregistrement (état « modifié »)
   const enCoursRef = useRef(false)                  // Ctrl+Entrée pendant un calcul : ignoré (pas de second calcul concurrent)
   const numeroValidation = useRef(0)                // seule la dernière validation lancée met à jour l'affichage
 

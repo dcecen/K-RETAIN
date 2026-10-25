@@ -213,7 +213,20 @@ def exemples() -> list[dict]:
                for p in sorted(EXEMPLES.glob("*.yaml"))]
     elementaires = [{"nom": p.stem, "groupe": "Vérifications élémentaires", "texte": p.read_text(encoding="utf-8")}
                     for p in sorted((EXEMPLES / "elementaires").glob("*.yaml"))]
-    return projets + elementaires
+    modeles = [{"nom": p.stem, "groupe": "Modèles", "texte": p.read_text(encoding="utf-8")}
+               for p in sorted((EXEMPLES / "modeles").glob("*.yaml"))]
+    return modeles + projets + elementaires
+
+
+@app.get("/api/guide")
+def guide():
+    """Guide du langage de script (docs/guide_script.md), affiché dans la vue Aide de l'interface."""
+    from fastapi.responses import PlainTextResponse
+
+    chemin = RACINE / "docs" / "guide_script.md"
+    if not chemin.exists():
+        raise HTTPException(404, "guide absent : docs/guide_script.md")
+    return PlainTextResponse(chemin.read_text(encoding="utf-8"), media_type="text/markdown; charset=utf-8")
 
 
 @app.get("/api/validation/rapport")

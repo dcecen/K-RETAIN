@@ -1,0 +1,33 @@
+# Nouveau projet : gabarit minimal à adapter dans les vues Données (ce script reste la référence du modèle).
+# Valeurs d'illustration : écran et couche repris de l'exemple « Fouille exemple » (base matériaux DEMO).
+projet:
+  nom: Nouveau projet
+
+calcul:
+  kh: schmitt                # coefficient de réaction de Schmitt (EM, alpha, EI)
+
+paroi:
+  type: palplanche
+  profil: AZ 26-700          # référence de la base matériaux
+  acier: S355GP
+  tete: 0.0
+  pied: -12.0
+
+sol:                         # couches du haut vers le bas, cote du toit en m
+  - nom: Couche 1
+    toit: 0.0
+    gamma: 20
+    gamma_dejauge: 10
+    phi: 30
+    c: 0
+    EM: 10000
+    alpha: 0.5
+
+eau:
+  service: { amont: null, aval: null }   # aucune nappe ; renseigner les cotes amont (côté terre) et aval (côté fouille)
+
+phases:
+  - nom: Terrassement
+    excaver: -4.0
+
+verifications: [butee, equilibre_vertical, fond_de_fouille, structure]

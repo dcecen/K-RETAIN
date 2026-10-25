@@ -6,6 +6,7 @@ import { IconeCorbeille, IconeDescendre, IconeMonter, IconePlus } from '../lib/i
 import { nb, uniteCote } from '../lib/format'
 import { cheminErreur, type Chemin, type Modele } from '../lib/scriptDoc'
 import { COULEURS_SOL } from '../lib/theme'
+import { confirmer } from '../lib/dialogue'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Schema = any
@@ -179,7 +180,7 @@ function Sol({ ctx, selection, res }: { ctx: Ctx; selection: Selection; res: Res
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button className="btn icone discret" title="Monter" disabled={i === 0} onClick={() => ctx.actions.deplacer(['sol'], i, i - 1)}><IconeMonter taille={14} /></button>
                   <button className="btn icone discret" title="Descendre" disabled={i === sol.length - 1} onClick={() => ctx.actions.deplacer(['sol'], i, i + 1)}><IconeDescendre taille={14} /></button>
-                  <button className="btn icone discret" title="Supprimer la couche" onClick={() => { if (window.confirm('Supprimer cette couche de sol du script ?')) ctx.actions.supprimer(['sol', i]) }}><IconeCorbeille taille={14} /></button>
+                  <button className="btn icone discret" title="Supprimer la couche" onClick={() => void confirmer(`Supprimer la couche « ${c?.nom ?? i + 1} » du script ?`, { ok: 'Supprimer' }).then((ok) => { if (ok) ctx.actions.supprimer(['sol', i]) })}><IconeCorbeille taille={14} /></button>
                 </td>
               </tr>
             ))}
@@ -269,7 +270,7 @@ function Eau({ ctx }: { ctx: Ctx }) {
                 <td style={{ fontWeight: 500 }}>{nom}</td>
                 <td><Champ ctx={ctx} chemin={['eau', nom, 'amont']} valeur={n?.amont} placeholder="aucune" /></td>
                 <td><Champ ctx={ctx} chemin={['eau', nom, 'aval']} valeur={n?.aval} placeholder="aucune" /></td>
-                <td><button className="btn icone discret" title="Supprimer" onClick={() => { if (window.confirm(`Supprimer le jeu d'eau « ${nom} » du script ?`)) ctx.actions.supprimer(['eau', nom]) }}><IconeCorbeille taille={14} /></button></td>
+                <td><button className="btn icone discret" title="Supprimer" onClick={() => void confirmer(`Supprimer le jeu d'eau « ${nom} » du script ?`, { ok: 'Supprimer' }).then((ok) => { if (ok) ctx.actions.supprimer(['eau', nom]) })}><IconeCorbeille taille={14} /></button></td>
               </tr>
             ))}
             <tr>
@@ -330,7 +331,7 @@ function Surcharges({ ctx }: { ctx: Ctx }) {
                 <td><Champ ctx={ctx} chemin={['surcharges', i, 'distance']} valeur={s?.distance} placeholder="0" /></td>
                 <td><Champ ctx={ctx} chemin={['surcharges', i, 'largeur']} valeur={s?.largeur} /></td>
                 <td><Choix ctx={ctx} chemin={['surcharges', i, 'cote_ecran']} valeur={s?.cote_ecran ?? 'amont'} options={['amont', 'aval']} /></td>
-                <td><button className="btn icone discret" title="Supprimer" onClick={() => { if (window.confirm('Supprimer cette surcharge du script ?')) ctx.actions.supprimer(['surcharges', i]) }}><IconeCorbeille taille={14} /></button></td>
+                <td><button className="btn icone discret" title="Supprimer" onClick={() => void confirmer(`Supprimer la surcharge « ${s?.nom ?? `S${i + 1}`} » du script ?`, { ok: 'Supprimer' }).then((ok) => { if (ok) ctx.actions.supprimer(['surcharges', i]) })}><IconeCorbeille taille={14} /></button></td>
               </tr>
             ))}
           </tbody>
@@ -375,7 +376,7 @@ function Appuis({ ctx, selection, onSelection }: { ctx: Ctx; selection: Selectio
       {a && actif && (
         <div className="bloc"><div className="bloc-titre">{actif}
           <span className="espace" />
-          <button className="btn icone discret" title="Supprimer l'appui" onClick={() => { if (window.confirm(`Supprimer l'appui « ${actif} » du script (et ses références dans les phases) ?`)) { ctx.actions.supprimer(['appuis', actif]); onSelection(null) } }}><IconeCorbeille taille={14} /></button>
+          <button className="btn icone discret" title="Supprimer l'appui" onClick={() => void confirmer(`Supprimer l'appui « ${actif} » du script, ainsi que ses références dans les phases ?`, { ok: 'Supprimer' }).then((ok) => { if (ok) { ctx.actions.supprimer(['appuis', actif]); onSelection(null) } })}><IconeCorbeille taille={14} /></button>
         </div>
           <div className="grille-form">
             <label>Nom<input className="champ champ-bloc" value={nom} onChange={(e) => setNom(e.target.value)}
@@ -447,11 +448,11 @@ function Phases({ ctx, selection, onSelection, phaseActive, onPhaseActive, res }
     ctx.actions.ajouter(['phases'], depuis >= 0 ? { nom, depuis: phases[depuis]?.nom } : { nom, depuis: 'État initial' })
     onSelection({ type: 'phase', index: phases.length })
   }
-  const supprimer = (i: number) => {
+  const supprimer = async (i: number) => {
     const nom = String(phases[i]?.nom ?? '')
     const refs = phases.map((p, k) => (p?.depuis === nom ? k + 1 : 0)).filter(Boolean)
-    if (refs.length && !window.confirm(`La phase « ${nom} » est le point de départ des phases ${refs.join(', ')}. Supprimer quand même ?`)) return
-    if (!refs.length && !window.confirm(`Supprimer la phase « ${nom} » du script ?`)) return
+    const question = refs.length ? `La phase « ${nom} » est le point de départ des phases ${refs.join(', ')}. La supprimer quand même ?` : `Supprimer la phase « ${nom} » du script ?`
+    if (!(await confirmer(question, { ok: 'Supprimer' }))) return
     ctx.actions.supprimer(['phases', i])
     onSelection(null)
   }
@@ -461,7 +462,7 @@ function Phases({ ctx, selection, onSelection, phaseActive, onPhaseActive, res }
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 1fr) minmax(300px, 1fr)', gap: 16, alignItems: 'start' }}>
         <ArbrePhases phases={phases} res={res} actif={phaseActive} selection={sel}
           onChoisir={(i) => { onSelection(i >= 0 ? { type: 'phase', index: i } : null); if (res && i + 1 < res.phases.length) onPhaseActive(i + 1) }}
-          onInserer={inserer} onBrancher={brancher} onSupprimer={supprimer} />
+          onInserer={inserer} onBrancher={brancher} onSupprimer={(i) => void supprimer(i)} />
         <div className="bloc" style={{ margin: 0 }}>
           <div className="bloc-titre">{ph ? `Phase ${sel! + 1} — ${ph.nom ?? ''}` : 'Sélectionnez une phase'}</div>
           {ph && sel !== null && (

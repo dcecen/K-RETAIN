@@ -1,14 +1,10 @@
 import type { Exemple } from '../lib/api'
 import type { EtatCalcul } from '../lib/etat'
-import { IconeCalcul, IconeChevronB, IconeExport, IconeFichier, IconeLogo, IconeLune, IconeMenu, IconePanneauD, IconeSoleil } from '../lib/icones'
+import { titreScript } from '../lib/format'
+import { IconeCalcul, IconeChevronB, IconeExport, IconeFichier, IconeInfo, IconeLogo, IconeLune, IconeMenu, IconePanneauD, IconeSoleil } from '../lib/icones'
 import type { Theme } from '../lib/theme'
+import type { SectionAide } from '../vues/Aide'
 import { Menu } from './Menu'
-
-/** Titre d'un script élémentaire : sa ligne « projet: », à défaut son nom de fichier. */
-function libelleElementaire(e: Exemple): string {
-  const m = e.texte.match(/^projet:\s*(.+)$/m)
-  return m ? m[1].trim() : e.nom
-}
 
 /** En-tête de commentaires d'un script (ce qui est vérifié, résultat attendu, source) pour l'info-bulle. */
 function enTete(texte: string): string {
@@ -21,10 +17,12 @@ export function BarreTitre(p: {
   enCours: boolean
   exemples: Exemple[]
   theme: Theme
+  version: string
   imagePossible: boolean
   resultatsDisponibles: boolean
   onRecalculer: () => void
-  onExemple: (texte: string) => void
+  onNouveau: () => void
+  onExemple: (e: Exemple) => void
   onOuvrir: (f: File) => void
   onEnregistrer: () => void
   onRido: (f: File) => void
@@ -34,6 +32,8 @@ export function BarreTitre(p: {
   onMaquette: () => void
   onTheme: () => void
   onAllerErreur: () => void
+  onAide: (section: SectionAide) => void
+  onAPropos: () => void
   onTiroirNav: () => void
   onTiroirInsp: () => void
 }) {
@@ -44,6 +44,8 @@ export function BarreTitre(p: {
     i.onchange = () => { if (i.files?.[0]) action(i.files[0]) }
     i.click()
   }
+  const groupe = (g: string) => p.exemples.filter((e) => (e.groupe ?? 'Exemples') === g)
+  const nouveauPossible = groupe('Modèles').length > 0
   return (
     <header className="barre-titre zone-titre">
       <button className="btn icone discret btn-tiroir nav" onClick={p.onTiroirNav} title="Navigation"><IconeMenu /></button>
@@ -52,29 +54,30 @@ export function BarreTitre(p: {
       <Menu bouton={<><IconeFichier /> <span className="masquer-etroit">Fichier</span> <IconeChevronB taille={12} /></>} titre="Fichier">
         {(fermer) => (
           <>
+            <button onClick={() => { p.onNouveau(); fermer() }} disabled={!nouveauPossible} title={nouveauPossible ? 'Script minimal à adapter (gabarit exemples/modeles)' : 'Gabarit indisponible (serveur injoignable)'}>Nouveau projet</button>
+            <button onClick={() => { choisirFichier('.yaml,.yml,.txt', p.onOuvrir); fermer() }}>Ouvrir un script…</button>
+            <button onClick={() => { p.onEnregistrer(); fermer() }}>Enregistrer le script</button>
+            <hr />
             <div className="titre-groupe">Exemples</div>
-            {p.exemples.filter((e) => (e.groupe ?? 'Exemples') === 'Exemples').map((e) => (
-              <button key={e.nom} onClick={() => { p.onExemple(e.texte); fermer() }}>{e.nom}</button>
+            {groupe('Exemples').map((e) => (
+              <button key={e.nom} onClick={() => { p.onExemple(e); fermer() }}>
+                {titreScript(e.texte, e.nom)}
+                <span className="detail-entree">{e.nom}.yaml</span>
+              </button>
             ))}
-            {p.exemples.some((e) => e.groupe === 'Vérifications élémentaires') && (
+            {groupe('Vérifications élémentaires').length > 0 && (
               <>
                 <hr />
                 <div className="titre-groupe">Vérifications élémentaires</div>
-                {p.exemples.filter((e) => e.groupe === 'Vérifications élémentaires').map((e) => (
-                  <button key={e.nom} onClick={() => { p.onExemple(e.texte); fermer() }} title={enTete(e.texte)}>
-                    {libelleElementaire(e)}
+                {groupe('Vérifications élémentaires').map((e) => (
+                  <button key={e.nom} onClick={() => { p.onExemple(e); fermer() }} title={enTete(e.texte)}>
+                    {titreScript(e.texte, e.nom)}
                   </button>
                 ))}
-                <button onClick={() => { window.open('/api/validation/rapport', '_blank', 'noopener'); fermer() }}>
-                  Rapport de validation complet
-                  <span className="detail-entree">45 cas : poutres RDM, Winkler, plaque, écran 2D, balayages, pseudo-3D</span>
-                </button>
               </>
             )}
             <hr />
-            <button onClick={() => { choisirFichier('.yaml,.yml,.txt', p.onOuvrir); fermer() }}>Ouvrir un script</button>
-            <button onClick={() => { p.onEnregistrer(); fermer() }}>Enregistrer le script</button>
-            <button onClick={() => { choisirFichier('*', p.onRido); fermer() }}>Importer un fichier RIDO</button>
+            <button onClick={() => { choisirFichier('*', p.onRido); fermer() }}>Importer un fichier RIDO…</button>
           </>
         )}
       </Menu>
@@ -101,6 +104,22 @@ export function BarreTitre(p: {
             <button disabled={!p.resultatsDisponibles} onClick={() => { p.onMaquette(); fermer() }}>Maquette 3D : fichier HTML autonome</button>
             <hr />
             <button onClick={() => { p.onEnregistrer(); fermer() }}>Script de calcul (.yaml)</button>
+          </>
+        )}
+      </Menu>
+      <Menu droite bouton={<><IconeInfo /> <span className="masquer-etroit">Aide</span></>} titre="Aide">
+        {(fermer) => (
+          <>
+            <button onClick={() => { p.onAide('premiers-pas'); fermer() }}>Premiers pas</button>
+            <button onClick={() => { p.onAide('guide'); fermer() }}>Guide du langage de script</button>
+            <button onClick={() => { p.onAide('raccourcis'); fermer() }}>Raccourcis clavier</button>
+            <button onClick={() => { p.onAide('conventions'); fermer() }}>Conventions de signe et unités</button>
+            <hr />
+            <button onClick={() => { window.open('/api/validation/rapport', '_blank', 'noopener'); fermer() }}>
+              Rapport de validation
+              <span className="detail-entree">45 cas : poutres RDM, Winkler, plaque, écran 2D, balayages, pseudo-3D</span>
+            </button>
+            <button onClick={() => { p.onAPropos(); fermer() }}>À propos de RetainWall {p.version}</button>
           </>
         )}
       </Menu>

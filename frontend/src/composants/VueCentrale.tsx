@@ -108,7 +108,7 @@ export function VueCentrale({ p, a, onCalculer, changerCoupe, ajouterDepuis3d }:
           </div>
         )
       case 'materiaux': return <Materiaux surImport={() => void p.rechargerReferences()} />
-      case 'aide': return <Aide version={p.serveur} />
+      case 'aide': return <Aide version={p.serveur} section={a.sectionAide} />
       default: return null
     }
   }

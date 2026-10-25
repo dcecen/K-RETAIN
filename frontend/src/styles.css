@@ -535,6 +535,34 @@ select.champ { padding: 0 2px; }
 .etiquette-3d.alerte.orange { background: var(--orange-doux); color: var(--orange); border-color: var(--orange); }
 .barre-retour { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--filet); background: var(--accent-doux); font-size: 12.5px; }
 
+/* ---------------------------------------------------------------- dialogues de l'application */
+.dialogue-voile { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgba(20, 28, 40, 0.35); }
+.dialogue { width: min(460px, calc(100vw - 32px)); background: var(--panneau); border: 1px solid var(--filet-fort); border-radius: 2px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22); padding: 14px 16px 12px; }
+.dialogue-titre { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+.dialogue-texte { margin: 0 0 10px; color: var(--texte); white-space: pre-line; }
+.dialogue-champs { display: grid; gap: 8px; margin-bottom: 12px; }
+.dialogue-champs label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--texte-doux); }
+.dialogue-boutons { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---------------------------------------------------------------- aide et guide du script */
+.guide-colonnes { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 0; }
+.sommaire-guide { position: sticky; top: 0; align-self: start; max-height: calc(100vh - 160px); overflow: auto; padding: 8px 6px; border-right: 1px solid var(--filet); font-size: 12px; display: flex; flex-direction: column; }
+.sommaire-guide a { color: var(--accent); text-decoration: none; padding: 2px 6px; border-radius: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sommaire-guide a.niveau3 { padding-left: 16px; color: var(--texte-doux); }
+.sommaire-guide a:hover { background: var(--survol); }
+.guide { padding: 6px 16px 16px; max-width: 860px; line-height: 1.5; }
+.guide h1 { font-size: 18px; margin: 6px 0 10px; }
+.guide h2 { font-size: 15px; margin: 22px 0 8px; padding-top: 10px; border-top: 1px solid var(--filet); }
+.guide h3 { font-size: 13.5px; margin: 16px 0 6px; }
+.guide code { font-family: var(--mono); font-size: 12px; background: var(--gris-doux); padding: 0 3px; border-radius: 2px; }
+.guide pre { background: var(--panneau-2); border: 1px solid var(--filet); border-radius: 2px; padding: 8px 10px; overflow: auto; font-size: 12px; }
+.guide pre code { background: none; padding: 0; }
+.guide table { border-collapse: collapse; font-size: 12.5px; margin: 6px 0 10px; }
+.guide th, .guide td { border: 1px solid var(--filet); padding: 3px 8px; text-align: left; vertical-align: top; }
+.guide th { background: var(--panneau-2); font-weight: 500; }
+.guide a { color: var(--accent); }
+@media (max-width: 900px) { .guide-colonnes { grid-template-columns: 1fr; } .sommaire-guide { position: static; max-height: none; border-right: none; border-bottom: 1px solid var(--filet); } }
+
 /* ---------------------------------------------------------------- info-bulle 3D */
 .vue3d-infobulle { position: absolute; pointer-events: none; z-index: 4; font-size: 11.5px; background: var(--panneau); color: var(--texte); border: 1px solid var(--filet-fort); border-radius: 2px; padding: 4px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); white-space: nowrap; }
 .vue3d-infobulle .titre { font-weight: 600; }

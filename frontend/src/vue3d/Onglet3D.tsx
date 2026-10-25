@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type * as THREE from 'three'
 import { api, messageErreur, type ProjetCoupes, type Resultats } from '../lib/api'
-import { demanderNombre } from '../lib/saisie'
+import { informer, saisir } from '../lib/dialogue'
 import { enregistrerExport, telecharger, telechargerTexte } from '../lib/exporter'
 import { IconeCalques, IconeCiseaux, IconeCoupe, IconeRemblai, IconeSurcharge, IconeTableau } from '../lib/icones'
 import type { Theme } from '../lib/theme'
@@ -109,27 +109,41 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
       const k = Number(id.slice(6)) || 0
       const fond = res.phases[phase]?.terrain_aval ?? res.maquette?.paroi.pied ?? 0
       setOutilRisberme(false)
-      // chaque boîte peut être annulée (ou refusée si la valeur n'est pas un nombre) : rien n'est alors écrit
-      const crete = demanderNombre(`Risberme contre le côté ${nomCote(k)} — cote de la crête (m) :`, nb(fond + 2.5, 2).replace(',', '.'))
-      if (crete === null) return
-      const largeur = demanderNombre('Largeur de la crête (m) :', '2')
-      if (largeur === null || largeur <= 0) return
-      const pente = demanderNombre('Pente du talus (horizontal / vertical) :', '1.5')
-      if (pente === null || pente <= 0) return
-      const pied = demanderNombre('Cote du pied, fond général (m) :', nb(fond, 2).replace(',', '.'))
-      if (pied === null) return
-      const nom = window.prompt('Nom de la risberme :', `R${(res.maquette?.terrain?.objets.length ?? 0) + 1}`)
-      if (nom?.trim()) onAjouterRisberme?.(entreeYamlRisberme(nom.trim(), nomCote(k), crete, largeur, pente, pied, [Math.max(1, phase), Math.max(1, phase)]))
+      // une seule boîte, annulable : rien n'est écrit sans validation
+      void saisir({
+        titre: `Risberme contre le côté ${nomCote(k)}`, ok: 'Ajouter au script',
+        champs: [
+          { cle: 'crete', libelle: 'Cote de la crête (m)', type: 'number', defaut: nb(fond + 2.5, 2) },
+          { cle: 'largeur', libelle: 'Largeur de la crête (m)', type: 'number', defaut: 2 },
+          { cle: 'pente', libelle: 'Pente du talus (horizontal / vertical)', type: 'number', defaut: 1.5 },
+          { cle: 'pied', libelle: 'Cote du pied, fond général (m)', type: 'number', defaut: nb(fond, 2) },
+          { cle: 'nom', libelle: 'Nom', type: 'text', defaut: `R${(res.maquette?.terrain?.objets.length ?? 0) + 1}` },
+        ],
+      }).then((v) => {
+        if (!v) return
+        const largeur = Number(v.largeur), pente = Number(v.pente), nom = String(v.nom).trim()
+        if (largeur <= 0 || pente <= 0 || !nom) { void informer('Largeur et pente doivent être positives, et le nom renseigné : rien n’a été ajouté.'); return }
+        onAjouterRisberme?.(entreeYamlRisberme(nom, nomCote(k), Number(v.crete), largeur, pente, Number(v.pied), [Math.max(1, phase), Math.max(1, phase)]))
+      })
       return
     }
     if (outilSurcharge && point && (id?.startsWith('couche:') || id === null)) {
       const pt: [number, number] = [point.x, -point.z]
       if (!outilSurcharge.p1) { setOutilSurcharge({ p1: pt }); return }
       setOutilSurcharge(null)
-      const q = demanderNombre('Valeur de la surcharge (kPa) :', '20')
-      if (q === null || q <= 0) return
-      const nom = window.prompt('Nom de la surcharge :', `S${(res.maquette?.surcharges?.length ?? 0) + 1}`)
-      if (nom?.trim()) onAjouterSurcharge?.(entreeYamlSurcharge(nom.trim(), q, outilSurcharge.p1, pt, phase > 0 ? phase : null))
+      const p1 = outilSurcharge.p1
+      void saisir({
+        titre: 'Surcharge rectangulaire tracée sur le terrain', ok: 'Ajouter au script',
+        champs: [
+          { cle: 'q', libelle: 'Valeur (kPa)', type: 'number', defaut: 20 },
+          { cle: 'nom', libelle: 'Nom', type: 'text', defaut: `S${(res.maquette?.surcharges?.length ?? 0) + 1}` },
+        ],
+      }).then((v) => {
+        if (!v) return
+        const q = Number(v.q), nom = String(v.nom).trim()
+        if (q <= 0 || !nom) { void informer('La valeur doit être positive et le nom renseigné : rien n’a été ajouté.'); return }
+        onAjouterSurcharge?.(entreeYamlSurcharge(nom, q, p1, pt, phase > 0 ? phase : null))
+      })
       return
     }
     if (outilCoupe && point && id?.startsWith('paroi:')) { setPositionLocale(positionDepuisPoint(geo, point)); return }
@@ -176,7 +190,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
       telecharger(url, `maquette_phase${phase + 1}.glb`)
       window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
     } catch (e) {
-      alert(`Export glTF impossible : ${messageErreur(e)}`)
+      void informer(`Export glTF impossible : ${messageErreur(e)}`)
     }
   }
   const comparer = (ref: number) => {
@@ -235,7 +249,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
   const exporterHtml = async () => {
     setExportEnCours(true)
     try { telechargerTexte(await api.maquette(texte), 'maquette_retainwall.html', 'text/html') }
-    catch (e) { alert(`Export de la maquette impossible : ${messageErreur(e)}`) }
+    catch (e) { void informer(`Export de la maquette impossible : ${messageErreur(e)}`) }
     finally { setExportEnCours(false) }
   }
 
