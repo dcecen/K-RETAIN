@@ -28,7 +28,7 @@ from sout.script.schema import Script
 RACINE = Path(__file__).resolve().parents[2]
 EXEMPLES = RACINE / "exemples"
 
-app = FastAPI(title="RetainWall", version=__version__)
+app = FastAPI(title="K-Retain", version=__version__)
 _journal = logging.getLogger("retainwall")
 
 
@@ -102,7 +102,7 @@ async def controle_acces(request, call_next):
                 _AUTH_CACHE[cle] = maintenant + _AUTH_TTL
                 return await call_next(request)
     return PlainTextResponse("Identification requise", status_code=401,
-                             headers={"WWW-Authenticate": 'Basic realm="RetainWall", charset="UTF-8"'})
+                             headers={"WWW-Authenticate": 'Basic realm="K-Retain", charset="UTF-8"'})
 
 
 TAILLE_MAX_SCRIPT = 2_000_000          # caractères ; un script de projet fait quelques milliers de lignes
@@ -240,13 +240,15 @@ def _exemple(p: Path, groupe: str) -> dict:
 def exemples() -> list[dict]:
     """Scripts proposés dans le menu Fichier : modèles (exemples/modeles), exemples de projet (exemples/*.yaml),
     puis exemples élémentaires 2D et 3D (exemples/elementaires/2d, 3d : résultat attendu et source en en-tête,
-    renvoyés dans `attendu` et `source`, titre dans `titre`)."""
+    renvoyés dans `attendu` et `source`, titre dans `titre`), enfin les cas à comparer à RIDO (exemples/rido)."""
     modeles = [_exemple(p, "Modèles") for p in sorted((EXEMPLES / "modeles").glob("*.yaml"))]
     projets = [_exemple(p, "Exemples") for p in sorted(EXEMPLES.glob("*.yaml"))]
     elementaires = [_exemple(p, "Vérifications élémentaires") for p in sorted((EXEMPLES / "elementaires").glob("*.yaml"))]
     for dossier, groupe in GROUPES_ELEMENTAIRES.items():
         elementaires += [_exemple(p, groupe) for p in sorted((EXEMPLES / "elementaires" / dossier).glob("*.yaml"))]
-    return modeles + projets + elementaires
+    rido = [_exemple(p, "Comparaison RIDO") for p in sorted((EXEMPLES / "rido").glob("*.yaml"))
+            if not p.name.endswith(".resultats_rido.yaml")]
+    return modeles + projets + elementaires + rido
 
 
 @app.get("/api/guide")

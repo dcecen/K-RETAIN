@@ -1,4 +1,4 @@
-# État d'avancement — RetainWall
+# État d'avancement — K-Retain
 
 ## J0 — Mise en place : fait
 
@@ -828,3 +828,26 @@ vue Géométrie d'une paroi circulaire. Non-régression figée du lot 0 et jeux 
 3. Valider les défauts d'étanchéité par type de paroi.
 4. Fournir dans `docs/normes` : coefficient de Poisson du béton (EC2 § 3.1.3), αcc,pl (EC2 ch. 12) et, s'il en
    existe un, le coefficient de sécurité sur le flambement d'un anneau.
+
+
+## Préparation de la présentation : renommage et comparaison RIDO (30 octobre 2026)
+
+### Fait
+- **Renommage en K-Retain** du nom affiché (interface, note de calcul, maquette 3D, documents, en-têtes des
+  modules) ; lanceur renommé `Lancer K-Retain.bat` (refaire le raccourci du Bureau). Identifiants techniques
+  conservés : clés `retainwall.*` du navigateur (brouillon, thème, calques), variables `RETAINWALL_*`, classe
+  `SceneRetainWall`. Lanceur : le témoin de redémarrage était écrit hors du dossier de journal (« \r » devenu un
+  retour chariot), corrigé. Test `note.test.ts` : nom attendu mis à jour (changement de nom demandé, aucune valeur
+  de calcul touchée). Historique de ce fichier, cahier des charges et rapports générés laissés tels quels.
+- **Vérification du moteur d'import RIDO** : le mécanisme fonctionne (test sur table fictive), mais la table
+  `docs/rido/correspondance.yaml` est toujours vide : aucun mot-clé RIDO n'est reconnu.
+- **Outil de comparaison** `python -m outils.comparaison_rido` : convertit les fichiers RIDO de `exemples/rido`,
+  calcule chaque script et écrit `comparaison_rido.xlsx` (synthèse par cas, phase et grandeur, colonne RIDO à
+  saisir, écart et verdict 5 % par formules ; profils par phase). Menu Fichier > Comparaison RIDO.
+
+### Testé
+pytest 407 réussis + 1 (outil de comparaison), 6 ignorés ; ruff 0 ; tsc 0 ; eslint 0 ; vitest 118 ; build Vite.
+
+### Reste à faire / questions ouvertes
+1. L'utilisateur fournit 1 à 3 fichiers RIDO réels (et si possible leurs résultats) : remplir la table de
+   correspondance, convertir, écrire des variantes dans le même format, produire le classeur.

@@ -9,6 +9,8 @@ import { Menu } from './Menu'
 /** Groupes du menu Fichier pour les exemples élémentaires (dossiers exemples/elementaires/2d et 3d ; l'ancien
  *  groupe « Vérifications élémentaires » reste lu si des scripts sont encore à la racine du dossier). */
 const GROUPES_ELEMENTAIRES = ['Exemples élémentaires 2D', 'Exemples élémentaires 3D', 'Vérifications élémentaires']
+/** Groupes affichés dans le menu Fichier : élémentaires, puis cas convertis depuis RIDO (exemples/rido). */
+const GROUPES_MENU = [...GROUPES_ELEMENTAIRES, 'Comparaison RIDO']
 
 /** En-tête de commentaires d'un script (ce qui est vérifié, résultat attendu, source) pour l'info-bulle. */
 function enTete(texte: string): string {
@@ -53,7 +55,7 @@ export function BarreTitre(p: {
   return (
     <header className="barre-titre zone-titre">
       <button className="btn icone discret btn-tiroir nav" onClick={p.onTiroirNav} title="Navigation"><IconeMenu /></button>
-      <div className="logo"><IconeLogo taille={18} /> RetainWall</div>
+      <div className="logo"><IconeLogo taille={18} /> K-Retain</div>
       <div className="separateur-v masquer-etroit" />
       <Menu bouton={<><IconeFichier /> <span className="masquer-etroit">Fichier</span> <IconeChevronB taille={12} /></>} titre="Fichier">
         {(fermer) => (
@@ -69,7 +71,7 @@ export function BarreTitre(p: {
                 <span className="detail-entree">{e.nom}.yaml</span>
               </button>
             ))}
-            {GROUPES_ELEMENTAIRES.filter((g) => groupe(g).length > 0).map((g) => (
+            {GROUPES_MENU.filter((g) => groupe(g).length > 0).map((g) => (
               <div key={g}>
                 <hr />
                 <div className="titre-groupe">{g}</div>
@@ -131,7 +133,7 @@ export function BarreTitre(p: {
               Rapport de validation
               <span className="detail-entree">45 cas : poutres RDM, Winkler, plaque, écran 2D, balayages, pseudo-3D</span>
             </button>
-            <button onClick={() => { p.onAPropos(); fermer() }}>À propos de RetainWall {p.version}</button>
+            <button onClick={() => { p.onAPropos(); fermer() }}>À propos de K-Retain {p.version}</button>
           </>
         )}
       </Menu>
