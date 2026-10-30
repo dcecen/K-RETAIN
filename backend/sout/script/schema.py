@@ -41,6 +41,19 @@ class Blindage(_Base):
     resistance: float | None = Field(None, gt=0, description="résistance de calcul en flexion (MPa)")
 
 
+class CoefficientLargeur(_Base):
+    haut: float = Field(description="cote du haut de la zone (m)")
+    bas: float = Field(description="cote du bas de la zone (m)")
+    rapport: float = Field(gt=0, le=10, description="coefficient multiplicateur des pressions des terres et du coefficient de "
+                                                    "réaction dans la zone, des deux côtés de l'écran (sans unité)")
+
+    @model_validator(mode="after")
+    def _ordre(self):
+        if self.bas > self.haut:
+            raise ValueError(f"zone de coefficient de largeur : bas ({self.bas}) au-dessus du haut ({self.haut})")
+        return self
+
+
 class Paroi(_Base):
     type: Literal["palplanche", "paroi_moulee", "pieux_secants", "pieux_disjoints", "berlinoise"] = Field(
         description="type de paroi")
@@ -65,6 +78,10 @@ class Paroi(_Base):
         None, ge=0, description="palplanches : perte d'épaisseur par corrosion, totale (mm)")
     largeur_reaction_fiche: float | None = Field(
         None, gt=0, description="fiche discontinue : largeur de réaction imposée sous le fond (m par élément)")
+    coefficients_largeur: list[CoefficientLargeur] | None = Field(
+        None, description="coefficients de largeur par zone de cote (forme de la commande coe de RIDO) : pressions des terres "
+                          "et coefficient de réaction multipliés par le rapport entre haut et bas, des deux côtés ; remplacent "
+                          "la règle de fiche discontinue (largeur_reaction_fiche)")
     blindage: Blindage | None = Field(None, description="berlinoise : blindage entre profilés")
     enrobage: float | None = Field(None, gt=0, description="distance du parement à l'axe des armatures (m)")
     armatures_fouille: float | None = Field(None, gt=0, description="paroi moulée : armatures côté fouille (cm²/m)")

@@ -18,6 +18,11 @@ pressions limites et raideur sont réduites dans le rapport
 b_réaction / entraxe (≤ 1), avec b_réaction donné par le script
 (`largeur_reaction_fiche`) ou par docs/normes (fiche_discontinue.rapport_largeur
 × largeur physique). Sans l'une ou l'autre, le calcul est refusé (TODO-NORME).
+
+Coefficients de largeur par zone (`coefficients_largeur`, transcription de la commande
+`coe z1 z2 r` de RIDO) : entre les deux cotes, pressions des terres et raideur sont
+multipliées par r des deux côtés, à toutes les phases ; ils remplacent la règle de fiche
+discontinue. Donnée de modélisation de l'ingénieur, pas une valeur normative.
 """
 from __future__ import annotations
 
@@ -88,6 +93,17 @@ def _fonction_fiche(rapport: float):
     return largeur
 
 
+def _fonction_zones(zones):
+    """Coefficient de largeur par zone de cote, identique des deux côtés ; la dernière zone donnée l'emporte
+    là où deux zones se recouvrent, 1 hors des zones."""
+    def largeur(zm: np.ndarray, cote: int, z_fond: float):
+        f = np.ones_like(zm, dtype=float)
+        for zone in zones:
+            f = np.where((zm <= zone.haut + 1e-9) & (zm >= zone.bas - 1e-9), zone.rapport, f)
+        return f, f
+    return largeur
+
+
 def construire_ecran(p, catalogue=None, normes=None) -> Ecran:
     """Écran de calcul (EI par mètre linéaire, largeur de réaction)."""
     infos: dict = {"type": p.type}
@@ -144,6 +160,11 @@ def construire_ecran(p, catalogue=None, normes=None) -> Ecran:
                      blindage=p.blindage.model_dump() if p.blindage else None,
                      demo=bool(prof.get("demo") or acier.get("demo")))
         largeur = _fonction_fiche(infos["rapport_largeur_fiche"])
+
+    if p.coefficients_largeur:
+        largeur = _fonction_zones(p.coefficients_largeur)
+        infos["coefficients_largeur"] = [z.model_dump() for z in p.coefficients_largeur]
+        infos.pop("rapport_largeur_fiche", None)
 
     if p.EI is not None:
         EI = p.EI

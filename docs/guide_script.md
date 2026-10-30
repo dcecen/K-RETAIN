@@ -105,6 +105,12 @@ berlinoise), la largeur de réaction sous le fond de fouille est donnée par
 `largeur_reaction_fiche` (m par élément) ou par `docs/normes/nf_p94_282.yaml` ; sans
 l'une ni l'autre, le calcul est refusé (aucune règle n'est inventée).
 
+`coefficients_largeur` (forme de la commande `coe z1 z2 r` de RIDO, écrite par l'import RIDO) :
+entre les cotes `haut` et `bas`, pressions des terres, limites et coefficient de réaction sont
+multipliés par `rapport`, des deux côtés et à toutes les phases ; ces zones remplacent la règle
+de fiche discontinue. Exemple :
+`coefficients_largeur: [{ haut: 133.6, bas: 128.6, rapport: 0.467 }]`.
+
 ## 4. Sol
 
 Chaque couche est définie par la cote de son **toit** ; elle s'étend jusqu'au toit de la
@@ -339,6 +345,7 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `classe_section` | entier |  |  | palplanches : classe de section (EN 1993-5) si le catalogue ne la donne pas (≥ 1, ≤ 4) |
 | `perte_epaisseur` | nombre |  |  | palplanches : perte d'épaisseur par corrosion, totale (mm) (≥ 0) |
 | `largeur_reaction_fiche` | nombre |  |  | fiche discontinue : largeur de réaction imposée sous le fond (m par élément) (> 0) |
+| `coefficients_largeur` | liste de bloc |  |  | coefficients de largeur par zone de cote (forme de la commande coe de RIDO) : pressions des terres et coefficient de réaction multipliés par le rapport entre haut et bas, des deux côtés ; remplacent la règle de fiche discontinue (largeur_reaction_fiche) |
 | `blindage` | bloc |  |  | berlinoise : blindage entre profilés |
 | `enrobage` | nombre |  |  | distance du parement à l'axe des armatures (m) (> 0) |
 | `armatures_fouille` | nombre |  |  | paroi moulée : armatures côté fouille (cm²/m) (> 0) |
@@ -555,6 +562,14 @@ Section générée à partir du schéma (`python -m sout.script.documentation`).
 | `s` | nombre |  | 0.0 | abscisse de la coupe le long du côté (m) |
 | `cote` | texte |  |  | nom du côté (plan.cotes) |
 | `nom` | texte |  |  | nom de la coupe |
+
+### paroi.coefficients_largeur (chaque élément)
+
+| Mot-clé | Type | Obligatoire | Défaut | Description |
+| --- | --- | --- | --- | --- |
+| `haut` | nombre | oui |  | cote du haut de la zone (m) |
+| `bas` | nombre | oui |  | cote du bas de la zone (m) |
+| `rapport` | nombre | oui |  | coefficient multiplicateur des pressions des terres et du coefficient de réaction dans la zone, des deux côtés de l'écran (sans unité) (> 0, ≤ 10) |
 
 ### paroi.blindage
 
