@@ -1,15 +1,78 @@
 # Table de correspondance RIDO -> K-Retain.
-# VIDE TANT QUE LE MANUEL RIDO N'A PAS ÉTÉ FOURNI ET LU : aucun mot-clé n'est deviné.
-# Format décrit dans backend/sout/script/rido.py. Exemple de forme (fictif, NE PAS utiliser tel quel) :
 #
-# mots_cles:
-#   MOTCLE_FICTIF:
-#     cible: sol[]
-#     colonnes: [toit, gamma, gamma_dejauge, phi, c]
-#     facteurs: {}
-#     fixes: {}
-#     lignes_suivantes: 0
+# Établie le 30/10/2026 à partir d'UN fichier RIDO réel fourni par l'utilisateur (berlinoise IPE 400,
+# docs/rido/berlinoise_IPE400_excel.rid), SANS le manuel RIDO. Le sens de chaque position est déduit du
+# fichier (noms des variables, formules, ordre des blocs) : chaque entrée porte son statut.
+#   statut « lu »         : écrit en toutes lettres dans le fichier (nom de variable, formule) ;
+#   statut « à confirmer » : interprétation la plus probable, à vérifier sur une sortie RIDO ou le manuel.
+# Corriger ici une colonne (ordre, unité) suffit : le convertisseur (backend/sout/script/rido.py) relit
+# cette table, rien n'est codé en dur.
 
-commentaires: []
-separateurs: " ,;\t"
-mots_cles: {}
+ecran:
+  # Lignes « cote EI ... » jusqu'à la ligne d'une seule valeur (cote du terrain).
+  # 1re ligne : « Z0 0 » -> cote de tête. Lignes suivantes : « cote_bas EI v3 v4 ».
+  colonnes: [cote, EI]          # v3, v4 non reprises (sens inconnu : v4 = feuille ligne 8, col. 6)
+  unite_EI: "kN·m²/m (EI = 2.1·I/esp avec I en cm4 : 2.1 = E acier 2,1e8 kPa × 1e-8 m4/cm4)"
+  statut: lu (Z0, Zf, EI nommés dans le fichier) ; v3 et v4 à confirmer
+
+terrain:
+  # Ligne d'une seule valeur après l'écran : cote du terrain naturel (variable TN du fichier).
+  statut: lu
+
+couches:
+  # Une ligne par couche (suite possible sur une ligne commençant par « + »).
+  # Fichier fourni : xlc(l,2) xlc(l,4) xlc(l,5) 0 0 0 xlc(l,8) xlc(l,9) + xlc(l,10) xlc(l,11) Re
+  colonnes: [base, gamma, gamma_dejauge, ka, k0, kp, phi, c, delta_a, delta_p, kh]
+  premiere_valeur: base         # base de la couche ; si la 1re couche commence à TN, la colonne est lue comme toit
+  unites:
+    gamma: kN/m3
+    gamma_dejauge: kN/m3
+    phi: degrés
+    c: kPa
+    delta: "rapport δ/φ si |valeur| ≤ 1, sinon angle en degrés (converti en |δ|/φ)"
+    kh: "kN/m3 (Re = min(C ; max(P ; P')) calculé dans le fichier : C = Schmitt, P = Ménard)"
+  ka_k0_kp_nuls: "0 = calcul automatique par RIDO ; K-Retain recalcule ka, kp (Coulomb/Rankine) et K0 (Jaky)"
+  statut: >-
+    kh lu (formule du fichier) ; base, γ, γ', ka/k0/kp, φ, c, δa, δp à confirmer (ordre déduit
+    des colonnes de la feuille Excel : 2 cote, 4 γ, 5 γ', 6 EM, 7 α, 8 φ, 9 c, 10 δa, 11 δp)
+
+nappe:
+  # Ligne de 1 ou 2 valeurs après les couches : « NAPPE .05 ».
+  colonnes: [cote, null]        # 2e valeur (0,05) non reprise : sens inconnu
+  statut: cote lue (variable NAPPE) ; même niveau des deux côtés à confirmer ; 2e valeur inconnue
+
+commandes:
+  # Côté (1) = terres retenues (amont), côté (2) = fouille (aval) : déduit de « ber(2) FF » (terrassement à FF).
+  ber:
+    sens: terrassement du côté indiqué jusqu'à la cote donnée (côté 2 -> excaver)
+    colonnes: [cote]
+    statut: lu (FF = fond de fouille)
+  sub:
+    sens: surcharge en bande (diffusion de Boussinesq) du côté indiqué
+    colonnes: [cote, debut, fin, q]   # fichier : sub(1) TN 0.50 10.5 5
+    statut: "à confirmer (début et fin de la bande en m depuis l'écran, q en kPa ; autre lecture possible : distance, largeur, q)"
+  coe:
+    sens: coefficient multiplicateur des pressions des terres et du kh entre deux cotes, des deux côtés
+    colonnes: [haut, bas, rapport]    # fichier : coe Z0 Zf min(1;(b+2*h)/esp)
+    statut: à confirmer (côtés concernés et grandeurs multipliées)
+  cal:
+    sens: calcul de la phase ; titre = dernière ligne « *" » qui précède
+    statut: lu
+  tel:
+    sens: "tel(0,1) = calcul à l'équilibre limite (titre « MEL »), tel(0,0) = retour au calcul aux coefficients de réaction"
+    statut: déduit des titres de phase ; les calculs MEL ne sont pas repris
+  fap:
+    sens: facteurs partiels (ELU) ; une ligne de valeurs, plus éventuellement une ligne de suite
+    statut: déduit du titre « ELU » ; les calculs pondérés ne sont pas repris (K-Retain applique ses propres vérifications)
+  rrc:
+    sens: inconnu (valeur 1/1.35/1.1 dans le fichier)
+    statut: non repris
+  fin:
+    sens: fin des données (les lignes suivantes, « bIL », « stop », sont ignorées)
+    statut: lu
+
+variables:
+  definition: "#nom = expression (évaluées dans l'ordre, une redéfinition remplace la valeur)"
+  casse: "distinguée (b et B sont deux variables dans le fichier fourni) : à confirmer"
+  fonctions: "min(a;b), max(a;b), abs, sqrt, exp, ln ; ^ puissance ; (a>=b) vaut 1 ou 0"
+  excel: "xlc(feuille, ligne, colonne) lit Données RIDO.xls ; l_X et c_X : ligne / colonne de libellé X (directive CONST)"

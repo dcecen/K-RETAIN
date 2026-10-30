@@ -1,0 +1,52 @@
+# Script converti depuis RIDO (R00_fichier_fourni_sans_excel.rid) : IPE400 esp 2.1m entre 136.6 et 128.6
+# Lecture du format : docs/rido/correspondance.yaml (interprétations à confirmer). Vérifiez chaque bloc.
+# Commentaire RIDO : VALEURS DE DÉMONSTRATION : la feuille Données RIDO.xls n'a pas été fournie, sol fictif (5 couches)
+# Commentaire RIDO : Avec la vraie feuille : python -m outils.rido_sans_excel berlinoise_IPE400_excel.rid "Données RIDO.xlsx"
+# Commentaire RIDO : Version indépendante de la feuille Excel (VALEURS DE DÉMONSTRATION) : valeurs des cellules recopiées
+# Commentaire RIDO : Bois 6 cm - C18
+# Commentaire RIDO : Autostable
+# Commentaire RIDO : Provisoire
+# Commentaire RIDO : 3 cm
+# Commentaire RIDO : fap
+# Commentaire RIDO : fap
+# Non repris : ligne 83 : « bIL » après « fin », ignorée
+# Non repris : ligne 84 : « stop » après « fin », ignorée
+# Non repris : ligne 20 : 2e valeur de la ligne de tête (0), sens inconnu
+# Non repris : ligne 21 : valeurs 0, 1160 de la section d'écran (après cote et EI), sens inconnu
+# Non repris : ligne 63 : 2e valeur de la ligne de nappe (0,05), sens inconnu
+# Non repris : ligne 68 : commande « rrc 1/1.35/1.1 » non reprise (sens inconnu)
+# Calcul non repris : « Phase 1 - MEL » (ligne 75) : calcul à l'équilibre limite (tel) ; K-Retain fait ses propres vérifications ELU (docs/normes)
+# Calcul non repris : « Phase 1 - ELU » (ligne 81) : calcul pondéré (fap) ; K-Retain fait ses propres vérifications ELU (docs/normes)
+# Hypothèse : EI en kN·m²/m et par mètre d'écran (EI = 2,1·I/esp dans le fichier fourni)
+# Hypothèse : couches : base, gamma, gamma_dejauge, ka, k0, kp, phi, c, delta_a, delta_p, kh (docs/rido/correspondance.yaml, à confirmer)
+# Hypothèse : ka, k0, kp nuls = calcul automatique ; K-Retain : Ka, Kp de Coulomb (Rankine si δ = 0), K0 de Jaky
+# Hypothèse : nappe au même niveau des deux côtés, régime hydrostatique, écran étanche (pressions d'eau des deux côtés comme données)
+# Hypothèse : ligne 65 : sub = bande de Boussinesq (cote, debut, fin, q) appliquée à la phase 1
+# Hypothèse : ligne 66 : coe = pressions et kh multipliés par 0,466667 entre 128,6 et 136,6 m, des deux côtés
+projet: IPE400 esp 2.1m entre 136.6 et 128.6
+calcul: {kh: impose}
+paroi:
+  type: berlinoise
+  tete: 136.6
+  pied: 128.6
+  EI: 23130.0
+  etancheite: etanche
+  coefficients_largeur:
+  - {haut: 136.6, bas: 128.6, rapport: 0.466667}
+sol:
+- {nom: Couche 1, toit: 136.6, gamma: 18.0, gamma_dejauge: 8.0, phi: 26.0, c: 0.0, delta_a_sur_phi: 0.0, delta_p_sur_phi: 
+    0.0, kh: 4279.55}
+- {nom: Couche 2, toit: 135.6, gamma: 19.0, gamma_dejauge: 9.0, phi: 27.0, c: 5.0, delta_a_sur_phi: 0.0, delta_p_sur_phi: 
+    0.0, kh: 6419.32}
+- {nom: Couche 3, toit: 134.0, gamma: 20.0, gamma_dejauge: 10.0, phi: 32.0, c: 0.0, delta_a_sur_phi: 0.0, 
+    delta_p_sur_phi: 0.0, kh: 15806.28}
+- {nom: Couche 4, toit: 132.0, gamma: 20.0, gamma_dejauge: 10.0, phi: 34.0, c: 0.0, delta_a_sur_phi: 0.0, 
+    delta_p_sur_phi: 0.0, kh: 23709.43}
+- {nom: Couche 5, toit: 130.0, gamma: 21.0, gamma_dejauge: 11.0, phi: 36.0, c: 0.0, delta_a_sur_phi: 0.0, 
+    delta_p_sur_phi: 0.0, kh: 39515.71}
+eau:
+  rido: {amont: 125.0, aval: 125.0}
+surcharges:
+- {nom: sub1, type: bande, q: 5.0, distance: 0.5, largeur: 10.0, cote: 136.6, cote_ecran: amont, phase: 1}
+phases:
+- {nom: Phase 1 - Excavation à FF, excaver: 133.6}

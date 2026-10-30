@@ -1,0 +1,84 @@
+IPE400 esp 2.1m entre 136.6 et 128.6
+*VALEURS DE DÉMONSTRATION : la feuille Données RIDO.xls n'a pas été fournie, sol fictif (5 couches)
+*Avec la vraie feuille : python -m outils.rido_sans_excel berlinoise_IPE400_excel.rid "Données RIDO.xlsx"
+*Version indépendante de la feuille Excel (VALEURS DE DÉMONSTRATION) : valeurs des cellules recopiées
+*Bois 6 cm - C18
+*Autostable
+*Provisoire
+*3 cm
+#TN = 136.6
+#FF = 133.6
+#NAPPE = 125
+#Z0 = 136.6
+#Zf = 128.6
+#I = 23130
+#esp = 2.1
+#EI = 2.1*I/esp
+#b = 0.18
+#h = 0.4
+#B = b+2*(h-b)*(h>=b)
+Z0 0
+Zf EI 0 1160
+136.6
+#C1 = 2*(4*1000/0.5)^(4/3)/(EI^(1/3))
+#P1 = 6*4*1000/(4*0.6/3/b*(2.65*b/0.6)^0.5+0.5)/esp
+#P1 = (b>=0.6)*P1
+#P1bis= 6*4*1000/(4/3*2.65^0.5+0.5)/esp
+#P1bis = (b<0.6)*P1bis
+#Re1 = min(C1;max(P1;P1bis))
+135.6 18 8 0 0 0 26 0
++ 0 0 Re1
+#C2 = 2*(6*1000/0.5)^(4/3)/(EI^(1/3))
+#P2 = 6*6*1000/(4*0.6/3/b*(2.65*b/0.6)^0.5+0.5)/esp
+#P2 = (b>=0.6)*P2
+#P2bis= 6*6*1000/(4/3*2.65^0.5+0.5)/esp
+#P2bis = (b<0.6)*P2bis
+#Re2 = min(C2;max(P2;P2bis))
+134 19 9 0 0 0 27 5
++ 0 0 Re2
+#C3 = 2*(12*1000/0.33)^(4/3)/(EI^(1/3))
+#P3 = 6*12*1000/(4*0.6/3/b*(2.65*b/0.6)^0.33+0.33)/esp
+#P3 = (b>=0.6)*P3
+#P3bis= 6*12*1000/(4/3*2.65^0.33+0.33)/esp
+#P3bis = (b<0.6)*P3bis
+#Re3 = min(C3;max(P3;P3bis))
+132 20 10 0 0 0 32 0
++ 0 0 Re3
+#C4 = 2*(18*1000/0.33)^(4/3)/(EI^(1/3))
+#P4 = 6*18*1000/(4*0.6/3/b*(2.65*b/0.6)^0.33+0.33)/esp
+#P4 = (b>=0.6)*P4
+#P4bis= 6*18*1000/(4/3*2.65^0.33+0.33)/esp
+#P4bis = (b<0.6)*P4bis
+#Re4 = min(C4;max(P4;P4bis))
+130 20 10 0 0 0 34 0
++ 0 0 Re4
+#C5 = 2*(30*1000/0.33)^(4/3)/(EI^(1/3))
+#P5 = 6*30*1000/(4*0.6/3/b*(2.65*b/0.6)^0.33+0.33)/esp
+#P5 = (b>=0.6)*P5
+#P5bis= 6*30*1000/(4/3*2.65^0.33+0.33)/esp
+#P5bis = (b<0.6)*P5bis
+#Re5 = min(C5;max(P5;P5bis))
+120 21 11 0 0 0 36 0
++ 0 0 Re5
+NAPPE .05
+*"Phase 1 - Excavation à FF
+sub(1) TN 0.50 10.5 5
+coe Z0 Zf min(1;(b+2*h)/esp)
+ber(2) FF
+rrc 1/1.35/1.1
+cal(2)
+*"Phase 1 - MEL
+tel(0,1)
+fap 1.00 1.35 1/1.10 1.00 1.00 1.50/1.35 1.35 1.00 1.00 1.00
+*fap
+1.00 1.00 1/1.10/1.35 1.00 1.00 1.50/1.35 1.00 1.00 1.00 1.00
+cal(2)
+*"Phase 1 - ELU
+tel(0,0)
+fap 1.00 1.35 1/1.10 1.00 1.00 1.50/1.35 1.35 1.00 1.00 1.00
+*fap
+1.00 1.00 1/1.10/1.35 1.00 1.00 1.50/1.35 1.00 1.00 1.00 1.00
+cal(2)
+fin
+bIL
+stop

@@ -1,0 +1,43 @@
+# Script converti depuis RIDO (R05_nappe_fiche.rid) : R05 IPE400 esp 2.1m limon sur sable nappe dans la fiche
+# Lecture du format : docs/rido/correspondance.yaml (interprétations à confirmer). Vérifiez chaque bloc.
+# Commentaire RIDO : Cas de démonstration K-Retain / RIDO : sol fictif, valeurs d'illustration
+# Commentaire RIDO : R03 avec une nappe à 131,0 sous le fond de fouille, même niveau des deux côtés (poids déjaugés)
+# Commentaire RIDO : Fichier indépendant de toute feuille Excel (structure du fichier RIDO fourni)
+# Commentaire RIDO : Autostable
+# Commentaire RIDO : Provisoire
+# Commentaire RIDO : Profilé IPE400 : I en cm4, h et b en m, W en cm3
+# Commentaire RIDO : Couche 1 : Limon
+# Commentaire RIDO : Couche 2 : Sable
+# Commentaire RIDO : fap
+# Commentaire RIDO : fap
+# Non repris : ligne 76 : « bIL » après « fin », ignorée
+# Non repris : ligne 77 : « stop » après « fin », ignorée
+# Non repris : ligne 19 : 2e valeur de la ligne de tête (0), sens inconnu
+# Non repris : ligne 20 : valeurs 0, 1160 de la section d'écran (après cote et EI), sens inconnu
+# Non repris : ligne 58 : 2e valeur de la ligne de nappe (0,05), sens inconnu
+# Calcul non repris : « Phase 1 - MEL » (ligne 68) : calcul à l'équilibre limite (tel) ; K-Retain fait ses propres vérifications ELU (docs/normes)
+# Calcul non repris : « Phase 1 - ELU » (ligne 74) : calcul pondéré (fap) ; K-Retain fait ses propres vérifications ELU (docs/normes)
+# Hypothèse : EI en kN·m²/m et par mètre d'écran (EI = 2,1·I/esp dans le fichier fourni)
+# Hypothèse : couches : base, gamma, gamma_dejauge, ka, k0, kp, phi, c, delta_a, delta_p, kh (docs/rido/correspondance.yaml, à confirmer)
+# Hypothèse : ka, k0, kp nuls = calcul automatique ; K-Retain : Ka, Kp de Coulomb (Rankine si δ = 0), K0 de Jaky
+# Hypothèse : nappe au même niveau des deux côtés, régime hydrostatique, écran étanche (pressions d'eau des deux côtés comme données)
+# Hypothèse : ligne 60 : coe = pressions et kh multipliés par 0,466667 entre 128,6 et 133,6 m, des deux côtés
+projet: R05 IPE400 esp 2.1m limon sur sable nappe dans la fiche
+calcul: {kh: impose}
+paroi:
+  type: berlinoise
+  tete: 136.6
+  pied: 128.6
+  EI: 23130.0
+  etancheite: etanche
+  coefficients_largeur:
+  - {haut: 133.6, bas: 128.6, rapport: 0.466667}
+sol:
+- {nom: Couche 1, toit: 136.6, gamma: 19.0, gamma_dejauge: 9.0, phi: 26.0, c: 5.0, delta_a_sur_phi: 0.0, delta_p_sur_phi: 
+    0.0, kh: 5349.43}
+- {nom: Couche 2, toit: 134.0, gamma: 20.0, gamma_dejauge: 10.0, phi: 34.0, c: 0.0, delta_a_sur_phi: 0.0, 
+    delta_p_sur_phi: 0.0, kh: 19757.86}
+eau:
+  rido: {amont: 131.0, aval: 131.0}
+phases:
+- {nom: Phase 1 - Excavation à FF, excaver: 133.6}

@@ -67,3 +67,12 @@ export function uniteCote(modele: unknown): string {
   const s = p && typeof p === 'object' && !Array.isArray(p) ? (p as { systeme_cotes?: unknown }).systeme_cotes : null
   return typeof s === 'string' && s.trim() ? `m ${s.trim()}` : 'm NGF'
 }
+
+/** Texte d'un fichier : UTF-8 s'il est valide, sinon Windows-1252 (fichiers écrits par des logiciels Windows, RIDO). */
+export function decoderTexte(octets: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(octets)
+  } catch {
+    return new TextDecoder('windows-1252').decode(octets)
+  }
+}

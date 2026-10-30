@@ -848,6 +848,37 @@ vue Géométrie d'une paroi circulaire. Non-régression figée du lot 0 et jeux 
 ### Testé
 pytest 407 réussis + 1 (outil de comparaison), 6 ignorés ; ruff 0 ; tsc 0 ; eslint 0 ; vitest 118 ; build Vite.
 
+### Suite (nuit du 30 au 31 octobre) : import RIDO opérationnel sur le fichier fourni
+
+Fichier RIDO réel fourni (berlinoise IPE 400 autostable, lié à « Données RIDO.xls », feuille non fournie),
+consigne : « version indépendante de la feuille Excel », ne plus poser de questions. Décisions prises seul,
+toutes signalées comme « à confirmer » dans `docs/rido/correspondance.yaml`.
+
+- **Lecteur RIDO** (`sout/script/rido.py`, réécrit) : titre, commentaires, titres de calcul `*"`, variables
+  `#nom = expression` évaluées dans l'ordre (min/max à « ; », ^, comparaisons 1/0, xlc avec ou sans classeur),
+  suites `+`, blocs écran / terrain / couches / nappe / commandes (sub, coe, ber, cal, tel, fap ; rrc et
+  commandes inconnues listées). Ordre des colonnes relu dans la table. Calculs MEL (tel) et ELU (fap) non
+  repris. Valeurs Excel manquantes listées avec leur cellule. L'ancien convertisseur par mots-clés (table vide)
+  et ses deux tests sur mots-clés fictifs sont remplacés : l'exigence a changé (fichier réel fourni).
+- **Moteur** : `paroi.coefficients_largeur` (zones haut/bas/rapport, des deux côtés, toutes phases) pour la
+  commande `coe` ; facultatif, aucun calcul existant modifié. Test de similitude exact (sol et EI × r : y
+  identique, M × r).
+- **Outils** : `outils.rido_sans_excel` (version autonome du fichier à partir du classeur, ou gabarit
+  A_RENSEIGNER) ; `outils.rido_exemples` (R00 = fichier fourni rendu autonome avec cellules de démonstration,
+  R01 à R07 = cas de démonstration à sols fictifs, structure du fichier fourni, Windows-1252, CRLF) ;
+  `outils.comparaison_rido` (classeur : points à contrôler, phases hors état initial, seuil absolu près de zéro,
+  couches relues et profils par cas). Groupe « Comparaison RIDO » du menu Fichier.
+- **Interface** : import RIDO décodé en UTF-8 ou Windows-1252 (accents des fichiers RIDO).
+- Contrôlé dans Chrome sans affichage : menu, calcul de R01, import de R00 (accents, rapport, script valide),
+  aucune erreur console.
+- Testé : pytest 418 réussis, 5 ignorés (le test des fichiers RIDO fournis s'exécute désormais) ; ruff 0 ; tsc 0 ;
+  eslint 0 ; vitest 119 ; build Vite.
+
 ### Reste à faire / questions ouvertes
-1. L'utilisateur fournit 1 à 3 fichiers RIDO réels (et si possible leurs résultats) : remplir la table de
-   correspondance, convertir, écrire des variantes dans le même format, produire le classeur.
+1. **Valider la lecture du format** sur une sortie RIDO de R01 (φ/c, base/toit, kh, coe des deux côtés, sub
+   début/fin, δ en rapport) ; corriger `docs/rido/correspondance.yaml` si besoin.
+2. Fournir « Données RIDO.xls » pour comparer le vrai cas, les sorties RIDO des cas R00 à R07, le manuel RIDO.
+3. Sens inconnus : 2e valeur de la ligne de tête, 3e/4e valeurs de la section d'écran (feuille l.8 c.6),
+   2e valeur de la nappe (0,05), commande rrc.
+4. δp/φ > 1/3 (courant dans RIDO) : refusé par K-Retain tant que les tables de Kérisel-Absi manquent.
+5. Casse des variables RIDO (b et B) supposée distinguée.

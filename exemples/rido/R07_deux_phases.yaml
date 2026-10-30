@@ -1,0 +1,45 @@
+# Script converti depuis RIDO (R07_deux_phases.rid) : R07 IPE500 esp 2.4m deux terrassements H=3.5m
+# Lecture du format : docs/rido/correspondance.yaml (interprétations à confirmer). Vérifiez chaque bloc.
+# Commentaire RIDO : Cas de démonstration K-Retain / RIDO : sol fictif, valeurs d'illustration
+# Commentaire RIDO : Profilé IPE 500, terrassement en deux phases (2 m puis 3,5 m), limon sur sable, delta = 0
+# Commentaire RIDO : coe entre le fond final et le pied, déclaré dès la phase 1 (comme K-Retain : zone fixe)
+# Commentaire RIDO : Fichier indépendant de toute feuille Excel (structure du fichier RIDO fourni)
+# Commentaire RIDO : Autostable
+# Commentaire RIDO : Provisoire
+# Commentaire RIDO : Profilé IPE500 : I en cm4, h et b en m, W en cm3
+# Commentaire RIDO : Couche 1 : Limon
+# Commentaire RIDO : Couche 2 : Sable
+# Commentaire RIDO : fap
+# Commentaire RIDO : fap
+# Non repris : ligne 80 : « bIL » après « fin », ignorée
+# Non repris : ligne 81 : « stop » après « fin », ignorée
+# Non repris : ligne 20 : 2e valeur de la ligne de tête (0), sens inconnu
+# Non repris : ligne 21 : valeurs 0, 1930 de la section d'écran (après cote et EI), sens inconnu
+# Non repris : ligne 59 : 2e valeur de la ligne de nappe (0,05), sens inconnu
+# Calcul non repris : « Phase 2 - MEL » (ligne 72) : calcul à l'équilibre limite (tel) ; K-Retain fait ses propres vérifications ELU (docs/normes)
+# Calcul non repris : « Phase 2 - ELU » (ligne 78) : calcul pondéré (fap) ; K-Retain fait ses propres vérifications ELU (docs/normes)
+# Hypothèse : EI en kN·m²/m et par mètre d'écran (EI = 2,1·I/esp dans le fichier fourni)
+# Hypothèse : couches : base, gamma, gamma_dejauge, ka, k0, kp, phi, c, delta_a, delta_p, kh (docs/rido/correspondance.yaml, à confirmer)
+# Hypothèse : ka, k0, kp nuls = calcul automatique ; K-Retain : Ka, Kp de Coulomb (Rankine si δ = 0), K0 de Jaky
+# Hypothèse : nappe au même niveau des deux côtés, régime hydrostatique, écran étanche (pressions d'eau des deux côtés comme données)
+# Hypothèse : ligne 61 : coe = pressions et kh multipliés par 0,5 entre 127,1 et 133,1 m, des deux côtés
+projet: R07 IPE500 esp 2.4m deux terrassements H=3.5m
+calcul: {kh: impose}
+paroi:
+  type: berlinoise
+  tete: 136.6
+  pied: 127.1
+  EI: 42175.0
+  etancheite: etanche
+  coefficients_largeur:
+  - {haut: 133.1, bas: 127.1, rapport: 0.5}
+sol:
+- {nom: Couche 1, toit: 136.6, gamma: 19.0, gamma_dejauge: 9.0, phi: 26.0, c: 5.0, delta_a_sur_phi: 0.0, delta_p_sur_phi: 
+    0.0, kh: 4680.75}
+- {nom: Couche 2, toit: 134.0, gamma: 20.0, gamma_dejauge: 10.0, phi: 34.0, c: 0.0, delta_a_sur_phi: 0.0, 
+    delta_p_sur_phi: 0.0, kh: 17288.12}
+eau:
+  rido: {amont: 120.0, aval: 120.0}
+phases:
+- {nom: Phase 1 - Excavation à 134.6, excaver: 134.6}
+- {nom: Phase 2 - Excavation à FF, excaver: 133.1}

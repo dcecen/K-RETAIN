@@ -1,0 +1,13 @@
+16 ligne(s) reprise(s), 5 donnée(s) non reprise(s).
+Non repris : ligne 80 : « bIL » après « fin », ignorée
+Non repris : ligne 81 : « stop » après « fin », ignorée
+Non repris : ligne 20 : 2e valeur de la ligne de tête (0), sens inconnu
+Non repris : ligne 21 : valeurs 0, 1930 de la section d'écran (après cote et EI), sens inconnu
+Non repris : ligne 59 : 2e valeur de la ligne de nappe (0,05), sens inconnu
+Calcul non repris : « Phase 2 - MEL » (ligne 72) : calcul à l'équilibre limite (tel) ; K-Retain fait ses propres vérifications ELU (docs/normes)
+Calcul non repris : « Phase 2 - ELU » (ligne 78) : calcul pondéré (fap) ; K-Retain fait ses propres vérifications ELU (docs/normes)
+Hypothèse : EI en kN·m²/m et par mètre d'écran (EI = 2,1·I/esp dans le fichier fourni)
+Hypothèse : couches : base, gamma, gamma_dejauge, ka, k0, kp, phi, c, delta_a, delta_p, kh (docs/rido/correspondance.yaml, à confirmer)
+Hypothèse : ka, k0, kp nuls = calcul automatique ; K-Retain : Ka, Kp de Coulomb (Rankine si δ = 0), K0 de Jaky
+Hypothèse : nappe au même niveau des deux côtés, régime hydrostatique, écran étanche (pressions d'eau des deux côtés comme données)
+Hypothèse : ligne 61 : coe = pressions et kh multipliés par 0,5 entre 127,1 et 133,1 m, des deux côtés

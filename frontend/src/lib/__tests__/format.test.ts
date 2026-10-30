@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nomProjet, titreScript } from '../format'
+import { decoderTexte, nomProjet, titreScript } from '../format'
 
 describe('titre lisible d’un script (menu Fichier)', () => {
   it('lit projet: texte, bloc avec nom, forme en accolades, et retombe sur le nom de fichier', () => {
@@ -21,5 +21,12 @@ describe('nom du projet affiché dans la barre de titre', () => {
     expect(nomProjet(['a'])).toBe('')
     expect(nomProjet(undefined)).toBe('')
     expect(nomProjet(null)).toBe('')
+  })
+})
+
+describe('décodage d’un fichier importé', () => {
+  it('lit l’UTF-8 et retombe sur Windows-1252 (fichier RIDO accentué)', () => {
+    expect(decoderTexte(new TextEncoder().encode('Excavation à FF'))).toBe('Excavation à FF')
+    expect(decoderTexte(new Uint8Array([0x45, 0x78, 0x63, 0x61, 0x76, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x20, 0xe0]))).toBe('Excavation à')
   })
 })

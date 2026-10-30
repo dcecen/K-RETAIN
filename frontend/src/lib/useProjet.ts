@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ErreurServeur, messageErreur, type ErreurScript, type Exemple, type ProjetCoupes, type ReponseCalcul, type Resultats } from './api'
 import type { EtatCalcul } from './etat'
-import { nomProjet } from './format'
+import { decoderTexte, nomProjet } from './format'
 import { telechargerTexte } from './exporter'
 import * as sd from './scriptDoc'
 
@@ -114,7 +114,7 @@ export function useProjet() {
 
   const importerRido = useCallback(async (f: File): Promise<boolean> => {
     try {
-      const d = await api.rido(await f.text(), f.name)
+      const d = await api.rido(decoderTexte(new Uint8Array(await f.arrayBuffer())), f.name)
       if (typeof d?.texte !== 'string') throw new Error('réponse du serveur sans script converti')
       charger(d.texte, 'Fichier RIDO converti : rapport de conversion à relire avant calcul')
       setRapportRido(Array.isArray(d.rapport) ? d.rapport : [])

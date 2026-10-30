@@ -1,0 +1,42 @@
+# Script converti depuis RIDO (R06_frottement_poussee.rid) : R06 IPE400 esp 2.1m sable delta_a=2/3 phi
+# Lecture du format : docs/rido/correspondance.yaml (interprétations à confirmer). Vérifiez chaque bloc.
+# Commentaire RIDO : Cas de démonstration K-Retain / RIDO : sol fictif, valeurs d'illustration
+# Commentaire RIDO : R01 avec un frottement sol-écran côté poussée delta_a/phi = 2/3 (delta_p = 0)
+# Commentaire RIDO : Écart attendu de quelques % sur Ka : K-Retain (Coulomb) face aux tables de Caquot-Kérisel
+# Commentaire RIDO : À vérifier : dans la sortie RIDO, delta_a doit être lu comme 2/3 phi (rapport) et non comme un angle de 0,667°
+# Commentaire RIDO : Fichier indépendant de toute feuille Excel (structure du fichier RIDO fourni)
+# Commentaire RIDO : Autostable
+# Commentaire RIDO : Provisoire
+# Commentaire RIDO : Profilé IPE400 : I en cm4, h et b en m, W en cm3
+# Commentaire RIDO : Couche 1 : Sable
+# Commentaire RIDO : fap
+# Commentaire RIDO : fap
+# Non repris : ligne 60 : « bIL » après « fin », ignorée
+# Non repris : ligne 61 : « stop » après « fin », ignorée
+# Non repris : ligne 21 : 2e valeur de la ligne de tête (0), sens inconnu
+# Non repris : ligne 22 : valeurs 0, 1160 de la section d'écran (après cote et EI), sens inconnu
+# Non repris : ligne 42 : 2e valeur de la ligne de nappe (0,05), sens inconnu
+# Calcul non repris : « Phase 1 - MEL » (ligne 52) : calcul à l'équilibre limite (tel) ; K-Retain fait ses propres vérifications ELU (docs/normes)
+# Calcul non repris : « Phase 1 - ELU » (ligne 58) : calcul pondéré (fap) ; K-Retain fait ses propres vérifications ELU (docs/normes)
+# Hypothèse : EI en kN·m²/m et par mètre d'écran (EI = 2,1·I/esp dans le fichier fourni)
+# Hypothèse : couches : base, gamma, gamma_dejauge, ka, k0, kp, phi, c, delta_a, delta_p, kh (docs/rido/correspondance.yaml, à confirmer)
+# Hypothèse : ka, k0, kp nuls = calcul automatique ; K-Retain : Ka, Kp de Coulomb (Rankine si δ = 0), K0 de Jaky
+# Hypothèse : nappe au même niveau des deux côtés, régime hydrostatique, écran étanche (pressions d'eau des deux côtés comme données)
+# Hypothèse : ligne 44 : coe = pressions et kh multipliés par 0,466667 entre 128,6 et 133,6 m, des deux côtés
+projet: R06 IPE400 esp 2.1m sable delta_a=2/3 phi
+calcul: {kh: impose}
+paroi:
+  type: berlinoise
+  tete: 136.6
+  pied: 128.6
+  EI: 23130.0
+  etancheite: etanche
+  coefficients_largeur:
+  - {haut: 133.6, bas: 128.6, rapport: 0.466667}
+sol:
+- {nom: Couche 1, toit: 136.6, gamma: 19.0, gamma_dejauge: 10.0, phi: 32.0, c: 0.0, delta_a_sur_phi: 0.667, 
+    delta_p_sur_phi: 0.0, kh: 13171.9}
+eau:
+  rido: {amont: 120.0, aval: 120.0}
+phases:
+- {nom: Phase 1 - Excavation à FF, excaver: 133.6}
