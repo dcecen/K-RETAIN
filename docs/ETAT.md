@@ -877,7 +877,9 @@ toutes signalées comme « à confirmer » dans `docs/rido/correspondance.yaml`.
 ### Reste à faire / questions ouvertes
 1. **Valider la lecture du format** sur une sortie RIDO de R01 (φ/c, base/toit, kh, coe des deux côtés, sub
    début/fin, δ en rapport) ; corriger `docs/rido/correspondance.yaml` si besoin.
-2. Fournir « Données RIDO.xls » pour comparer le vrai cas, les sorties RIDO des cas R00 à R07, le manuel RIDO.
+2. Pas d'autre sortie RIDO existante (utilisateur, 31/10) : la comparaison passe par le calcul des cas R00 à R07
+   dans RIDO, valeurs saisies dans `exemples/rido/comparaison_rido.xlsx`. Restent utiles : « Données RIDO.xls »
+   (vrai cas) et le manuel RIDO.
 3. Sens inconnus : 2e valeur de la ligne de tête, 3e/4e valeurs de la section d'écran (feuille l.8 c.6),
    2e valeur de la nappe (0,05), commande rrc.
 4. δp/φ > 1/3 (courant dans RIDO) : refusé par K-Retain tant que les tables de Kérisel-Absi manquent.
