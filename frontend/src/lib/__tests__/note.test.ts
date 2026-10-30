@@ -24,7 +24,7 @@ describe('note de calcul', () => {
     for (const titre of ['1. Objet', '2. Documents de référence', '3. Hypothèses', '4. Caractéristiques géotechniques', '5. Phasage', '6. Résultats par phase', '7. Vérifications aux ELU et aux ELS', '8. Conclusion']) {
       expect(html).toContain(`<h2>${titre}</h2>`)
     }
-    for (const champ of ['A-2026-017', '<td class="">B</td>', '25/10/2026', 'D. C.', 'V. V.', 'RetainWall v0.1.0']) expect(html).toContain(champ)
+    for (const champ of ['A-2026-017', '<td class="">B</td>', '25/10/2026', 'D. C.', 'V. V.', 'K-Retain v0.1.0']) expect(html).toContain(champ)
   })
 
   it('utilise la virgule décimale, les unités par mètre linéaire et le système de cotes du projet', () => {

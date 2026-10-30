@@ -198,7 +198,7 @@ def figures(cas_par_nom: dict[str, Cas]) -> dict[str, tuple[Path, str]]:
 # ---------------------------------------------------------------------------
 def rapport_md(cas: list[Cas], figs: dict, rapide: bool) -> str:
     n_ok = sum(c.ok for c in cas)
-    L = ["# Rafale d'exemples élémentaires — RetainWall", "",
+    L = ["# Rafale d'exemples élémentaires — K-Retain", "",
          f"Généré le {dt.date.today().isoformat()} par `python -m outils.rafale_elementaire`"
          + (" (mode rapide : balayages 3D longs omis)" if rapide else "") + ".", "",
          "Chaque cas compare une grandeur calculée par le logiciel à une **référence analytique citée** (formulaires de "
@@ -227,7 +227,7 @@ def rapport_md(cas: list[Cas], figs: dict, rapide: bool) -> str:
             if c.nom == "plaque_carree_appuyee" and "plaque_navier" in figs:
                 L += ["![plaque_navier](figures/plaque_navier.png)", ""]
     L += ["## Limites du modèle (à garder en tête en lisant les résultats)", ""] + [f"- {x}" for x in LIMITES] + [""]
-    L += ["## Correspondance des conventions avec RDM7", "", "| Grandeur | RDM7 | RetainWall |", "|---|---|---|"]
+    L += ["## Correspondance des conventions avec RDM7", "", "| Grandeur | RDM7 | K-Retain |", "|---|---|---|"]
     L += [f"| {a} | {b} | {c} |" for a, b, c in SIGNES_RDM7]
     L += ["", "Les tests `backend/tests/validation/test_rafale_poutres.py` et `test_rafale_elementaire.py` rejouent ces cas "
           "à chaque exécution de `lancer_tests.ps1`.", ""]

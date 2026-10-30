@@ -1,32 +1,32 @@
 @echo off
 rem ============================================================
-rem  RetainWall - lanceur (double-clic)
+rem  K-Retain - lanceur (double-clic)
 rem  Installe ce qui manque la premiere fois (ou quand les dependances
 rem  changent), prepare l'interface, demarre le logiciel et ouvre le navigateur.
 rem  Fermer cette fenetre arrete le logiciel.
-rem  Journal des erreurs de demarrage : %LOCALAPPDATA%\RetainWall\demarrage.log
+rem  Journal des erreurs de demarrage : %LOCALAPPDATA%\K-Retain\demarrage.log
 rem ============================================================
 chcp 65001 >nul
-title RetainWall
+title K-Retain
 cd /d "%~dp0"
-set "DOSSIER_JOURNAL=%LOCALAPPDATA%\RetainWall"
+set "DOSSIER_JOURNAL=%LOCALAPPDATA%\K-Retain"
 set "JOURNAL=%DOSSIER_JOURNAL%\demarrage.log"
 if not exist "%DOSSIER_JOURNAL%" mkdir "%DOSSIER_JOURNAL%" >nul 2>&1
 
-rem --- Deja lance ? Codes : 0 = RetainWall a jour, 1 = RetainWall perime (code modifie depuis son
+rem --- Deja lance ? Codes : 0 = K-Retain a jour, 1 = K-Retain perime (code modifie depuis son
 rem     demarrage), 2 = rien sur le port 8000, 3 = un AUTRE programme occupe le port 8000.
-rem     Seul un serveur qui repond "statut: ok" avec son heure de demarrage est reconnu comme RetainWall.
+rem     Seul un serveur qui repond "statut: ok" avec son heure de demarrage est reconnu comme K-Retain.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; try { $s = Invoke-RestMethod http://127.0.0.1:8000/api/sante -TimeoutSec 2 } catch { if (Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue) { exit 3 } else { exit 2 } }; if (-not ($s -is [System.Management.Automation.PSCustomObject]) -or $s.statut -ne 'ok' -or -not $s.demarrage) { exit 3 }; $t0 = [DateTimeOffset]::FromUnixTimeMilliseconds([long]($s.demarrage * 1000)).LocalDateTime; $b = Get-ChildItem backend\sout -Recurse -Filter *.py | Where-Object { $_.LastWriteTime -gt $t0 }; $d = 'frontend\dist\index.html'; if (-not (Test-Path $d)) { exit 1 }; $td = (Get-Item $d).LastWriteTime; $f = Get-ChildItem frontend\src, frontend\index.html, frontend\package.json, frontend\vite.config.ts -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt $td }; if (Test-Path frontend\public) { $f += Get-ChildItem frontend\public -Recurse -File | Where-Object { $_.LastWriteTime -gt $td } }; if ($b -or $f) { exit 1 } else { exit 0 }"
 if errorlevel 3 goto port_occupe
 if errorlevel 2 goto lancement
 if errorlevel 1 goto mise_a_jour
-echo RetainWall est deja lance.
+echo K-Retain est deja lance.
 if not defined RETAINWALL_SANS_NAVIGATEUR start "" http://localhost:8000
 exit /b 0
 
 :mise_a_jour
-echo RetainWall tourne avec une version perimee : redemarrage sur la version a jour...
-type nul > "%DOSSIER_JOURNAL%edemarrage_demande"
+echo K-Retain tourne avec une version perimee : redemarrage sur la version a jour...
+type nul > "%DOSSIER_JOURNAL%\redemarrage_demande"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; Start-Sleep -Seconds 1"
 
 :lancement
@@ -103,7 +103,7 @@ if not defined RETAINWALL_SANS_NAVIGATEUR (
 )
 
 echo.
-echo  RetainWall demarre : http://localhost:8000
+echo  K-Retain demarre : http://localhost:8000
 echo  Laissez cette fenetre ouverte pendant l'utilisation.
 echo  Fermez-la pour arreter le logiciel.
 echo.
@@ -111,9 +111,9 @@ cd backend
 .venv\Scripts\python.exe -m uvicorn sout.api:app --host 127.0.0.1 --port 8000
 set "CODE=%ERRORLEVEL%"
 cd ..
-if exist "%DOSSIER_JOURNAL%edemarrage_demande" (
+if exist "%DOSSIER_JOURNAL%\redemarrage_demande" (
   rem arret provoque par un lanceur plus recent (mise a jour) : cette fenetre se ferme simplement
-  del "%DOSSIER_JOURNAL%edemarrage_demande" >nul 2>&1
+  del "%DOSSIER_JOURNAL%\redemarrage_demande" >nul 2>&1
   goto fin
 )
 if not "%CODE%"=="0" (
@@ -135,7 +135,7 @@ exit /b 0
 
 :port_occupe
 echo.
-echo  Le port 8000 est occupe par un autre programme que RetainWall : fermez-le, puis relancez.
+echo  Le port 8000 est occupe par un autre programme que K-Retain : fermez-le, puis relancez.
 echo  ^(Pour savoir lequel : netstat -ano ^| findstr :8000 ^)
 goto pause
 

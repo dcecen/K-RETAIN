@@ -224,7 +224,7 @@ def generer_html(ex, p3d: dict | None = None) -> str:
     three = (ICI / "vendor" / "three.min.js").read_text(encoding="utf-8")
     licence = (ICI / "vendor" / "LICENSE-three.txt").read_text(encoding="utf-8")
     d = json.dumps(donnees(ex, p3d), ensure_ascii=False).replace("</", "<\\/")
-    titre = f"Maquette RetainWall — {ex.script.projet}".replace("<", "&lt;")
+    titre = f"Maquette K-Retain — {ex.script.projet}".replace("<", "&lt;")
     return (gabarit.replace("__TITRE__", titre)
             .replace("__LICENCE__", licence.replace("*/", "* /"))
             .replace("__THREE__", three)

@@ -1,4 +1,4 @@
-// Scène 3D persistante de RetainWall.
+// Scène 3D persistante de K-Retain.
 //
 // La scène est construite une fois. Ensuite :
 // - un changement de phase ne modifie que des attributs (visibilité, échelle, position, couleurs) ;

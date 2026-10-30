@@ -84,7 +84,7 @@ export function imagePng(rendu: THREE.WebGLRenderer, scene: THREE.Scene, camera:
 /** Objets exportables en glTF : copie de la scène sans les lumières ni les objets masqués. */
 export function sceneExportable(scene: THREE.Scene): THREE.Group {
   const g = new THREE.Group()
-  g.name = 'RetainWall'
+  g.name = 'K-Retain'
   scene.updateMatrixWorld(true)
   scene.traverse((o) => {
     const m = o as THREE.Mesh

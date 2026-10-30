@@ -10,7 +10,7 @@ type Mise = any
 const POLICE = { family: 'system-ui, sans-serif', size: 12 }
 
 /** Graphique Plotly interactif, export PNG et SVG depuis la barre d'outils. */
-export function Graphique({ data, layout, hauteur = 520, nom = 'retainwall', theme }: { theme?: string;
+export function Graphique({ data, layout, hauteur = 520, nom = 'k-retain', theme }: { theme?: string;
   data: Trace[]
   layout: Mise
   hauteur?: number

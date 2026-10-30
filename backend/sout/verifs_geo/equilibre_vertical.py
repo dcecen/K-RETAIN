@@ -27,7 +27,7 @@ from ..sol.couches import indice_couche, trier
 from ..verifs import Lecteur, Verif, donnee, resultat
 
 G = 9.81  # m/s², accélération de la pesanteur
-SOURCE = "NF P 94-282 — équilibre vertical (méthode simplifiée RetainWall, à confronter à la norme)"
+SOURCE = "NF P 94-282 — équilibre vertical (méthode simplifiée K-Retain, à confronter à la norme)"
 PRINCIPE_DELTA = ("Bilan des efforts verticaux sur l'écran, par mètre : poids propre déjaugé sous la nappe, frottement "
                   "sol-écran Σ L·p·tan δ (vers le bas où le sol se décomprime : poussée ; vers le haut où il est comprimé : "
                   "butée, contre-butée), composante verticale des tirants (vers le bas) et des bracons (vers le haut). Si "
@@ -35,7 +35,7 @@ PRINCIPE_DELTA = ("Bilan des efforts verticaux sur l'écran, par mètre : poids 
                   "mobilisable : la vérification échoue (réduire δp/φ' ou justifier la reprise). Contrôlée à chaque phase.")
 PRINCIPE_PORTANCE = ("Si la résultante est descendante, elle doit être reprise par la pointe et le frottement latéral de la "
                      "fiche : γ_effet·F ≤ (Qb/γ_b + Qs/γ_s)/γ_R,d avec Qb = k_p·pl·A_pointe et Qs = coefficient_qs·pl·périmètre·fiche "
-                     "(pl de la couche au pied). Méthode simplifiée RetainWall (pl brut et non ple*, qs proportionnel à pl, "
+                     "(pl de la couche au pied). Méthode simplifiée K-Retain (pl brut et non ple*, qs proportionnel à pl, "
                      "frottement Qs cumulé aux composantes p·tan δ) : à confronter à la NF P 94-282.")
 
 

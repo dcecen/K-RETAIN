@@ -127,7 +127,7 @@ export function PanneauCalques({ etat, perso, onEtat, onPerso, onFermer, disponi
       <ul className="arbre-calques">{ARBRE_CALQUES.map((d) => ligne(d, 0))}</ul>
       <div className="pied">
         <button className="btn" onClick={enregistrer}>Enregistrer un préréglage</button>
-        <button className="btn" onClick={() => telechargerTexte(exporterJson(etat, perso), 'calques_retainwall.json', 'application/json')}>Exporter JSON</button>
+        <button className="btn" onClick={() => telechargerTexte(exporterJson(etat, perso), 'calques_k-retain.json', 'application/json')}>Exporter JSON</button>
         <button className="btn" onClick={() => fichier.current?.click()}>Importer</button>
         <input ref={fichier} type="file" accept=".json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importer(f); e.target.value = '' }} />
         {perso.length > 0 && <button className="btn discret" onClick={() => void confirmer('Supprimer vos préréglages de calques enregistrés ?', { ok: 'Supprimer' }).then((ok) => { if (ok) onPerso([]) })}>Supprimer les miens</button>}

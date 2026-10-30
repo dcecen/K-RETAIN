@@ -1,6 +1,6 @@
 # Extraits de normes
 
-Ce dossier contient **les seules valeurs normatives** que RetainWall a le droit d'utiliser
+Ce dossier contient **les seules valeurs normatives** que K-Retain a le droit d'utiliser
 (règle absolue n° 1 du CLAUDE.md). Le code ne contient aucun coefficient de norme en dur.
 
 Les fichiers `*.yaml` de ce dossier ont été **renseignés de mémoire le 22 octobre 2026**, à la

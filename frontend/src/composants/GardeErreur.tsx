@@ -10,7 +10,7 @@ export class GardeErreur extends Component<{ children: ReactNode }, { erreur: Er
   }
 
   componentDidCatch(erreur: Error, info: ErrorInfo) {
-    console.error('RetainWall : erreur d’affichage', erreur, info.componentStack)
+    console.error('K-Retain : erreur d’affichage', erreur, info.componentStack)
   }
 
   render() {

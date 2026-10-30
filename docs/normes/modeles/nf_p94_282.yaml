@@ -1,4 +1,4 @@
-# Extraits de la NF P 94-282 (et de l'annexe nationale de l'EN 1997-1) utilisés par RetainWall.
+# Extraits de la NF P 94-282 (et de l'annexe nationale de l'EN 1997-1) utilisés par K-Retain.
 # MODÈLE À REMPLIR : chaque valeur à null est un TODO-NORME. Recopiez la valeur de votre
 # exemplaire de la norme et indiquez l'article ou le tableau dans « source ».
 # Tant qu'une valeur est nulle, la vérification correspondante est « non vérifiable ».
@@ -68,7 +68,7 @@ fiche_discontinue:
 # Surcharges et géométrie du terrain (module sout/sol/terrain.py). Aucune valeur de norme n'est connue :
 # TODO-NORME — à renseigner d'après l'annexe de la NF P 94-282 sur les surcharges et les talus.
 surcharges_et_terrain:
-  methode_surcharges: { valeur: null, source: "TODO-NORME : NF P 94-282, annexe sur les surcharges (diffusion forfaitaire) — non fournie ; RetainWall applique la diffusion élastique de Boussinesq" }
+  methode_surcharges: { valeur: null, source: "TODO-NORME : NF P 94-282, annexe sur les surcharges (diffusion forfaitaire) — non fournie ; K-Retain applique la diffusion élastique de Boussinesq" }
   convois:
     Bc: { valeur: null, source: "TODO-NORME : charges et empreintes du convoi Bc (fascicule 61 titre II / EN 1991-2 AN) — à fournir" }
     Bt: { valeur: null, source: "TODO-NORME : charges et empreintes du convoi Bt — à fournir" }

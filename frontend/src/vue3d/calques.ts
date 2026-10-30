@@ -353,7 +353,7 @@ export function exporterJson(etat: EtatCalques, perso: Prereglage[] = []): strin
 
 export function importerJson(texte: string): { etat: EtatCalques; prereglages: Prereglage[] } {
   const d = JSON.parse(texte)
-  if (d?.format !== 'retainwall.calques') throw new Error('fichier de calques RetainWall attendu')
+  if (d?.format !== 'retainwall.calques') throw new Error('fichier de calques K-Retain attendu')
   return { etat: normaliser(d.etat), prereglages: Array.isArray(d.prereglages) ? d.prereglages : [] }
 }
 

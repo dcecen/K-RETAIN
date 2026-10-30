@@ -1,6 +1,6 @@
-# Installation et mise à disposition de RetainWall
+# Installation et mise à disposition de K-Retain
 
-Ce document s'adresse à la personne qui installe RetainWall sur le serveur interne du
+Ce document s'adresse à la personne qui installe K-Retain sur le serveur interne du
 bureau d'études. Rappel : l'outil est **en cours de validation**. Aucun résultat ne doit
 servir à un projet réel avant comparaison à K-Réa ou RIDO sur plusieurs cas et visa d'un
 ingénieur (voir docs/ETAT.md).
@@ -44,7 +44,7 @@ Chaque utilisateur s'identifie (nom et mot de passe) à l'ouverture.
 ## 4. Sécurité et données
 
 - **HTTPS obligatoire** : l'identification HTTP Basic transmet le mot de passe à chaque
-  requête. Placez RetainWall derrière un proxy inverse en HTTPS (IIS, nginx, Traefik) et
+  requête. Placez K-Retain derrière un proxy inverse en HTTPS (IIS, nginx, Traefik) et
   n'exposez pas le port 8000 hors du réseau interne.
 - Les mots de passe sont stockés hachés (PBKDF2-SHA256, sel aléatoire) dans
   `utilisateurs.json` ; gestion : `python -m sout.utilisateurs ajouter|supprimer|lister`.

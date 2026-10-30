@@ -1,4 +1,4 @@
-"""Lecture et validation d'un script RetainWall.
+"""Lecture et validation d'un script K-Retain.
 
 Le YAML est lu avec ruamel.yaml (mode aller-retour) pour garder le numéro de
 ligne de chaque clé ; les erreurs du schéma pydantic sont traduites en

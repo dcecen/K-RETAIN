@@ -4,7 +4,7 @@
 # ATTENDU : entre les phases 1 et 2, la pression au repos p0 côté terre augmente de K0·q = 10 kPa et la poussée
 # limite pa de Ka·q = 6,67 kPa, à toute profondeur (1e-9) ; côté fouille, p0, pa et pp ne changent pas.
 # SOURCE : Δσv = q pour une surcharge illimitée ; Rankine (1857) pour Ka, Jaky (1944) pour K0 ; hypothèse
-# RetainWall : la pression de référence se décale de Kd·Δσ'v avec Kd = K0 (docs/ETAT.md, J2).
+# K-Retain : la pression de référence se décale de Kd·Δσ'v avec Kd = K0 (docs/ETAT.md, J2).
 projet: E11 Surcharge uniforme — Δp0 = K0·q = 10 kPa, Δpa = Ka·q = 6,67 kPa
 calcul: { kh: impose, pas: 0.1 }
 paroi: { type: palplanche, EI: 1.0e5, tete: 0.0, pied: -12.0 }

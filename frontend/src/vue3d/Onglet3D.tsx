@@ -279,7 +279,7 @@ export function Onglet3D({ res, texte, phase, theme, selection, onSelection, pro
 
   const exporterHtml = async () => {
     setExportEnCours(true)
-    try { telechargerTexte(await api.maquette(texte), 'maquette_retainwall.html', 'text/html') }
+    try { telechargerTexte(await api.maquette(texte), 'maquette_k-retain.html', 'text/html') }
     catch (e) { void informer(`Export de la maquette impossible : ${messageErreur(e)}`) }
     finally { setExportEnCours(false) }
   }

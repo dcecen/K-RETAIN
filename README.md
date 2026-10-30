@@ -1,4 +1,4 @@
-# RetainWall
+# K-Retain
 
 Application web interne de calcul d'écrans de soutènement par la méthode aux
 coefficients de réaction (principe de RIDO et K-Réa) : calcul phasé 2D, pseudo-3D,
@@ -11,7 +11,7 @@ vérifications géotechniques (NF P 94-282) et structurelles (EC2, EC3), maquett
 
 ## Lancer le logiciel
 
-Double-cliquez sur **`Lancer RetainWall.bat`** (ou le raccourci « RetainWall » du Bureau).
+Double-cliquez sur **`Lancer K-Retain.bat`** (ou le raccourci « K-Retain » du Bureau).
 La première fois, il installe ce qui manque (Python 3.12 et Node.js doivent être présents),
 puis le navigateur s'ouvre sur http://localhost:8000. Fermer la fenêtre noire arrête le logiciel.
 

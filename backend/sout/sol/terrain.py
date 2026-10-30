@@ -342,7 +342,7 @@ def profil_gradins(marches, cote_pied: float) -> tuple[tuple[float, float], ...]
 def bandes_equivalentes(o: ObjetTerrain) -> list:
     """Méthode de la surcharge équivalente : le volume de sol est remplacé par son poids, appliqué
     à la cote de base sous forme de bandes verticales (largeur `pas`) diffusées par Boussinesq
-    (`sol.surcharges.delta_sigma_v`, bande). Choix de modélisation RetainWall : les bandes
+    (`sol.surcharges.delta_sigma_v`, bande). Choix de modélisation K-Retain : les bandes
     conservent la forme du volume ; une surcharge uniforme unique serait plus grossière.
     Le poids volumique est pris hors nappe (volume supposé émergé).
 

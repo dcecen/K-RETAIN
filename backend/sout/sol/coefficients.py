@@ -9,7 +9,7 @@ Sources :
 - Jaky (1944) : K0 = 1 − sin φ' (sol normalement consolidé).
 - Caquot & Kérisel, *Traité de mécanique des sols* : théorème des états
   correspondants pour la cohésion, H = c'·cot φ'. Exact pour δ = 0 ; pour δ ≠ 0,
-  RetainWall applique le coefficient Ka(δ) du sol pulvérulent, ce qui est une
+  K-Retain applique le coefficient Ka(δ) du sol pulvérulent, ce qui est une
   approximation (l'obliquité du problème transformé diffère de δ). À confronter
   aux expressions de la NF P 94-282 lorsqu'elles seront fournies.
 

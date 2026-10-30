@@ -75,7 +75,7 @@ Phasage : ${res.phases.length - 1} phases après l'état initial (phase 0). Appu
   const docs = [
     ...Object.keys(normes ?? {}).map((f) => `${h(FICHIERS[f] ?? f)} (valeurs lues dans docs/normes/${h(f)}.yaml)`),
     'Script de calcul YAML du projet (données d\'entrée, reproduit en annexe du dossier)',
-    'Base matériaux RetainWall (profilés, palplanches, butons, armatures, aciers, bétons)',
+    'Base matériaux K-Retain (profilés, palplanches, butons, armatures, aciers, bétons)',
   ]
   const documents = `<ol>${docs.map((x) => `<li>${x}</li>`).join('')}</ol>`
 
@@ -193,7 +193,7 @@ ${svg ?? ''}
 </ul>`
 
   const cartouche = tableau(['Affaire', 'Projet', 'Indice', 'Date', 'Rédacteur', 'Vérificateur', 'Logiciel'],
-    [[h(texte('affaire') || '—'), h(nomProjet || '—'), h(texte('indice') || '—'), h(date), h(texte('redacteur') || '—'), h(texte('verificateur') || '—'), `RetainWall ${h(version)}`]])
+    [[h(texte('affaire') || '—'), h(nomProjet || '—'), h(texte('indice') || '—'), h(date), h(texte('redacteur') || '—'), h(texte('verificateur') || '—'), `K-Retain ${h(version)}`]])
   const complement = ['client', 'lieu'].filter((k) => texte(k)).map((k) => `${k === 'client' ? 'Client' : 'Lieu'} : ${h(texte(k))}`).join(' ; ')
 
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Note de calcul ${h(nomProjet)}</title>
@@ -233,6 +233,6 @@ ${complement ? `<p>${complement}</p>` : ''}
 ${verifications}
 ${fichesParFamille}
 <h2>8. Conclusion</h2>${conclusion}
-<div class="pied">RetainWall ${h(version)}, note éditée le ${h(new Date().toLocaleDateString('fr-FR'))}. Conventions : y positif vers la fouille ; M positif quand la face côté fouille est tendue ; efforts d'appui positifs quand l'appui retient l'écran.</div>
+<div class="pied">K-Retain ${h(version)}, note éditée le ${h(new Date().toLocaleDateString('fr-FR'))}. Conventions : y positif vers la fouille ; M positif quand la face côté fouille est tendue ; efforts d'appui positifs quand l'appui retient l'écran.</div>
 </body></html>`
 }

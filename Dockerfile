@@ -1,4 +1,4 @@
-# RetainWall — image de déploiement interne (interface compilée + serveur de calcul).
+# K-Retain — image de déploiement interne (interface compilée + serveur de calcul).
 # Construction : docker build -t retainwall .
 # Lancement    : voir docs/INSTALLATION.md
 

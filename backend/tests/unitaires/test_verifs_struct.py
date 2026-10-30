@@ -2,7 +2,7 @@
 
 Les coefficients de ce fichier sont des VALEURS DE TEST : ils servent à vérifier
 les formules contre des calculs manuels ou des valeurs de tableaux publiés ; ce ne
-sont pas des valeurs de norme pour RetainWall (qui ne lit que docs/normes).
+sont pas des valeurs de norme pour K-Retain (qui ne lit que docs/normes).
 """
 import math
 from pathlib import Path

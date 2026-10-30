@@ -1,4 +1,4 @@
-"""Schéma du langage de script RetainWall (YAML, mots-clés français).
+"""Schéma du langage de script K-Retain (YAML, mots-clés français).
 
 Unités fixes : kN, m, kPa, kN/m3, degrés, MPa pour les modules d'élasticité
 des matériaux, cm² pour les sections d'acier. Cotes en mètres, axe vertical

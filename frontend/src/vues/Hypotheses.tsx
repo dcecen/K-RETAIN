@@ -72,7 +72,7 @@ export function Hypotheses({ res, modele, phase, version }: { res: Resultats; mo
 
       <div className="bloc"><div className="bloc-titre">Méthode de calcul</div>
         <dl className="lignes-cle" style={{ padding: '8px 12px', gridTemplateColumns: 'max-content 1fr' }}>
-          <dt>Logiciel</dt><dd style={{ textAlign: 'left', fontFamily: 'inherit' }}>RetainWall {version}</dd>
+          <dt>Logiciel</dt><dd style={{ textAlign: 'left', fontFamily: 'inherit' }}>K-Retain {version}</dd>
           <dt>Modèle</dt><dd style={{ textAlign: 'left', fontFamily: 'inherit' }}>Écran en poutre d'Euler-Bernoulli sur ressorts élasto-plastiques (méthode aux coefficients de réaction, type MISS), calcul phasé avec mémoire des ressorts.</dd>
           <dt>Approche de calcul</dt><dd style={{ textAlign: 'left', fontFamily: 'inherit' }}>{approche ? <>{String(approche.valeur ?? 'non renseignée')} <span className="doux">({approche.source})</span></> : erreurNormes ? <span className="faible">référentiel indisponible : {erreurNormes}</span> : 'lecture en cours'}</dd>
           <dt>Documents de référence</dt><dd style={{ textAlign: 'left', fontFamily: 'inherit' }}>{Object.keys(normes ?? {}).map((f) => FICHIERS[f] ?? f).join(' ; ') || '—'}</dd>

@@ -1,4 +1,4 @@
-# Projet : RetainWall, logiciel de calcul d'écrans de soutènement
+# Projet : K-Retain, logiciel de calcul d'écrans de soutènement
 
 Application web interne de calcul d'écrans par coefficients de réaction
 (principe RIDO / K-Réa), vérifications NF P 94-282, EC2, EC3, maquette 3D HTML.

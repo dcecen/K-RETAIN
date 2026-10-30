@@ -1,4 +1,4 @@
-// Test de fumée et captures d'écran de l'interface RetainWall par Chrome sans affichage (protocole DevTools).
+// Test de fumée et captures d'écran de l'interface K-Retain par Chrome sans affichage (protocole DevTools).
 // Usage : node fumee.mjs <url> <dossier_captures> [prefixe]
 //   url      : adresse de l'interface servie (ex. http://127.0.0.1:8011/)
 //   dossier  : dossier des PNG (créé au besoin) ; les captures s'appellent <prefixe>_<etape>.png

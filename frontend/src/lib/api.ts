@@ -377,7 +377,7 @@ export class ErreurServeur extends Error {
   }
 }
 
-export const MESSAGE_INJOIGNABLE = 'Serveur de calcul injoignable : vérifiez qu’il est lancé (fenêtre « Lancer RetainWall »).'
+export const MESSAGE_INJOIGNABLE = 'Serveur de calcul injoignable : vérifiez qu’il est lancé (fenêtre « Lancer K-Retain »).'
 
 /** Message lisible d'une erreur quelconque, sans le préfixe technique « Error: ». */
 export function messageErreur(e: unknown): string {

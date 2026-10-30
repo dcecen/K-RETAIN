@@ -1,4 +1,4 @@
-"""Convertisseur RIDO -> script RetainWall, piloté par une table de correspondance.
+"""Convertisseur RIDO -> script K-Retain, piloté par une table de correspondance.
 
 Aucun mot-clé RIDO n'est codé ici (CLAUDE.md, règle 1 ; prompt J7 : « ne devine
 aucun mot-clé ») : la correspondance est décrite dans docs/rido/correspondance.yaml,

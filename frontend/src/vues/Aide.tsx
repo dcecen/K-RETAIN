@@ -125,7 +125,7 @@ export function Aide({ version, section, exemples = [], onExemple }: { version: 
           </div>
         )}
       </div>
-      <p className="note">RetainWall {version}. Version non validée : aucun résultat ne doit servir à un projet réel avant comparaison à K-Réa ou RIDO sur plusieurs cas et visa d'un ingénieur.</p>
+      <p className="note">K-Retain {version}. Version non validée : aucun résultat ne doit servir à un projet réel avant comparaison à K-Réa ou RIDO sur plusieurs cas et visa d'un ingénieur.</p>
     </div>
   )
 }

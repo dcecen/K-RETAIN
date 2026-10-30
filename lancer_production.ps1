@@ -1,4 +1,4 @@
-﻿# Lance RetainWall en mode serveur interne (sans Docker) sur le port 8000.
+﻿# Lance K-Retain en mode serveur interne (sans Docker) sur le port 8000.
 # Prérequis : backend/.venv installé, interface compilée (cd frontend ; npm run build),
 # au moins un compte créé :  backend\.venv\Scripts\python -m sout.utilisateurs ajouter <nom>
 # Par défaut le serveur n'écoute que sur ce poste (127.0.0.1), derrière le proxy HTTPS décrit dans

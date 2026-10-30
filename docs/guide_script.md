@@ -1,9 +1,9 @@
-# Guide du langage de script RetainWall
+# Guide du langage de script K-Retain
 
 Ce guide s'adresse aux ingénieurs du bureau d'études qui saisissent un calcul d'écran.
 Il décrit le langage, les conventions et la lecture des résultats.
 
-> **Avertissement.** RetainWall est en cours de validation. Aucun résultat ne doit servir
+> **Avertissement.** K-Retain est en cours de validation. Aucun résultat ne doit servir
 > à un projet réel avant d'avoir été comparé à K-Réa ou RIDO sur plusieurs cas et visé par
 > un ingénieur. L'état de la validation est tenu dans `docs/ETAT.md`.
 

@@ -1,7 +1,7 @@
 [project]
 name = "sout"
 version = "0.1.0"
-description = "RetainWall : calcul d'écrans de soutènement par coefficients de réaction"
+description = "K-Retain : calcul d'écrans de soutènement par coefficients de réaction"
 requires-python = ">=3.12"
 dependencies = [
   "numpy>=2.0",

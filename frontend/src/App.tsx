@@ -76,7 +76,7 @@ export default function App() {
 
   const allerErreur = () => { a.setVue('script'); a.viserLigne(p.erreurs[0]?.ligne ?? p.etat.ligne) }
   const exporterMaquette = async () => {
-    try { telechargerTexte(await api.maquette(p.texteCalcule()), 'maquette_retainwall.html', 'text/html') } catch (e) { void informer(`Export de la maquette impossible : ${messageErreur(e)}`) }
+    try { telechargerTexte(await api.maquette(p.texteCalcule()), 'maquette_k-retain.html', 'text/html') } catch (e) { void informer(`Export de la maquette impossible : ${messageErreur(e)}`) }
   }
   /** Ajout depuis la maquette : refusé si le script n'est pas lisible (sinon l'ajout serait perdu en silence). */
   const ajouterDepuis3d = (chemin: Chemin, valeur: unknown, message: string) => {
@@ -84,7 +84,7 @@ export default function App() {
     p.actions.ajouter(chemin, valeur)
     p.setEtat({ genre: 'modifie', texte: message })
   }
-  const aPropos = () => void informer(`RetainWall ${p.serveur} : calcul d'écrans de soutènement par coefficients de réaction (NF P 94-282, EC2, EC3). Version non validée : aucun résultat ne doit servir à un projet réel avant comparaison à K-Réa ou RIDO sur plusieurs cas et visa d'un ingénieur.`, 'À propos')
+  const aPropos = () => void informer(`K-Retain ${p.serveur} : calcul d'écrans de soutènement par coefficients de réaction (NF P 94-282, EC2, EC3). Version non validée : aucun résultat ne doit servir à un projet réel avant comparaison à K-Réa ou RIDO sur plusieurs cas et visa d'un ingénieur.`, 'À propos')
 
   const nNonOk = res?.verifications?.filter((v) => v.etat === 'non_ok').length ?? 0
   const modele = p.erreurYaml ? null : p.modele

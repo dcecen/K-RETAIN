@@ -1,4 +1,4 @@
-# Extraits de la NF P 94-282 (mars 2009) et de l'EN 1997-1 avec annexe nationale, utilisés par RetainWall.
+# Extraits de la NF P 94-282 (mars 2009) et de l'EN 1997-1 avec annexe nationale, utilisés par K-Retain.
 #
 # STATUT : valeurs saisies par Claude de mémoire à la demande de l'utilisateur (22 octobre 2026),
 # À CONFIRMER sur le texte de la norme par un ingénieur avant tout usage en projet. Chaque
@@ -29,7 +29,7 @@ equilibre_vertical:
   gamma_s: { valeur: 1.1, source: "NF P 94-262 § 14.2.1.1, ELU fondamental, frottement — de mémoire, à confirmer" }
   gamma_R_d: { valeur: 1.15, source: "NF P 94-262 § 14.2.1.1, coefficient de modèle de la méthode pressiométrique (hors essais de chargement) — de mémoire, à confirmer" }
   k_p: { valeur: 1.1, source: "NF P 94-262 annexe F, facteur de portance pressiométrique pour un écran (classe de pieu paroi/barrette) : ordre de grandeur, dépend de la classe de sol et de l'élancement — à confirmer sur l'annexe F" }
-  coefficient_qs: { valeur: 0.025, source: "ORDRE DE GRANDEUR : qs ≈ 0,025·pl plafonné (courbes Q1–Q3 de l'annexe F de la NF P 94-262 pour sables et argiles) — simplification RetainWall, à remplacer par les courbes de l'annexe F" }
+  coefficient_qs: { valeur: 0.025, source: "ORDRE DE GRANDEUR : qs ≈ 0,025·pl plafonné (courbes Q1–Q3 de l'annexe F de la NF P 94-262 pour sables et argiles) — simplification K-Retain, à remplacer par les courbes de l'annexe F" }
 
 # Stabilité du massif d'ancrage (Kranz)
 kranz:
@@ -67,7 +67,7 @@ fiche_discontinue:
 # Surcharges et géométrie du terrain (module sout/sol/terrain.py). Aucune valeur de norme n'est connue :
 # TODO-NORME — à renseigner d'après l'annexe de la NF P 94-282 sur les surcharges et les talus.
 surcharges_et_terrain:
-  methode_surcharges: { valeur: null, source: "TODO-NORME : NF P 94-282, annexe sur les surcharges (diffusion forfaitaire) — non fournie ; RetainWall applique la diffusion élastique de Boussinesq" }
+  methode_surcharges: { valeur: null, source: "TODO-NORME : NF P 94-282, annexe sur les surcharges (diffusion forfaitaire) — non fournie ; K-Retain applique la diffusion élastique de Boussinesq" }
   convois:
     Bc: { valeur: null, source: "TODO-NORME : charges et empreintes du convoi Bc (fascicule 61 titre II / EN 1991-2 AN) — à fournir" }
     Bt: { valeur: null, source: "TODO-NORME : charges et empreintes du convoi Bt — à fournir" }
